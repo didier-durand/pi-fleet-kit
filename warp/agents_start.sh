@@ -2,7 +2,7 @@
 # Start all Pi agents in Warp, each in its own tab.
 #
 # For every agent defined in ../compose.yml (pi-configs, pi-coding,
-# pi-research, pi-personal), this script:
+# pi-review, pi-research, pi-personal), this script:
 #   1. (optionally) installs its Tab Config into Warp's config directory,
 #      reusing tabs_install.sh (idempotent — only changed files are copied);
 #   2. opens the config as a tab in Warp via the `warp://tab_config/<name>`
@@ -47,7 +47,7 @@
 set -euo pipefail
 
 WARP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ALL_AGENTS=(pi-configs pi-coding pi-research pi-personal)
+ALL_AGENTS=(pi-configs pi-coding pi-research pi-personal pi-review)
 
 NEW_WINDOW=0
 NO_INSTALL=0

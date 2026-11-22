@@ -96,6 +96,39 @@ services:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
 
+  pi-review:
+    image: pi-sandbox
+    volumes:
+      # Private Pi home (config, auth, sessions, extensions):
+      - pi-review-home:/home/pi/.pi/agent
+      # The agent's working folder:
+      - ${HOME}/pi-agents/pi-review:/workspace
+      # Skills for THIS agent only (/skill:github-best-practices):
+      - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
+      # Read-only repo mount: extensions stay one git pull away from all
+      # agents (git-status is loaded via --extension below):
+      - ${HOME}/pi-configs/extensions:/repo-extensions:ro
+      # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
+      # key registered on GitHub as "Signing key" -> Verified badges.
+      - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
+    environment:
+      - OPENROUTER_API_KEY
+      # GitHub auth (host passthrough — no need to define these in .env if
+      # they are exported in the shell running docker compose):
+      - GITHUB_TOKEN
+      - GITHUB_USER_NAME
+      - GITHUB_USER_EMAIL
+    # Default model (adjust the model ID to taste), and --continue to resume
+    # the most recent session automatically (fresh start: /new inside pi):
+    command:
+      ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
+       "--extension", "/repo-extensions/git-status.ts",
+       "--skill", "/repo-skills/github-best-practices"]
+    # Uncomment to reach MCP servers or services running on the host:
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
+
+
   # pi-research: research agent. Identical image and credential passthrough,
   # with fully independent state (own Pi home volume, own workspace) so
   # sessions, auth and files never mix with the other agents.
@@ -177,3 +210,4 @@ volumes:
   pi-coding-home:
   pi-research-home:
   pi-personal-home:
+  pi-review-home:
