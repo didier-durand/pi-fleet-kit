@@ -1,0 +1,13 @@
+# Tab Config: pi-finance agent (Docker sandbox)
+# Install: copy to ~/.warp/tab_configs/  (macOS stable)
+
+name = "pi-finance"
+title = "pi-finance"
+color = "green"
+
+[[panes]]
+id = "main"
+type = "terminal"
+directory = "~/pi-configs"
+commands = ["docker compose -f ~/pi-configs/compose.yml run --rm pi-finance"]
+is_focused = true
