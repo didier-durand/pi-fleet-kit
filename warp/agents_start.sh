@@ -47,13 +47,18 @@ done
 shift $((OPTIND - 1))
 
 # Normalize names (underscores -> hyphens) and build the selection.
-declare -A have=()
-for a in "${ALL_AGENTS[@]}"; do have["$a"]=1; done
+# NOTE: no `declare -A` here — macOS still ships bash 3.2, which lacks
+# associative arrays.
+known_agent() {
+  local n="$1" a
+  for a in "${ALL_AGENTS[@]}"; do [[ "$a" == "$n" ]] && return 0; done
+  return 1
+}
 agents=()
 if (( $# )); then
   for arg in "$@"; do
     name="${arg//_/-}"
-    if [[ -z "${have[$name]:-}" ]]; then
+    if ! known_agent "$name"; then
       echo "error: unknown agent '$arg' (expected one of: ${ALL_AGENTS[*]})" >&2
       exit 1
     fi
