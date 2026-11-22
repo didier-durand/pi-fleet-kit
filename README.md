@@ -11,6 +11,26 @@ scripts locate themselves relative to their own directory. The one
 standard install locations on macOS (`/usr/local/bin`, `/opt/homebrew/bin`,
 `~/.docker/bin`) and Linux.
 
+# pi-configs
+
+## Per-agent skills
+
+Each agent loads **only the skills assigned to it** — defined in
+`compose.yml` per service (mount the skill dir read-only, then pass
+`--skill /repo-skills/<name>`, repeatable):
+
+| Agent | Skills |
+|---|---|
+| `pi-configs` | `build-skill`, `github-best-practices` |
+| `pi-coding` | `build-skill`, `github-best-practices` |
+| `pi-research` | `publishing-best-practices` |
+| `pi-personal` | `publishing-best-practices`, `hello-world` |
+
+To change an agent's list: edit that service's two blocks in `compose.yml`
+(the mounts under `volumes:` and the `--skill` flags under `command:`), then
+relaunch the tab. Skills live in `skills/` and are mounted read-only, so
+agents can never modify them; updates flow through `git pull`.
+
 Infrastructure for running [Pi](https://github.com/earendil-works/pi-coding-agent)
 coding agents in Docker sandboxes, with reproducible GitHub authentication
 mirroring the host's setup.
