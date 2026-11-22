@@ -16,7 +16,7 @@
 #   docker compose -f ~/pi-configs/compose.yml run --rm pi-configs
 #   docker compose -f ~/pi-configs/compose.yml run --rm pi-coding
 #   docker compose -f ~/pi-configs/compose.yml run --rm pi-research
-#   docker compose -f ~/pi-configs/compose.yml run --rm pi-finance
+#   docker compose -f ~/pi-configs/compose.yml run --rm pi-personal
 #
 # Teardown (also deletes volumes / ALL agent state):
 #   docker compose -f ~/pi-configs/compose.yml down -v
@@ -93,16 +93,16 @@ services:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
 
-  # pi-finance: finance agent. Identical image and credential passthrough,
+  # pi-personal: personal agent. Identical image and credential passthrough,
   # with fully independent state (own Pi home volume, own workspace) so
   # sessions, auth and files never mix with the other agents.
-  pi-finance:
+  pi-personal:
     image: pi-sandbox
     volumes:
       # Private Pi home (config, auth, sessions, extensions):
-      - pi-finance-home:/home/pi/.pi/agent
+      - pi-personal-home:/home/pi/.pi/agent
       # The agent's working folder:
-      - ${HOME}/pi-agents/pi-finance:/workspace
+      - ${HOME}/pi-agents/pi-personal:/workspace
     environment:
       - OPENROUTER_API_KEY
       # GitHub auth (host passthrough — no need to define these in .env if
@@ -120,4 +120,4 @@ volumes:
   pi-configs-home:
   pi-coding-home:
   pi-research-home:
-  pi-finance-home:
+  pi-personal-home:

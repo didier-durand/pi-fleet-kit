@@ -11,10 +11,10 @@ One Tab Config per agent defined in `../compose.yml`:
 
 | File | Tab name | Color | Launches |
 |---|---|---|---|
-| `tab_configs/pi_finance.toml` | pi-finance | green | `docker compose run --rm pi-finance` |
-| `tab_configs/pi_coding.toml` | pi-coding | blue | `docker compose run --rm pi-coding` |
-| `tab_configs/pi_research.toml` | pi-research | magenta | `docker compose run --rm pi-research` |
 | `tab_configs/pi_configs.toml` | pi-configs | yellow | `docker compose run --rm pi-configs` |
+| `tab_configs/pi_coding.toml` | pi-coding | blue | `docker compose run --rm pi-coding` |
+| `tab_configs/pi_research.toml` | pi-research | green | `docker compose run --rm pi-research` |
+| `tab_configs/pi_personal.toml` | pi-personal | magenta | `docker compose run --rm pi-personal` |
 
 Each config opens a terminal in `~/pi-configs` and runs the agent's
 `docker compose` command, so selecting it from the `+` menu drops you
@@ -69,8 +69,8 @@ Any config can also be opened without the menu, e.g. from a script or
 Raycast/Alfred launcher:
 
 ```bash
-open "warp://tab_config/pi_finance"            # new tab in focused window
-open "warp://tab_config/pi_finance?new_window=true"  # new window
+open "warp://tab_config/pi_personal"            # new tab in focused window
+open "warp://tab_config/pi_personal?new_window=true"  # new window
 ```
 
 ## Editing
