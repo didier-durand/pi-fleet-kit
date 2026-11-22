@@ -1,0 +1,45 @@
+# Single Pi agent (pi-finance) with an independent configuration.
+#
+# Prerequisite (build once, from the directory containing this file):
+#   docker build -t pi-sandbox -f Dockerfile.pi .
+#
+# Credentials: .env passes the host's OPENROUTER_API_KEY through to the agent
+# (Pi's built-in "openrouter" provider reads it). No /login needed inside the
+# container unless you prefer per-agent OAuth credentials.
+#
+# GitHub auth mirrors the host's setup: the GITHUB_TOKEN env var is passed
+# through so `gh` and git-over-HTTPS work inside the container exactly as they
+# do on the host (no keyring/credential-helper available in the container).
+# GITHUB_USER_NAME / GITHUB_USER_EMAIL provide the git commit identity.
+#
+# Usage:
+#   docker compose -f ~/pi-configs/compose.yml run --rm pi-finance
+#
+# Teardown (also deletes volumes / ALL agent state):
+#   docker compose -f ~/pi-configs/compose.yml down -v
+
+name: pi-agents
+
+services:
+  pi-finance:
+    image: pi-sandbox
+    volumes:
+      # Private Pi home (config, auth, sessions, extensions):
+      - pi-finance-home:/root/.pi/agent
+      # The agent's working folder:
+      - ${HOME}/pi-configs/finance-agent:/workspace
+    environment:
+      - OPENROUTER_API_KEY
+      # GitHub auth (host passthrough — no need to define these in .env if
+      # they are exported in the shell running docker compose):
+      - GITHUB_TOKEN
+      - GITHUB_USER_NAME
+      - GITHUB_USER_EMAIL
+    # Default model (adjust the model ID to taste):
+    command: ["--model", "openrouter/z-ai/glm-5.3"]
+    # Uncomment to reach MCP servers or services running on the host:
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
+
+volumes:
+  pi-finance-home:

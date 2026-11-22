@@ -1,0 +1,10 @@
+# Secrets: .env only holds ${VAR} references, but keep it out of the repo
+# anyway so real values never end up in git history.
+.env
+
+# macOS noise:
+.DS_Store
+
+# Agent runtime workspace (session state, scratch files) — infrastructure
+# lives here, agent output stays local:
+finance-agent/
