@@ -3,7 +3,7 @@
 
 name = "pi-finance"
 title = "pi-finance"
-color = "green"
+color = "magenta"
 
 [[panes]]
 id = "main"

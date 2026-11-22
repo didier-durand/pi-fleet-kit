@@ -25,5 +25,10 @@ RUN useradd -m -s /bin/bash pi \
 USER pi
 ENV HOME=/home/pi
 
+# The compose file mounts named volumes here (per-agent Pi home). The path
+# must pre-exist and be pi-owned, otherwise Docker initializes a fresh empty
+# volume as root and the unprivileged agent gets EACCES on first use:
+RUN mkdir -p /home/pi/.pi/agent
+
 WORKDIR /workspace
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
