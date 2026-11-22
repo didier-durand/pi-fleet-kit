@@ -2,10 +2,12 @@
 # Pre-commit guard: refuse commits containing literal secret values, in ANY
 # tracked file.
 #
-# Two layers:
+# Three layers:
 #   1. Repo policy: .env must hold only ${VAR} references (no literal
 #      values) — checked whenever .env is staged.
-#   2. Generic scan: all staged files are scanned for well-known secret
+#   2. Hygiene: any staged .DS_Store is unstaged, and all .DS_Store
+#      files are deleted from the working tree (macOS Finder noise).
+#   3. Generic scan: all staged files are scanned for well-known secret
 #      token formats (ghp_, github_pat_, sk-*, AKIA..., glpat-..., PEM
 #      keys, generic high-entropy assignments to *TOKEN*/*KEY*/... vars).
 #
@@ -27,7 +29,24 @@ if ! git diff --cached --quiet -- .env; then
   fi
 fi
 
-# --- Layer 2: scan ALL staged files for known secret formats ---------------
+# --- Layer 2: remove all .DS_Store files -----------------------------------
+# Unstage any staged .DS_Store and delete every .DS_Store in the working
+# tree (macOS Finder noise; already gitignored, but clean up strays).
+ds_staged=$(git diff --cached --name-only --diff-filter=ACM -- '*.DS_Store' '.DS_Store' || true)
+if [[ -n "$ds_staged" ]]; then
+  git reset -q -- '*.DS_Store' '.DS_Store'
+  echo "Removed staged .DS_Store file(s):" >&2
+  echo "$ds_staged" | sed 's/^/  /' >&2
+  fail=1   # let the user re-stage intentionally rather than committing half-prepared state
+fi
+# Sweep the working tree, including nested directories:
+ds_found=$(find . -name .DS_Store -type f -not -path './.git/*' -print -delete)
+if [[ -n "$ds_found" ]]; then
+  echo "Deleted .DS_Store file(s) from the working tree:" >&2
+  echo "$ds_found" | sed 's/^/  /' >&2
+fi
+
+# --- Layer 3: scan ALL staged files for known secret formats ---------------
 # Known token signatures (checked against staged file content):
 patterns='ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-or-v1-[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|glpat-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'
 
