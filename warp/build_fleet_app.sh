@@ -88,17 +88,25 @@ EOF
 osacompile -o "$WORK/$APP_NAME" "$WORK/fleet.applescript"
 echo "  compiled applet: $APP_NAME"
 
-# --- 2. Icon (.icns from the repo PNG) ------------------------------------------
+# --- 2. Icon (.icns) ------------------------------------------------------------
 
 ICONSET="$WORK/AppIcon.iconset"
 mkdir -p "$ICONSET"
-for s in 16 32 128 256 512; do
-  sips -z "$s" "$s" "$ICON_SRC" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
-  s2=$(( s * 2 ))
-  sips -z "$s2" "$s2" "$ICON_SRC" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
-done
+if ls "$WARP_DIR/iconset"/icon_*.png >/dev/null 2>&1; then
+  # Precomputed, high-quality iconset committed to the repo (exact box-filter
+  # resampling with premultiplied alpha — much better than sips downscaling).
+  cp "$WARP_DIR/iconset"/icon_*.png "$ICONSET/"
+  echo "  icon: using precomputed iconset/ (10 sizes, 16..1024)"
+else
+  # Fallback: generate from the artwork PNG with sips.
+  for s in 16 32 128 256 512; do
+    sips -z "$s" "$s" "$ICON_SRC" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
+    s2=$(( s * 2 ))
+    sips -z "$s2" "$s2" "$ICON_SRC" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
+  done
+  echo "  icon: generated from $(basename "$ICON_SRC") (sips)"
+fi
 iconutil -c icns "$ICONSET" -o "$WORK/$APP_NAME/Contents/Resources/AppIcon.icns"
-echo "  generated icon from: $(basename "$ICON_SRC")"
 
 # --- 3. Bundle metadata -----------------------------------------------------------
 
@@ -111,6 +119,10 @@ plist_set() {  # plist_set <key> <value>  (Set if present, Add as string otherwi
 plist_set CFBundleIconFile AppIcon.icns
 plist_set CFBundleIdentifier com.pi-configs.agent-fleet
 plist_set CFBundleName "Pi Agent Fleet"
+# Modern icon keys, if present, take precedence over CFBundleIconFile —
+# remove them so our icon reference is the one Finder uses.
+/usr/libexec/PlistBuddy -c "Delete :CFBundleIcons" "$PLIST" >/dev/null 2>&1 || true
+/usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$PLIST" >/dev/null 2>&1 || true
 touch "$WORK/$APP_NAME"
 # sanity: the icon file reference must be exactly this (no stray "string")
 grep -q "<string>AppIcon.icns</string>" "$PLIST" \
@@ -122,6 +134,10 @@ mkdir -p "$DEST"
 rm -rf "$DEST/$APP_NAME"
 cp -R "$WORK/$APP_NAME" "$DEST/$APP_NAME"
 touch "$DEST/$APP_NAME"
+
+# Force LaunchServices to re-read the bundle (icon cache busting).
+LSREG="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+[[ -x "$LSREG" ]] && "$LSREG" -f "$DEST/$APP_NAME" >/dev/null 2>&1 || true
 
 echo
 echo "Built: $DEST/$APP_NAME"
