@@ -153,8 +153,10 @@ Behavior:
 
 After building, remove any previous launcher app from the Dock and drag
 `Pi Agent Fleet.app` in. The icon is generated from
-`AI-agent-fleet-Icon.png` in this directory; re-run the builder to refresh
-it after changing the PNG.
+`AI-agent-fleet-Icon-rounded.png` (the artwork with proper macOS-style
+transparent rounded corners; falls back to `AI-agent-fleet-Icon.png` if
+absent) — re-run the builder to refresh it after changing the artwork.
+If Finder shows a stale icon, rebuild and run `killall Dock`.
 
 ## Open via URI scheme
 

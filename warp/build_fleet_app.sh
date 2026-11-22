@@ -24,7 +24,10 @@
 set -euo pipefail
 
 WARP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ICON_SRC="$WARP_DIR/AI-agent-fleet-Icon.png"
+# Prefer the rounded RGBA version (proper macOS icon: transparent corners);
+# fall back to the raw PNG.
+ICON_SRC="$WARP_DIR/AI-agent-fleet-Icon-rounded.png"
+[[ -f "$ICON_SRC" ]] || ICON_SRC="$WARP_DIR/AI-agent-fleet-Icon.png"
 APP_NAME="Pi Agent Fleet.app"
 DEST="${1:-$HOME/Applications}"
 
@@ -95,20 +98,23 @@ for s in 16 32 128 256 512; do
   sips -z "$s2" "$s2" "$ICON_SRC" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$WORK/$APP_NAME/Contents/Resources/AppIcon.icns"
-echo "  generated icon from: AI-agent-fleet-Icon.png"
+echo "  generated icon from: $(basename "$ICON_SRC")"
 
 # --- 3. Bundle metadata -----------------------------------------------------------
 
 PLIST="$WORK/$APP_NAME/Contents/Info.plist"
-for entry in \
-  "CFBundleIconFile string AppIcon.icns" \
-  "CFBundleIdentifier string com.pi-configs.agent-fleet" \
-  "CFBundleName string Pi Agent Fleet"; do
-  key="${entry%% string *}"; val="${entry#* string }"
+plist_set() {  # plist_set <key> <value>  (Set if present, Add as string otherwise)
+  local key="$1" val="$2"
   /usr/libexec/PlistBuddy -c "Set :$key $val" "$PLIST" 2>/dev/null \
     || /usr/libexec/PlistBuddy -c "Add :$key string $val" "$PLIST"
-done
+}
+plist_set CFBundleIconFile AppIcon.icns
+plist_set CFBundleIdentifier com.pi-configs.agent-fleet
+plist_set CFBundleName "Pi Agent Fleet"
 touch "$WORK/$APP_NAME"
+# sanity: the icon file reference must be exactly this (no stray "string")
+grep -q "<string>AppIcon.icns</string>" "$PLIST" \
+  || { echo "error: CFBundleIconFile not set correctly" >&2; exit 1; }
 
 # --- 4. Install -------------------------------------------------------------------
 
