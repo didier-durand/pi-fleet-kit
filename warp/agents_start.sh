@@ -7,8 +7,9 @@
 #      reusing tabs_install.sh (idempotent — only changed files are copied);
 #   2. opens the config as a tab in Warp via the `warp://tab_config/<name>`
 #      URI scheme — but ONLY for agents that are not already up in an open
-#      tab (detected via container + per-tab heartbeat; orphaned containers
-#      left behind by closed tabs are removed automatically first). If
+#      tab (detected via container + per-tab heartbeat). Unclaimed
+#      containers — orphans from closed tabs, duplicates from older setups,
+#      manual runs — are removed automatically first. If
 #      EVERY requested agent is already up, the script just brings the
 #      Warp window to the front and opens nothing at all — the expected
 #      behavior of a second click on the fleet icon.

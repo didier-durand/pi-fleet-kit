@@ -36,9 +36,14 @@ cannot race two copies into existence — Docker rejects the duplicate name.
 Docker is looked up beyond `PATH` (Docker Desktop install locations) so the
 check also works from Automator launchers with a minimal `PATH`.
 
-Manually started sessions (plain `docker compose run --rm <agent>`, no
-fleet label) are never touched and simply count as "in use": the icon
-skips that agent until you stop the manual run.
+Before any launch (or state check), every container for the agent that is
+**not** claimed by an open tab is removed first. Unclaimed covers orphans
+left by closed tabs, duplicate instances from older versions of this setup
+(random names, no fleet label — including any duplicates you currently
+have), and manual `docker compose run` sessions. The icon is the single
+source of truth: one click converges to exactly one container per agent.
+So the first click after upgrading to this version cleans up all existing
+duplicates automatically.
 
 `agents_start.sh` (see below) opens one tab per agent in Warp and starts
 the agents in their sandboxes. `tabs_install.sh` (see below) copies the
