@@ -129,6 +129,33 @@ Other locations:
 
 Newly added files appear in the `+` menu automatically — no restart needed.
 
+## Fleet app: Dock icon with running dot (`build_fleet_app.sh`)
+
+A plain one-shot launcher (e.g. an Automator app) exits immediately after the
+click — so the Dock never shows the standard black dot for a running
+application, and a click while it "runs" cannot be handled. Build a proper
+stay-open applet instead:
+
+```bash
+~/pi-configs/warp/build_fleet_app.sh            # builds into ~/Applications
+~/pi-configs/warp/build_fleet_app.sh /Applications
+```
+
+Behavior:
+
+- **Every click converges the fleet** — launch and Dock-click-while-running
+  both run `agents_start.sh` (missing agents added, running ones skipped,
+  orphans healed).
+- **Black dot while the fleet runs** — the app stays open as long as any
+  agent container is up.
+- **Dot disappears when the fleet stops** — the app auto-quits ~60s after
+  the last agent stops (grace period, also covering slow container boot).
+
+After building, remove any previous launcher app from the Dock and drag
+`Pi Agent Fleet.app` in. The icon is generated from
+`AI-agent-fleet-Icon.png` in this directory; re-run the builder to refresh
+it after changing the PNG.
+
 ## Open via URI scheme
 
 Any config can also be opened without the menu, e.g. from a script or
