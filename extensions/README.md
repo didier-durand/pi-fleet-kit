@@ -5,14 +5,17 @@ channels:
 
 - **Repo-local** (`--extension /repo-extensions/...`): read-only mount,
   one `git pull` to update all agents.
-- **From origin** (`--extension npm:pi-web-access`): Pi caches the package
-  under the agent home and checks npm on every start, re-installing when a
-  newer matching version exists — the extension auto-updates from its
-  registry origin.
+- **Pi Package** (`pi install npm:pi-web-access`): installed into the
+  agent's persistent home (`settings.json`), listed by `pi list` under its
+  package name, auto-updated via `pi update --extensions`. Preferred over
+  the `--extension` flag for npm packages: the flag's ephemeral cache mode
+  shows the extension under its manifest directory name (`dist`) instead of
+  the package name.
 
-Currently loaded by all agents: `git-status.ts` (repo-local) and
-`pi-web-access` (npm — web search, URL fetching, GitHub repo cloning, PDF
-extraction, YouTube transcription; source:
+Currently loaded: `git-status.ts` (repo-local, all agents) and `pi-web-access`
+(Pi Package, npm — web search, URL fetching, GitHub repo cloning, PDF
+extraction, YouTube transcription; install once per agent home with
+`pi install npm:pi-web-access`; source:
 [github.com/nicobailon/pi-web-access](https://github.com/nicobailon/pi-web-access)).
 
 ### `git-status.ts` — live git state in the footer
