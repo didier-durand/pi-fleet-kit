@@ -60,11 +60,21 @@ needed):
 
 The script opens each config via the `warp://tab_config/<name>` URI scheme,
 and each tab runs `agent_run.sh`, so the agents boot into their sandboxes
-as the tabs open. Agents whose container is already running are skipped
-(their tab is already open), so re-running the script — or clicking a
-launcher that invokes it — never creates duplicate tabs. If **every**
-requested agent is already up, a second click simply brings the existing
-Warp window to the front and opens nothing at all.
+as the tabs open. Every click converges to the same desired state —
+**one running instance per agent, in one tab each**:
+
+| Situation on click | Result |
+|---|---|
+| Nothing running | One tab per agent is opened |
+| Some agents up in tabs | Only the missing agents get tabs; the rest are left alone |
+| All agents up in tabs | Warp window is brought to the front; nothing is opened |
+| Tabs closed, containers left behind (orphans) | Orphans removed automatically, fresh tabs opened |
+| A tab fails to boot its agent | Reported as a WARNING after the verification pass |
+
+The script verifies after opening that every requested agent actually came
+up (polling briefly), so a failed start is never silent. Agents started
+manually (plain `docker compose run`, outside a tab) count as "in use" and
+are skipped rather than duplicated.
 
 | Invocation | Behavior |
 |---|---|
@@ -72,7 +82,7 @@ Warp window to the front and opens nothing at all.
 | `agents_start.sh -w` | All four agents, in a new Warp window |
 | `agents_start.sh pi-coding pi-personal` | Only the named agents |
 | `agents_start.sh -n` | Skip the install step (configs already installed) |
-| (any invocation) | Agents already running are skipped — no duplicate tabs |
+| (any invocation) | Missing agents are (re)opened, running ones skipped, orphans healed — converges to one tab per agent |
 
 It is cross-platform: `open` on macOS, `xdg-open` on Linux, `start` on
 Windows, and the tab-config directory is chosen per platform (override with

@@ -12,6 +12,10 @@
 #      EVERY requested agent is already up, the script just brings the
 #      Warp window to the front and opens nothing at all — the expected
 #      behavior of a second click on the fleet icon.
+#   3. verifies the result: every requested agent must end up running in
+#      exactly one tab. Missing agents are (re)opened on every click, so
+#      any click converges to the desired state; a failure to start is
+#      reported loudly.
 #      The tab itself runs agent_run.sh, which starts the agent inside its
 #      sandbox and enforces one instance per agent.
 #
@@ -165,4 +169,24 @@ if (( opened == 0 )); then
 else
   echo "Done: $opened started, $skipped skipped (already running)."
   echo "Each new tab runs agent_run.sh: one instance per agent, last session resumed."
+
+  # Convergence check: ANY click must end with every requested agent up in
+  # exactly one tab. Tabs just opened need a moment to boot their container,
+  # so poll for up to ~10s before reporting a failure.
+  echo
+  echo "Verifying every requested agent is up..."
+  verified=0
+  for attempt in 1 2 3 4 5; do
+    all_ok=1
+    for a in "${agents[@]}"; do
+      agent_running "$a" || all_ok=0
+    done
+    if (( all_ok )); then verified=1; break; fi
+    sleep 2
+  done
+  if (( verified )); then
+    echo "OK: all ${#agents[@]} requested agent(s) running, one instance each."
+  else
+    echo "WARNING: could not confirm some agent(s) are running — check their tabs for errors (docker down? image missing?)" >&2
+  fi
 fi
