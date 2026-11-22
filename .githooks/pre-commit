@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Pre-commit guard: refuse commits where .env contains literal secret values.
+#
+# .env is tracked in this repo as a *reference* file — values must be
+# ${VAR} placeholders resolved from the host environment. This hook blocks
+# accidental commits of real credentials (API keys, tokens) in .env.
+#
+# To bypass in a genuine emergency (you shouldn't): git commit --no-verify
+set -euo pipefail
+
+# Only inspect .env if it is actually staged in this commit:
+if ! git diff --cached --quiet -- .env; then
+  # Matches "KEY=value" lines where the value looks like a literal secret:
+  # - not empty, not a comment, not a ${VAR} reference, not a quoted placeholder
+  violations=$(git show :.env 2>/dev/null | grep -nE \
+    '^[A-Za-z_]*(TOKEN|KEY|SECRET|PASSWORD|PASSWD)[A-Za-z_]*=' \
+    | grep -vE '=(\$\{[^}]*\}|""|'"'"''"'"')?\s*(#.*)?$' || true)
+  if [[ -n "$violations" ]]; then
+    echo "ERROR: .env contains literal secret values — refusing to commit." >&2
+    echo "" >&2
+    echo "Offending lines:" >&2
+    echo "$violations" | sed 's/^/  /' >&2
+    echo "" >&2
+    echo "Fix: use \${VAR} references (resolved from the host env), e.g.:" >&2
+    echo "  GITHUB_TOKEN=\${GITHUB_TOKEN}" >&2
+    echo "Committing real credentials into git history is irreversible." >&2
+    exit 1
+  fi
+fi
+exit 0
