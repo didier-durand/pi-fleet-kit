@@ -26,9 +26,14 @@
 #     itself refuses the duplicate container name.
 #
 # Usage:
-#   agent_run.sh <agent>          # clean up unclaimed, then launch
-#   agent_run.sh --check <agent>  # clean up unclaimed, then exit 0 if the
-#                                 # agent is up in a tab, exit 1 if not
+#   agent_run.sh <agent>          # heal own unclaimed containers, then launch
+#   agent_run.sh --check <agent>  # READ-ONLY: exit 0 if the agent is up in a
+#                                 # tab, exit 1 if not — never removes anything
+#
+# Healing (container removal) happens ONLY in the launch path, and only for
+# the agent being launched. --check is used by agents_start.sh for ALL agents
+# on every click, so it must be side-effect-free: a wrong negative there
+# would otherwise destroy other agents' healthy containers.
 #
 # Docker is looked up on PATH *and* in the usual install locations: this
 # script may be invoked from launchers (Automator apps, etc.) whose PATH
@@ -87,6 +92,9 @@ named_exists() { [[ -n "$("$DOCKER" ps -a --filter "name=^${agent}$" --format '{
 # True if the open tab's docker client (PID recorded in the heartbeat file)
 # is still alive. PID-based: closing the tab kills the client, so the claim
 # lapses immediately — no time window, no staleness race.
+# ANY running container of the agent counts as evidence (not just fleet-
+# labeled ones): containers predating the label scheme must not look
+# "absent" and get destroyed; they just make the agent look busy.
 heartbeat_alive() {
   [[ -f "$hb" ]] || return 1
   local pid comm
@@ -97,11 +105,11 @@ heartbeat_alive() {
   [[ -z "$comm" || "$comm" == *docker* ]]   # ps unusable => trust kill -0
 }
 
-# An open tab claims the agent: our container running + client alive.
-claimed() { [[ -n "$(fleet_ids)" ]] && heartbeat_alive; }
+# An open tab claims the agent: a live client + at least one container.
+claimed() { heartbeat_alive && { [[ -n "$(fleet_ids)" ]] || [[ -n "$(all_ids)" ]]; }; }
 
 # Agent is up (in a tab, or mid-launch: client alive + container exists).
-agent_up() { heartbeat_alive && { [[ -n "$(fleet_ids)" ]] || named_exists; }; }
+agent_up() { heartbeat_alive && { [[ -n "$(fleet_ids)" ]] || [[ -n "$(all_ids)" ]] || named_exists; }; }
 
 # --- Cleanup before launch ----------------------------------------------------
 
@@ -138,11 +146,15 @@ heal_unclaimed() {
 
 # --- Run ----------------------------------------------------------------------
 
-heal_unclaimed
-
 if (( CHECK_ONLY )); then
+  # READ-ONLY: never heal from a check — agents_start.sh checks every agent
+  # on every click, and a wrong negative here must not kill healthy tabs.
   agent_up && exit 0 || exit 1
 fi
+
+# Launch path: heal only THIS agent's unclaimed containers. Other agents'
+# containers are never touched from here.
+heal_unclaimed
 
 if agent_up; then
   echo "'$agent' is already running in an open tab — not starting a second copy."

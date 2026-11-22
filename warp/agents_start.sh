@@ -7,9 +7,11 @@
 #      reusing tabs_install.sh (idempotent — only changed files are copied);
 #   2. opens the config as a tab in Warp via the `warp://tab_config/<name>`
 #      URI scheme — but ONLY for agents that are not already up in an open
-#      tab (detected via container + per-tab heartbeat). Unclaimed
+#      tab (detected via container + per-tab heartbeat). When an agent's
+#      tab is (re)opened, agent_run.sh removes that agent's unclaimed
 #      containers — orphans from closed tabs, duplicates from older setups,
-#      manual runs — are removed automatically first. If
+#      manual runs — before launching. Checks are read-only: one agent's
+#      cleanup never touches another agent's containers. If
 #      EVERY requested agent is already up, the script just brings the
 #      Warp window to the front and opens nothing at all — the expected
 #      behavior of a second click on the fleet icon.
@@ -128,19 +130,14 @@ focus_warp() {
 }
 
 # True if a container for this agent is already up (i.e. its tab is already
-# open). Delegates to agent_run.sh --check so the detection logic (and the
-# robust docker lookup, needed because launchers like Automator apps run
-# this script with a minimal PATH that lacks Docker's install directory)
-# lives in exactly one place.
+# open). Delegates to agent_run.sh --check, which is strictly READ-ONLY: it
+# only reports state (with the robust docker lookup, needed because
+# launchers like Automator apps run this script with a minimal PATH).
+# Container removal happens exclusively in agent_run.sh's launch path, and
+# there only for the agent being launched — a click can thus never destroy
+# other agents' healthy tabs.
 agent_running() {
-  local agent="$1" out=""
-  if out="$($WARP_DIR/agent_run.sh --check "$agent" 2>&1)"; then
-    return 0
-  else
-    # Surface any notes (e.g. orphan-container cleanup) from the check.
-    [[ -n "$out" ]] && echo "$out" >&2
-    return 1
-  fi
+  "$WARP_DIR/agent_run.sh" --check "$agent" >/dev/null 2>&1
 }
 
 echo
