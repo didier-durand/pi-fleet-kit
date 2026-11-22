@@ -20,12 +20,38 @@ Each config opens a terminal in `~/pi-configs` and runs the agent's
 `docker compose` command, so selecting it from the `+` menu drops you
 directly into that agent's sandbox.
 
-`tabs_install.sh` (see below) copies these into Warp's config directory.
+`agents_start.sh` (see below) opens one tab per agent in Warp and starts
+the agents in their sandboxes. `tabs_install.sh` (see below) copies the
+configs into Warp's config directory.
 
 The `issues/` directory holds drafts of feature requests for the Warp repo
 (e.g. `issues/issue_file_tree_open_shell.md` — run shell directly from the
 File Tree), ready to paste into
 [github.com/warpdotdev/warp/issues/new](https://github.com/warpdotdev/warp/issues/new).
+
+## Launch all agents: `agents_start.sh`
+
+Starts every agent in its own Warp tab (installing the tab configs first if
+needed):
+
+```bash
+~/pi-configs/warp/agents_start.sh
+```
+
+The script opens each config via the `warp://tab_config/<name>` URI scheme,
+and each tab runs its agent's `docker compose run` command, so the agents
+boot into their sandboxes as the tabs open.
+
+| Invocation | Behavior |
+|---|---|
+| `agents_start.sh` | All four agents, as tabs in the focused Warp window |
+| `agents_start.sh -w` | All four agents, in a new Warp window |
+| `agents_start.sh pi-coding pi-personal` | Only the named agents |
+| `agents_start.sh -n` | Skip the install step (configs already installed) |
+
+It is cross-platform: `open` on macOS, `xdg-open` on Linux, `start` on
+Windows, and the tab-config directory is chosen per platform (override with
+`TAB_CONFIGS_DIR`). Agent names may use hyphens or underscores.
 
 ## Install: `tabs_install.sh`
 

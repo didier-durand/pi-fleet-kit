@@ -16,7 +16,7 @@ mirroring the host's setup.
 | `.githooks/pre-commit` | Secret-leak guard (see below). |
 | `package.json` | Pi package manifest (see below). |
 | `skills/` | Installable Pi skills; each subdirectory holds a `SKILL.md` (Agent Skills spec). Currently `hello-world`. |
-| `warp/` | Warp editor config: Tab Configs for the agents (`tab_configs/`), an installer (`tabs_install.sh`), and feature-request drafts (`issues/`). |
+| `warp/` | Warp editor config: Tab Configs for the agents (`tab_configs/`), an installer (`tabs_install.sh`), an all-agents launcher (`agents_start.sh`), and feature-request drafts (`issues/`). |
 
 ## Pi package (fetching skills from GitHub)
 
