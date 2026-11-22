@@ -147,7 +147,7 @@ services:
       - ${HOME}/pi-agents/pi-research:/workspace
       # Skills for THIS agent only (/skill:publishing-best-practices, /skill:github-best-practices):
       - ${HOME}/pi-configs/skills/publishing-best-practices:/repo-skills/publishing-best-practices:ro
-      - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
+      - ${HOME}/pi-configs/skills/web-research:/repo-skills/web-research:ro
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-configs/extensions:/repo-extensions:ro
@@ -169,7 +169,8 @@ services:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/git-status.ts",
        "--skill", "/repo-skills/publishing-best-practices",
-       "--skill", "/repo-skills/github-best-practices"]
+       "--skill", "/repo-skills/github-best-practices",
+       "--skill", "/repo-skills/web-research"]
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
