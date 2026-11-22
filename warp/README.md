@@ -88,7 +88,18 @@ are skipped rather than duplicated.
 | `agents_start.sh -w` | All four agents, in a new Warp window |
 | `agents_start.sh pi-coding pi-personal` | Only the named agents |
 | `agents_start.sh -n` | Skip the install step (configs already installed) |
+| `agents_start.sh -R` | Reorder: stop the fleet, reopen all tabs in `compose.yml` order |
 | (any invocation) | Missing agents are (re)opened, running ones skipped, orphans healed — converges to one tab per agent |
+
+**Tab order:** Warp appends newly opened tabs at the end of the tab bar and
+provides no way to reposition them (there is no position parameter in the
+URI scheme). Tabs opened one at a time therefore accumulate in "reopened
+last = far right" order. To restore the canonical order (pi-configs,
+pi-coding, pi-research, pi-personal), run `agents_start.sh -R`: it stops all
+agent containers (sessions are kept on disk and resumed via `--continue`),
+then reopens every tab in compose order — close the leftover old tabs
+afterwards. A Warp feature request for proper tab-position control is
+drafted in `issues/issue_tab_config_tab_position.md`.
 
 It is cross-platform: `open` on macOS, `xdg-open` on Linux, `start` on
 Windows, and the tab-config directory is chosen per platform (override with

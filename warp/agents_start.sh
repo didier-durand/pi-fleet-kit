@@ -27,11 +27,18 @@
 #   ./agents_start.sh -w              # all agents, in a new Warp window
 #   ./agents_start.sh pi-coding       # only the named agents
 #   ./agents_start.sh -n pi-research pi-personal   # skip install, then open
+#   ./agents_start.sh -R              # REORDER: stop the fleet, reopen ALL
+#                                     # tabs in compose.yml order
 #
 # Options:
 #   -w    open tabs in a new Warp window (default: new tabs in the focused
 #         window; a new window is created anyway if none is open)
 #   -n    skip the tab-config install step (useful if already installed)
+#   -R    reorder: stop ALL agent containers, then reopen every tab in the
+#         compose.yml order. Warp appends new tabs at the end of the bar and
+#         offers no way to reposition them, so this is the only way to
+#         restore the canonical order once tabs were opened out of order.
+#         Sessions are preserved on disk: --continue resumes them.
 #   -h    print usage
 #
 # Agent names may use hyphens (pi-coding) or underscores (pi_coding) —
@@ -44,17 +51,19 @@ ALL_AGENTS=(pi-configs pi-coding pi-research pi-personal)
 
 NEW_WINDOW=0
 NO_INSTALL=0
+REORDER=0
 
 usage() {
   sed -n '2,25p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
-while getopts ":wnh" opt; do
+while getopts ":wnRh" opt; do
   case "$opt" in
     w) NEW_WINDOW=1 ;;
     n) NO_INSTALL=1 ;;
+    R) REORDER=1 ;;
     h) usage; exit 0 ;;
-    *) echo "Usage: $0 [-w] [-n] [agent ...]" >&2; exit 1 ;;
+    *) echo "Usage: $0 [-w] [-n] [-R] [agent ...]" >&2; exit 1 ;;
   esac
 done
 shift $((OPTIND - 1))
@@ -140,6 +149,16 @@ agent_running() {
   "$WARP_DIR/agent_run.sh" --check "$agent" >/dev/null 2>&1
 }
 
+# --- Reorder mode: stop the fleet first, then reopen everything in order -----
+
+if (( REORDER )); then
+  echo "Reordering: stopping all agent containers (sessions kept on disk;"
+  echo "tabs will resume them via --continue)."
+  for agent in "${agents[@]}"; do
+    "$WARP_DIR/agent_run.sh" --stop "$agent"
+  done
+fi
+
 echo
 echo "Opening agent tab(s) in Warp (skipping agents already running):"
 opened=0
@@ -155,13 +174,20 @@ for agent in "${agents[@]}"; do
   if open_uri "$uri"; then
     echo "  started:  $agent  ($uri)"
     opened=$((opened + 1))
+    # Brief pause so Warp processes the URIs in the order they are opened
+    # (otherwise rapid-fire opens can land out of order).
+    (( opened > 1 || skipped > 0 )) && sleep 0.7
   else
     echo "  FAILED:  $agent" >&2
   fi
 done
 
 echo
-if (( opened == 0 )); then
+if (( REORDER )); then
+  echo
+  echo "Reorder done. New tabs are in compose.yml order at the end of the bar —"
+  echo "close any old agent tabs left over (they now show a finished process)."
+elif (( opened == 0 )); then
   echo "All requested agents are already running — focusing Warp (no new tabs)."
   focus_warp
 else

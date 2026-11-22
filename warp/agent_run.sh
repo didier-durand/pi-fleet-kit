@@ -29,6 +29,8 @@
 #   agent_run.sh <agent>          # heal own unclaimed containers, then launch
 #   agent_run.sh --check <agent>  # READ-ONLY: exit 0 if the agent is up in a
 #                                 # tab, exit 1 if not — never removes anything
+#   agent_run.sh --stop <agent>   # stop the agent: remove its containers and
+#                                 # heartbeat (used by agents_start.sh -R)
 #
 # Healing (container removal) happens ONLY in the launch path, and only for
 # the agent being launched. --check is used by agents_start.sh for ALL agents
@@ -54,7 +56,9 @@ ALL_AGENTS=(pi-configs pi-coding pi-research pi-personal)
 # --- Parse arguments ----------------------------------------------------------
 
 CHECK_ONLY=0
+STOP_ONLY=0
 [[ "${1:-}" == "--check" ]] && { CHECK_ONLY=1; shift; }
+[[ "${1:-}" == "--stop"  ]] && { STOP_ONLY=1; shift; }
 
 [[ $# -eq 1 ]] || { echo "usage: $0 [--check] <agent>  (one of: ${ALL_AGENTS[*]})" >&2; exit 1; }
 agent="${1//_/-}"
@@ -175,6 +179,18 @@ if (( CHECK_ONLY )); then
   # READ-ONLY: never heal from a check — agents_start.sh checks every agent
   # on every click, and a wrong negative here must not kill healthy tabs.
   agent_up && exit 0 || exit 1
+fi
+
+if (( STOP_ONLY )); then
+  # Stop the agent: drop all its containers (any launcher/version) and the
+  # heartbeat claim. Used by agents_start.sh -R (fleet reorder).
+  for id in $(all_ids); do
+    echo "  stopped:  $agent (container $id)" >&2
+    "$DOCKER" rm -f "$id" >/dev/null 2>&1 || true
+  done
+  named_exists && { "$DOCKER" rm -f "$agent" >/dev/null 2>&1 || true; }
+  rm -f "$hb" 2>/dev/null || true
+  exit 0
 fi
 
 # Launch path: heal only THIS agent's unclaimed containers. Other agents'
