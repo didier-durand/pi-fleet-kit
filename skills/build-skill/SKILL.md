@@ -11,6 +11,15 @@ description: >
 
 # Build a Skill
 
+**STRICT REQUIREMENT — SKILL.md standard conformance:** every skill produced
+under this guide MUST conform to the [Agent Skills specification](https://agentskills.io/specification)
+(a directory whose `SKILL.md` starts with valid frontmatter — `name:`,
+`description:` — followed by instructions). Non-negotiable: no free-form
+markdown files, no missing/invalid frontmatter, no renamed entry files.
+Conformance is checked FIRST (§6 step 2) and a non-conforming skill is not
+delivered. Pi accepts some deviations with warnings — do not rely on that;
+build to the standard, not to the tolerance.
+
 Skills are instruction packages, not applications. The deliverable is a
 directory with a `SKILL.md` (frontmatter + instructions) and, only when
 needed, supporting files. Build in this order: scope → portability → draft →
@@ -132,7 +141,10 @@ Omit a section only by conscious decision — "N/A because ..." — not by overs
 Skills ship only after a smoke test. Minimum:
 
 1. **Syntax**: `bash -n scripts/*.sh` (if any scripts).
-2. **Frontmatter**: name matches directory; description states triggers.
+2. **SKILL.md standard conformance** (see the STRICT REQUIREMENT at the top):
+   valid frontmatter with at least `name:` and `description:` as the very
+   first block, name matching the directory in kebab-case, instructions
+   following the frontmatter. Non-conforming = not delivered.
 3. **Dry-run the steps by hand**: execute the procedure in a sandbox
    directory; every command must work AS WRITTEN (copy-paste fidelity) on at
    least macOS or Linux.
@@ -146,6 +158,7 @@ Skills ship only after a smoke test. Minimum:
 
 ## 7. Review checklist (for new or refactored skills)
 
+- [ ] Conforms to the SKILL.md / Agent Skills standard (valid frontmatter, kebab-case name matching the directory)
 - [ ] Description routes: contains "Use when ..." with concrete triggers
 - [ ] Self-contained: succeeds with SKILL.md alone; relative paths only
 - [ ] Portable: no bash 4+ features, `stat`/`sed -i`/paths handled per §3, OS case-statement if platform branching exists
