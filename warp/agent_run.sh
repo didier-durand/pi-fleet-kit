@@ -44,6 +44,10 @@ set -euo pipefail
 WARP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="${PI_COMPOSE_FILE:-$WARP_DIR/../compose.yml}"
 HB_DIR="${PI_HEARTBEAT_DIR:-$HOME/.pi-agent-fleet}"
+FRESH_SECS=20   # claim needs a heartbeat touched within this window
+                # (the tab's watcher refreshes every 5s; wide enough to
+                # survive brief system stalls/sleep, tight enough to kill
+                # PID-reuse false positives in seconds)
 FLEET_LABEL="pi.agent.fleet=1"
 ALL_AGENTS=(pi-configs pi-coding pi-research pi-personal)
 
@@ -102,6 +106,12 @@ named_exists() { [[ -n "$("$DOCKER" ps -a --filter "name=^${agent}$" --format '{
 # "absent" and get destroyed; they just make the agent look busy.
 heartbeat_alive() {
   [[ -f "$hb" ]] || return 1
+  # mtime must be fresh: the tab's watcher touches it every 5s. A stale file
+  # means the watcher is gone (tab closed / SIGKILLed) even if macOS has
+  # since RECYCLED the recorded PID into some other process — the mtime
+  # check defeats that false positive completely.
+  local m="$(file_mtime "$hb")"
+  (( $(date +%s) - m <= FRESH_SECS )) || return 1
   local pid state comm
   pid="$(cat "$hb" 2>/dev/null || true)"
   case "$pid" in ''|*[!0-9]*) return 1 ;; esac
@@ -110,6 +120,14 @@ heartbeat_alive() {
   case "$state" in ''|Z*) return 1 ;; esac   # gone or zombie => claim dead
   comm="$(ps -p "$pid" -o comm= 2>/dev/null || true)"
   [[ -z "$comm" || "$comm" == *docker* ]]
+}
+
+file_mtime() {  # portable; validates output (some stat builds print labels)
+  local t=""
+  t="$(stat -f %m "$1" 2>/dev/null || true)"
+  case "$t" in ''|*[!0-9]*) t="$(stat -c %Y "$1" 2>/dev/null || true)" ;; esac
+  case "$t" in ''|*[!0-9]*) t=0 ;; esac
+  echo "$t"
 }
 
 # An open tab claims the agent: a live client + at least one container.
@@ -175,7 +193,7 @@ fi
 # but only if it is still ours (another tab may have claimed the agent since).
 mkdir -p "$HB_DIR"
 parent=$$
-echo "$parent" > "$hb"
+echo "$parent" > "$hb"   # also sets mtime: claim valid immediately
 (
   while sleep 5; do
     # Dead OR zombie parent => the tab is gone; release the claim.
