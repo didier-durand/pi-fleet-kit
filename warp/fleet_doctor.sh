@@ -10,6 +10,9 @@ HB="$HB_DIR/heartbeat.$AGENT"
 DOCKER="docker"
 command -v docker >/dev/null 2>&1 || DOCKER="/usr/local/bin/docker"
 [[ -x "$DOCKER" ]] || DOCKER="/opt/homebrew/bin/docker"
+[[ -x "$DOCKER" ]] && true || DOCKER="$HOME/.docker/bin/docker"
+[[ -x "$DOCKER" ]] || DOCKER="/usr/bin/docker"
+echo "0) docker binary used: ${DOCKER}"
 
 echo "=== fleet doctor: $AGENT ==="
 echo "1) heartbeat file: $HB"
@@ -36,3 +39,10 @@ echo "4) docker reachable: $("$DOCKER" ps >/dev/null 2>&1 && echo yes || echo NO
 echo "5) compose file: $(ls "$HOME/pi-configs/compose.yml" 2>/dev/null || echo 'NOT FOUND')"
 echo "6) all heartbeats in $HB_DIR:"
 ls -la "$HB_DIR" 2>/dev/null | grep -v '^total' | grep -v '^d' || echo "   (directory missing or empty)"
+echo
+echo "7) last fleet launch log (/tmp/pi-agent-fleet.log, from the app):"
+tail -30 /tmp/pi-agent-fleet.log 2>/dev/null || echo "   (no log — the app has not launched agents yet)"
+echo
+echo "8) your shell's docker/PATH (for comparison):"
+echo "   command -v docker: $(command -v docker || echo 'not on PATH')"
+echo "   PATH: $PATH"
