@@ -22,7 +22,7 @@ Each agent loads **only the skills assigned to it** — defined in
 | Agent | Skills |
 |---|---|
 | `pi-configs` | `build-skill`, `github-best-practices` |
-| `pi-coding` | `build-skill`, `github-best-practices` |
+| `pi-coding` | `github-best-practices` |
 | `pi-research` | `publishing-best-practices` |
 | `pi-personal` | `publishing-best-practices`, `hello-world` |
 

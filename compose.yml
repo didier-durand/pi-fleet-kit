@@ -71,8 +71,7 @@ services:
       - pi-coding-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-coding:/workspace
-      # Skills for THIS agent only (/skill:build-skill, ... in its TUI):
-      - ${HOME}/pi-configs/skills/build-skill:/repo-skills/build-skill:ro
+      # Skills for THIS agent only (/skill:github-best-practices in its TUI):
       - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
@@ -92,7 +91,6 @@ services:
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/git-status.ts",
-       "--skill", "/repo-skills/build-skill",
        "--skill", "/repo-skills/github-best-practices"]
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
