@@ -37,26 +37,31 @@ echo "Signing: format=$fmt key=$key"
 
 # --- find the base commit -------------------------------------------------------
 BASE=""
-if [[ "${1:-}" == "--dry-run" || "${2:-}" == "--dry-run" ]]; then
-  :
-elif [[ -n "${1:-}" && "$1" != "--dry-run" ]]; then
+if [[ -n "${1:-}" && "$1" != "--dry-run" ]]; then
   BASE="$1"
 elif [[ "${1:-}" == "--all" || "${2:-}" == "--all" ]]; then
   BASE="$(git rev-list --max-parents=0 HEAD)"   # root commit
 else
   echo "Detecting first unsigned commit reachable from $BRANCH..."
-  # git log is newest-first -> tail gives the OLDEST unsigned commit
-  SHA=$(git log --format='%H %G?' "$BRANCH" | awk '$2=="N"{print $1}' | tail -1)
+  # "signed" = commit object carries a gpgsig/gpgsig-ssh header (no gpg needed
+  # to check; %G? would require gpg even for SSH signatures).
+  SHA=$(git rev-list HEAD | while read -r c; do
+    if ! git cat-file commit "$c" | grep -q '^gpgsig'; then echo "$c"; fi
+  done | tail -1)
   [[ -n "$SHA" ]] || { echo "No unsigned commits found. Nothing to do."; exit 0; }
   BASE="$SHA"
 fi
+# Root commits have no ~1 parent: remember whether base IS the root.
+ROOT_BASE=0
+if [[ -z "$(git rev-parse "$BASE"^@ 2>/dev/null)" ]]; then ROOT_BASE=1; fi
+[[ "$BASE" == "$(git rev-list --max-parents=0 HEAD)" ]] && ROOT_BASE=1
 [[ -z "$BASE" ]] || echo "Re-signing from: $(git log -1 --format='%h %s' "$BASE")"
 
 # --- plan ----------------------------------------------------------------------
 if [[ "${1:-}" == "--dry-run" || "${2:-}" == "--dry-run" ]]; then
-  if [[ -n "$BASE" ]]; then RANGE="$BASE~1..HEAD"; else RANGE="HEAD"; fi
-  echo "Would rewrite: $(git rev-list --count "$RANGE" 2>/dev/null || echo '?') commit(s)"
-  git log --oneline $RANGE 2>/dev/null | head -20
+  if (( ROOT_BASE )); then RANGE="HEAD"; else RANGE="$BASE~1..HEAD"; fi
+  echo "Would rewrite: $(git rev-list --count "$RANGE" 2>/dev/null || echo '?') commit(s), root commit included: $ROOT_BASE"
+  git log --oneline "$RANGE" 2>/dev/null | head -20
   exit 0
 fi
 
@@ -75,16 +80,19 @@ fi
 
 # --- rewrite -------------------------------------------------------------------
 git fetch "$REMOTE" "$BRANCH" 2>/dev/null || true
-if [[ "${1:-}" == "--all" || "${2:-}" == "--all" ]]; then
+if (( ROOT_BASE )); then
   git rebase --root --exec 'git commit --amend --no-edit -S'
 else
   git rebase "$BASE~1" --exec 'git commit --amend --no-edit -S'
 fi
 
 # --- verify locally ------------------------------------------------------------
-RANGE_N=$(git rev-list --count "$BASE~1..HEAD" 2>/dev/null || echo 0)
-echo "Local check — rewritten commits and signature status (%G? G=good, N=none):"
-git log --format='%h %G? %s' -"$(( RANGE_N > 0 ? RANGE_N : 1 ))" | head -30
+echo "Local check — unsigned commits remaining (expect none):"
+UNSIGNED=$(git rev-list HEAD | while read -r c; do
+  git cat-file commit "$c" | grep -q '^gpgsig' || echo "$c"
+done | wc -l | tr -d ' ')
+echo "unsigned: $UNSIGNED"
+git log --oneline -5
 
 # --- push ----------------------------------------------------------------------
 git push --force-with-lease "$REMOTE" "$BRANCH"
