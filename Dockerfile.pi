@@ -10,7 +10,7 @@ RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 
 # Entrypoint wrapper: sets git identity + token-based credential helper from
 # env vars passed by docker compose, then execs `pi`.
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY utils/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Run as an unprivileged user (least privilege): the agent executes arbitrary

@@ -54,7 +54,7 @@ docker compose -f ~/pi-configs/compose.yml run --rm pi-coding bash -c \
 ```
 
 Then check the commit on GitHub: the repo's commit list should show
-**Verified** next to it. Alternatively run `./resign-commits.sh` to re-sign
+**Verified** next to it. Alternatively run `utils/resign-commits.sh` to re-sign
 the existing backlog (see its header comments for usage).
 
 ## Revoke anytime

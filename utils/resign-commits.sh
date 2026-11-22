@@ -17,10 +17,10 @@
 #   git config --global commit.gpgsign true
 #
 # Usage:
-#   ./resign-commits.sh             # re-sign from the first unsigned commit
-#   ./resign-commits.sh <sha>       # re-sign <sha>..HEAD (inclusive)
-#   ./resign-commits.sh --all       # re-sign EVERY commit from the root
-#   ./resign-commits.sh --dry-run   # show what would be rewritten
+#   utils/resign-commits.sh             # re-sign from the first unsigned commit
+#   utils/resign-commits.sh <sha>       # re-sign <sha>..HEAD (inclusive)
+#   utils/resign-commits.sh --all       # re-sign EVERY commit from the root
+#   utils/resign-commits.sh --dry-run   # show what would be rewritten
 
 set -euo pipefail
 
