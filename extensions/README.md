@@ -6,6 +6,18 @@ update all agents).
 
 ### `git-status.ts` — live git state in the footer
 
+**Why this extension exists:** each agent works in its **own independently
+git-cloned repository** — the compose workspaces `~/pi-agents/<agent>` are
+separate checkouts, cloned and updated at different times by different
+sessions. Without this extension there is no per-agent way to see, at a
+glance, *which repo state which agent is in*: whether its checkout is dirty
+from mid-task edits, whether it has unpushed commits, or whether it lags
+behind its upstream. The extension gives each agent TUI its own live,
+self-scoped view (branch, ↑ahead / ↓behind, dirty count, ✓clean) of exactly
+its own workspace — so an agent can never silently work from a stale or
+modified checkout, and the operator can compare all four agents' states
+cross-tab at a glance.
+
 Renders one footer status line (ID `git-status`) made of colored parts:
 
 | Part | Color | Meaning | When shown |
