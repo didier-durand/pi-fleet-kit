@@ -92,17 +92,24 @@ named_exists() { [[ -n "$("$DOCKER" ps -a --filter "name=^${agent}$" --format '{
 # True if the open tab's docker client (PID recorded in the heartbeat file)
 # is still alive. PID-based: closing the tab kills the client, so the claim
 # lapses immediately — no time window, no staleness race.
+# Zombie-aware: a closed tab's client can linger as a ZOMBIE (dead but not
+# yet reaped). Zombies still answer `kill -0` and show an empty `ps comm`,
+# so both must be treated as DEAD — otherwise the claim would never lapse
+# and the agent's tab could never be reopened. `ps -o state=` decides:
+# empty (gone) or Z (zombie) => claim dead.
 # ANY running container of the agent counts as evidence (not just fleet-
 # labeled ones): containers predating the label scheme must not look
 # "absent" and get destroyed; they just make the agent look busy.
 heartbeat_alive() {
   [[ -f "$hb" ]] || return 1
-  local pid comm
+  local pid state comm
   pid="$(cat "$hb" 2>/dev/null || true)"
   case "$pid" in ''|*[!0-9]*) return 1 ;; esac
   kill -0 "$pid" 2>/dev/null || return 1
+  state="$(ps -p "$pid" -o state= 2>/dev/null || true)"
+  case "$state" in ''|Z*) return 1 ;; esac   # gone or zombie => claim dead
   comm="$(ps -p "$pid" -o comm= 2>/dev/null || true)"
-  [[ -z "$comm" || "$comm" == *docker* ]]   # ps unusable => trust kill -0
+  [[ -z "$comm" || "$comm" == *docker* ]]
 }
 
 # An open tab claims the agent: a live client + at least one container.
@@ -171,7 +178,9 @@ parent=$$
 echo "$parent" > "$hb"
 (
   while sleep 5; do
-    if ! kill -0 "$parent" 2>/dev/null; then
+    # Dead OR zombie parent => the tab is gone; release the claim.
+    state="$(ps -p "$parent" -o state= 2>/dev/null || true)"
+    if [[ -z "$state" || "$state" == Z* ]] || ! kill -0 "$parent" 2>/dev/null; then
       if [[ "$(cat "$hb" 2>/dev/null || true)" == "$parent" ]]; then rm -f "$hb" 2>/dev/null || true; fi
       exit 0
     fi
