@@ -26,9 +26,10 @@ inside pi).
 if the agent is already up in an open tab. "Up" is detected via the
 container **plus a per-tab heartbeat**: closing a Warp tab kills the docker
 client but *not* its container, so a live container alone doesn't prove a
-tab is open. Each tab keeps a heartbeat file fresh while its docker client
-is alive; a stale heartbeat with a live container means the tab is gone —
-the orphaned container is removed automatically and a fresh tab opens.
+tab is open. Each tab's heartbeat file records its docker client's PID;
+the agent counts as claimed only while that PID is alive. Closing the tab
+kills the client, so the claim lapses **immediately** (no time window) —
+the next click removes the orphaned container and opens a fresh tab.
 This makes icon clicks idempotent: agents already up in tabs are skipped,
 orphans are healed, and everything else gets exactly one tab. Each agent's
 container also gets a fixed name + fleet label, so even a double-click

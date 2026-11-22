@@ -10,17 +10,17 @@
 #   - Closing a Warp tab kills the docker *client* but NOT its container,
 #     which keeps running headless (an "orphan"). A running container alone
 #     therefore does NOT prove a tab is open.
-#   - Before starting an agent, this script touches a heartbeat file and
-#     leaves a small background loop refreshing it every 5s. The loop dies
-#     with the tab (it watches the docker client's PID) and deletes the
-#     heartbeat on exit, so: fresh heartbeat = open tab.
+#   - Before starting an agent, this script writes a heartbeat file
+#     containing the docker client's PID and leaves a small background loop
+#     watching that PID. The heartbeat is PID-based (not time-based): an
+#     agent counts as "claimed by an open tab" only while its client PID is
+#     still alive. Closing the tab kills the client, so the claim lapses
+#     IMMEDIATELY — no staleness window.
 #   - Before launching (or before reporting state with --check), EVERY
-#     container for this agent that is NOT claimed by an open tab is
-#     removed first. Unclaimed = orphans left by closed tabs, duplicate
-#     instances from older versions of this setup (random names, no fleet
-#     label), or manual `docker compose run` sessions — none has a fresh
-#     heartbeat. One click therefore converges to exactly one container
-#     per agent.
+#     container for this agent that is not claimed by an open tab is removed
+#     first: orphans left by closed tabs, duplicate instances from older
+#     versions of this setup, and manual `docker compose run` sessions.
+#     One click therefore converges to exactly one container per agent.
 #   - The launched container also gets a fixed name (the agent's name) and
 #     a fleet label, so even in a race (two tabs opening at once) Docker
 #     itself refuses the duplicate container name.
@@ -39,7 +39,6 @@ set -euo pipefail
 WARP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="${PI_COMPOSE_FILE:-$WARP_DIR/../compose.yml}"
 HB_DIR="${PI_HEARTBEAT_DIR:-$HOME/.pi-agent-fleet}"
-FRESH_SECS=15   # heartbeat is refreshed every 5s; older than this = stale
 FLEET_LABEL="pi.agent.fleet=1"
 ALL_AGENTS=(pi-configs pi-coding pi-research pi-personal)
 
@@ -85,37 +84,37 @@ named_id()  { "$DOCKER" ps --filter "name=^${agent}$" --format '{{.ID}}' 2>/dev/
 # Container with the agent's fixed name in any state (created, exited).
 named_exists() { [[ -n "$("$DOCKER" ps -a --filter "name=^${agent}$" --format '{{.ID}}' 2>/dev/null)" ]]; }
 
-file_mtime() {  # portable: macOS stat first, GNU stat fallback; validates output
-  local t=""
-  t="$(stat -f %m "$1" 2>/dev/null || true)"
-  case "$t" in ''|*[!0-9]*) t="$(stat -c %Y "$1" 2>/dev/null || true)" ;; esac
-  case "$t" in ''|*[!0-9]*) t=0 ;; esac
-  echo "$t"
-}
-
-# Fresh heartbeat = an open tab's loop touched it recently.
-heartbeat_fresh() {
+# True if the open tab's docker client (PID recorded in the heartbeat file)
+# is still alive. PID-based: closing the tab kills the client, so the claim
+# lapses immediately — no time window, no staleness race.
+heartbeat_alive() {
   [[ -f "$hb" ]] || return 1
-  (( $(date +%s) - "$(file_mtime "$hb")" <= FRESH_SECS ))
+  local pid comm
+  pid="$(cat "$hb" 2>/dev/null || true)"
+  case "$pid" in ''|*[!0-9]*) return 1 ;; esac
+  kill -0 "$pid" 2>/dev/null || return 1
+  comm="$(ps -p "$pid" -o comm= 2>/dev/null || true)"
+  [[ -z "$comm" || "$comm" == *docker* ]]   # ps unusable => trust kill -0
 }
 
-# An open tab claims the agent: fresh heartbeat + our container running.
-claimed() { heartbeat_fresh && [[ -n "$(fleet_ids)" ]]; }
+# An open tab claims the agent: our container running + client alive.
+claimed() { [[ -n "$(fleet_ids)" ]] && heartbeat_alive; }
 
-# Agent is up (in a tab, or mid-launch race): fresh heartbeat + container.
-agent_up() { heartbeat_fresh && { [[ -n "$(fleet_ids)" ]] || named_exists; }; }
+# Agent is up (in a tab, or mid-launch: client alive + container exists).
+agent_up() { heartbeat_alive && { [[ -n "$(fleet_ids)" ]] || named_exists; }; }
 
 # --- Cleanup before launch ----------------------------------------------------
 
 # Remove every container for this agent that is not claimed by an open tab:
-#   - claimed: keep the tab's container, drop any OTHER running duplicate
-#     (legacy instance from an older launcher version, manual run).
+#   - claimed: keep the tab's container, drop OTHER running duplicates
+#     (legacy instances from older launcher versions, manual runs).
 #   - unclaimed: drop ALL running containers (orphans, duplicates, manual).
-# Plus fixed-name leftovers in a non-running state (created, exited).
+#   - fixed-name leftovers in a non-running state (created, exited) are
+#     removed only when NO live client claims the agent — a tab whose
+#     container is still being created has a live client and is protected.
 heal_unclaimed() {
-  local id keep
+  local id keep fleet_list in_fleet f
   if claimed; then
-    local keep fleet_list in_fleet f
     keep="$(named_id)"
     fleet_list="$(fleet_ids)"
     for id in $(all_ids); do
@@ -132,7 +131,7 @@ heal_unclaimed() {
       "$DOCKER" rm -f "$id" >/dev/null 2>&1 || true
     done
   fi
-  if [[ -z "$(named_id)" ]] && named_exists; then
+  if [[ -z "$(named_id)" ]] && named_exists && ! heartbeat_alive; then
     "$DOCKER" rm -f "$agent" >/dev/null 2>&1 || true
   fi
 }
@@ -151,20 +150,27 @@ if agent_up; then
   exit 0
 fi
 
-# Heartbeat: touch now, then refresh every 5s from a background loop that
-# dies (and deletes the heartbeat) as soon as the docker client it watches
-# is gone — tab closed, or the container exited. No heartbeat therefore
-# means "no open tab", and the next click cleans up before relaunching.
+# Heartbeat: record this tab's docker client PID (the PID survives the exec
+# below), then watch it from a background loop. When the tab closes (or the
+# container exits), the client dies; the loop then removes the heartbeat —
+# but only if it is still ours (another tab may have claimed the agent since).
 mkdir -p "$HB_DIR"
-touch "$hb"
 parent=$$
+echo "$parent" > "$hb"
 (
   while sleep 5; do
-    if ! kill -0 "$parent" 2>/dev/null; then rm -f "$hb" 2>/dev/null; exit 0; fi
+    if ! kill -0 "$parent" 2>/dev/null; then
+      if [[ "$(cat "$hb" 2>/dev/null || true)" == "$parent" ]]; then rm -f "$hb" 2>/dev/null || true; fi
+      exit 0
+    fi
     comm="$(ps -p "$parent" -o comm= 2>/dev/null || true)"
-    if [[ -n "$comm" && "$comm" != *docker* ]]; then rm -f "$hb" 2>/dev/null; exit 0; fi
-    mkdir -p "$HB_DIR" 2>/dev/null || true
-    touch "$hb" 2>/dev/null || true
+    if [[ -n "$comm" && "$comm" != *docker* ]]; then
+      if [[ "$(cat "$hb" 2>/dev/null || true)" == "$parent" ]]; then rm -f "$hb" 2>/dev/null || true; fi
+      exit 0
+    fi
+    if [[ "$(cat "$hb" 2>/dev/null || true)" == "$parent" ]]; then
+      touch "$hb" 2>/dev/null || true   # keep mtime recent (human-readable liveness)
+    fi
   done
 ) &
 
