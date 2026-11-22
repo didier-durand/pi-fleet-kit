@@ -1,5 +1,16 @@
 # pi-configs
 
+## Machine requirements (portability)
+
+No path in this repo is user-specific: all runtime paths are `${HOME}`- or
+tilde-relative (compose mounts, tab configs, scripts, the Swift app), and
+scripts locate themselves relative to their own directory. The one
+**convention** other files depend on: clone this repo to **`~/pi-configs`**
+(exactly that name/location) and keep agent workspaces under
+`~/pi-agents/`. Everything else adapts per machine; tool lookup covers the
+standard install locations on macOS (`/usr/local/bin`, `/opt/homebrew/bin`,
+`~/.docker/bin`) and Linux.
+
 Infrastructure for running [Pi](https://github.com/earendil-works/pi-coding-agent)
 coding agents in Docker sandboxes, with reproducible GitHub authentication
 mirroring the host's setup.
