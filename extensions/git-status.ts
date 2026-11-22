@@ -1,0 +1,76 @@
+/**
+ * git-status extension — reflect the workspace's git state live in the Pi UI.
+ *
+ * Shows a footer status line: branch, ahead/behind vs upstream, and the
+ * number of uncommitted changes. Refreshes after every tool call (bash /
+ * edit / write all mutate git state), on agent turns ending, and at session
+ * start. Hidden entirely when the workspace is not a git repo.
+ *
+ * Linux/macOS/Windows(Git Bash) compatible: plain `git` plumbing only.
+ */
+
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+
+const ID = "git-status";
+const MIN_INTERVAL_MS = 500; // throttle: git runs at most ~2x/second
+
+async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
+	if (!ctx.hasUI) return; // print/JSON mode: no UI to update
+
+	// -b: include branch + upstream divergence; --porcelain v1: stable format
+	const { code, stdout, stderr } = await pi.exec("git", ["status", "--porcelain=v1", "-b"]);
+
+	if (code !== 0) {
+		// Not a repo (or git broken): clear any stale status
+		ctx.ui.setStatus(ID, undefined);
+		return;
+	}
+
+	const lines = stdout.split("\n").filter((l) => l.length > 0);
+	const head = lines[0] ?? ""; // "## main...origin/main [ahead 1, behind 2]"
+	const dirty = lines.length - 1;
+
+	// branch: "## main..." | "## No commits yet on main" | "## HEAD (no branch)"
+	let branch = head.replace(/^## /, "");
+	branch = branch.split("...")[0].replace("No commits yet on ", "").trim();
+
+	// ahead/behind from "[ahead 1, behind 2]"
+	const ab = /\[ahead (\d+)(?:, behind (\d+))?|.*behind (\d+)\]/.exec(head);
+	const ahead = ab?.[1] ?? (ab?.[3] ? "0" : "");
+	const behind = ab?.[2] ?? ab?.[3] ?? "";
+
+	const theme = ctx.ui.theme;
+	const parts: string[] = [];
+	parts.push(theme.fg("accent", `⎇ ${branch || "detached"}`));
+	if (ahead) parts.push(theme.fg("success", `↑${ahead}`));
+	if (behind) parts.push(theme.fg("warning", `↓${behind}`));
+	if (dirty > 0) parts.push(theme.fg("warning", `●${dirty}`));
+	else parts.push(theme.fg("success", "✓clean"));
+
+	ctx.ui.setStatus(ID, parts.join(" "));
+}
+
+export default function (pi: ExtensionAPI) {
+	let last = 0;
+	let pending = false;
+
+	const throttled = async (pi: ExtensionAPI, ctx: ExtensionContext) => {
+		const now = Date.now();
+		if (now - last < MIN_INTERVAL_MS) {
+			// Coalesce bursts: schedule one trailing refresh
+			if (pending) return;
+			pending = true;
+			setTimeout(() => {
+				pending = false;
+				void refresh(pi, ctx);
+			}, MIN_INTERVAL_MS - (now - last));
+			return;
+		}
+		last = now;
+		await refresh(pi, ctx);
+	};
+
+	pi.on("session_start", async (_event, ctx) => void refresh(pi, ctx));
+	pi.on("tool_result", async (_event, ctx) => void throttled(pi, ctx));
+	pi.on("agent_end", async (_event, ctx) => void throttled(pi, ctx));
+}
