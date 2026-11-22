@@ -25,9 +25,9 @@ services:
     image: pi-sandbox
     volumes:
       # Private Pi home (config, auth, sessions, extensions):
-      - pi-finance-home:/root/.pi/agent
+      - pi-finance-home:/home/pi/.pi/agent
       # The agent's working folder:
-      - ${HOME}/pi-configs/finance-agent:/workspace
+      - ${HOME}/pi-agents/pi-finance:/workspace
     environment:
       - OPENROUTER_API_KEY
       # GitHub auth (host passthrough — no need to define these in .env if

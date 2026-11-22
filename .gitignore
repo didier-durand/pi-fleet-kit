@@ -4,3 +4,4 @@
 # Agent runtime workspace (session state, scratch files) — infrastructure
 # lives here, agent output stays local:
 finance-agent/
+# Note: agent workspaces now live outside this repo, in ~/pi-agents/

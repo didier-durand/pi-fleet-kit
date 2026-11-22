@@ -13,5 +13,17 @@ RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+# Run as an unprivileged user (least privilege): the agent executes arbitrary
+# shell commands, so it must not be able to tamper with system files, its own
+# runtime, or anything outside its workspace/home. Note: runtime package
+# installs (apt/npm global) are therefore impossible by design — everything
+# the agent needs must be baked into the image.
+# (USER pi must come after all root-only setup above.)
+RUN useradd -m -s /bin/bash pi \
+  && mkdir -p /workspace \
+  && chown pi:pi /workspace
+USER pi
+ENV HOME=/home/pi
+
 WORKDIR /workspace
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
