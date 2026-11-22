@@ -14,6 +14,7 @@ One Tab Config per agent defined in `../compose.yml`:
 | `tab_configs/pi_finance.toml` | pi-finance | green | `docker compose run --rm pi-finance` |
 | `tab_configs/pi_coding.toml` | pi-coding | blue | `docker compose run --rm pi-coding` |
 | `tab_configs/pi_research.toml` | pi-research | magenta | `docker compose run --rm pi-research` |
+| `tab_configs/pi_tests.toml` | pi-tests | yellow | `docker compose run --rm pi-tests` |
 
 Each config opens a terminal in `~/pi-configs` and runs the agent's
 `docker compose` command, so selecting it from the `+` menu drops you

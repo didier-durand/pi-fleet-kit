@@ -1,0 +1,13 @@
+# Tab Config: pi-tests agent (Docker sandbox)
+# Install: copy to ~/.warp/tab_configs/  (macOS stable)
+
+name = "pi-tests"
+title = "pi-tests"
+color = "yellow"
+
+[[panes]]
+id = "main"
+type = "terminal"
+directory = "~/pi-configs"
+commands = ["docker compose -f ~/pi-configs/compose.yml run --rm pi-tests"]
+is_focused = true

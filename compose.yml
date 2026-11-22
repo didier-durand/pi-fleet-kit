@@ -16,6 +16,7 @@
 #   docker compose -f ~/pi-configs/compose.yml run --rm pi-finance
 #   docker compose -f ~/pi-configs/compose.yml run --rm pi-coding
 #   docker compose -f ~/pi-configs/compose.yml run --rm pi-research
+#   docker compose -f ~/pi-configs/compose.yml run --rm pi-tests
 #
 # Teardown (also deletes volumes / ALL agent state):
 #   docker compose -f ~/pi-configs/compose.yml down -v
@@ -89,7 +90,31 @@ services:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
 
+  # pi-tests: test-running agent. Identical image and credential passthrough,
+  # with fully independent state (own Pi home volume, own workspace) so
+  # sessions, auth and files never mix with the other agents.
+  pi-tests:
+    image: pi-sandbox
+    volumes:
+      # Private Pi home (config, auth, sessions, extensions):
+      - pi-tests-home:/home/pi/.pi/agent
+      # The agent's working folder:
+      - ${HOME}/pi-agents/pi-tests:/workspace
+    environment:
+      - OPENROUTER_API_KEY
+      # GitHub auth (host passthrough — no need to define these in .env if
+      # they are exported in the shell running docker compose):
+      - GITHUB_TOKEN
+      - GITHUB_USER_NAME
+      - GITHUB_USER_EMAIL
+    # Default model (adjust the model ID to taste):
+    command: ["--model", "openrouter/z-ai/glm-5.3"]
+    # Uncomment to reach MCP servers or services running on the host:
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
+
 volumes:
   pi-finance-home:
   pi-coding-home:
   pi-research-home:
+  pi-tests-home:
