@@ -37,6 +37,8 @@ services:
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-configs/extensions:/repo-extensions:ro
+      # Repo skills discoverable in every agent TUI (/skill:name):
+      - ${HOME}/pi-configs/skills:/repo-skills:ro
       # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
       # key registered on GitHub as "Signing key" -> Verified badges.
       - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
@@ -51,7 +53,8 @@ services:
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
-       "--extension", "/repo-extensions/git-status.ts"]
+       "--extension", "/repo-extensions/git-status.ts",
+       "--skill", "/repo-skills"]
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
@@ -69,6 +72,8 @@ services:
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-configs/extensions:/repo-extensions:ro
+      # Repo skills discoverable in every agent TUI (/skill:name):
+      - ${HOME}/pi-configs/skills:/repo-skills:ro
       # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
       # key registered on GitHub as "Signing key" -> Verified badges.
       - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
@@ -83,7 +88,8 @@ services:
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
-       "--extension", "/repo-extensions/git-status.ts"]
+       "--extension", "/repo-extensions/git-status.ts",
+       "--skill", "/repo-skills"]
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
@@ -101,6 +107,8 @@ services:
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-configs/extensions:/repo-extensions:ro
+      # Repo skills discoverable in every agent TUI (/skill:name):
+      - ${HOME}/pi-configs/skills:/repo-skills:ro
       # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
       # key registered on GitHub as "Signing key" -> Verified badges.
       - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
@@ -115,7 +123,8 @@ services:
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
-       "--extension", "/repo-extensions/git-status.ts"]
+       "--extension", "/repo-extensions/git-status.ts",
+       "--skill", "/repo-skills"]
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
@@ -133,6 +142,8 @@ services:
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-configs/extensions:/repo-extensions:ro
+      # Repo skills discoverable in every agent TUI (/skill:name):
+      - ${HOME}/pi-configs/skills:/repo-skills:ro
       # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
       # key registered on GitHub as "Signing key" -> Verified badges.
       - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
@@ -147,7 +158,8 @@ services:
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
-       "--extension", "/repo-extensions/git-status.ts"]
+       "--extension", "/repo-extensions/git-status.ts",
+       "--skill", "/repo-skills"]
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
