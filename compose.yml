@@ -50,6 +50,8 @@ services:
       - GITHUB_TOKEN
       - GITHUB_USER_NAME
       - GITHUB_USER_EMAIL
+      # Pi Packages auto-installed into the agent home on first launch:
+      - PI_PACKAGES=npm:pi-web-access
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
@@ -86,6 +88,8 @@ services:
       - GITHUB_TOKEN
       - GITHUB_USER_NAME
       - GITHUB_USER_EMAIL
+      # Pi Packages auto-installed into the agent home on first launch:
+      - PI_PACKAGES=npm:pi-web-access
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
@@ -118,6 +122,8 @@ services:
       - GITHUB_TOKEN
       - GITHUB_USER_NAME
       - GITHUB_USER_EMAIL
+      # Pi Packages auto-installed into the agent home on first launch:
+      - PI_PACKAGES=npm:pi-web-access
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
@@ -155,6 +161,8 @@ services:
       - GITHUB_TOKEN
       - GITHUB_USER_NAME
       - GITHUB_USER_EMAIL
+      # Pi Packages auto-installed into the agent home on first launch:
+      - PI_PACKAGES=npm:pi-web-access
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
@@ -193,6 +201,8 @@ services:
       - GITHUB_TOKEN
       - GITHUB_USER_NAME
       - GITHUB_USER_EMAIL
+      # Pi Packages auto-installed into the agent home on first launch:
+      - PI_PACKAGES=npm:pi-web-access
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:

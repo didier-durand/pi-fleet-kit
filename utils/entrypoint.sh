@@ -41,5 +41,23 @@ if [[ -s "$SIGN_KEY" ]]; then
   git config --global commit.gpgsign true
 fi
 
+# Optional Pi Package auto-install: compose declares packages in PI_PACKAGES
+# (space-separated npm: specs, e.g. "npm:pi-web-access"). Each is installed
+# into the agent's persistent home if not already registered in settings.json
+# — so a fresh agent home gets the fleet's packages on first launch, without
+# a manual `pi install` in each TUI. Failures (e.g. npm unreachable) warn but
+# never block the agent from starting.
+if [[ -n "${PI_PACKAGES:-}" ]]; then
+  settings="$HOME/.pi/agent/settings.json"
+  for pkg in $PI_PACKAGES; do
+    if [[ -f "$settings" ]] && grep -qF "\"$pkg\"" "$settings" 2>/dev/null; then
+      echo "[entrypoint] package already installed: $pkg"
+    else
+      echo "[entrypoint] installing Pi Package: $pkg"
+      pi install "$pkg" || echo "[entrypoint] WARNING: failed to install $pkg (continuing without it)" >&2
+    fi
+  done
+fi
+
 # Hand off to the original entrypoint (pi) with the compose `command` args:
 exec pi "$@"
