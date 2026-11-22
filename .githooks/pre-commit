@@ -1,30 +1,60 @@
 #!/usr/bin/env bash
-# Pre-commit guard: refuse commits where .env contains literal secret values.
+# Pre-commit guard: refuse commits containing literal secret values, in ANY
+# tracked file.
 #
-# .env is tracked in this repo as a *reference* file — values must be
-# ${VAR} placeholders resolved from the host environment. This hook blocks
-# accidental commits of real credentials (API keys, tokens) in .env.
+# Two layers:
+#   1. Repo policy: .env must hold only ${VAR} references (no literal
+#      values) — checked whenever .env is staged.
+#   2. Generic scan: all staged files are scanned for well-known secret
+#      token formats (ghp_, github_pat_, sk-*, AKIA..., glpat-..., PEM
+#      keys, generic high-entropy assignments to *TOKEN*/*KEY*/... vars).
 #
 # To bypass in a genuine emergency (you shouldn't): git commit --no-verify
 set -euo pipefail
 
-# Only inspect .env if it is actually staged in this commit:
+fail=0
+
+# --- Layer 1: .env must contain references, not literals -------------------
 if ! git diff --cached --quiet -- .env; then
-  # Matches "KEY=value" lines where the value looks like a literal secret:
-  # - not empty, not a comment, not a ${VAR} reference, not a quoted placeholder
   violations=$(git show :.env 2>/dev/null | grep -nE \
     '^[A-Za-z_]*(TOKEN|KEY|SECRET|PASSWORD|PASSWD)[A-Za-z_]*=' \
     | grep -vE '=(\$\{[^}]*\}|""|'"'"''"'"')?\s*(#.*)?$' || true)
   if [[ -n "$violations" ]]; then
     echo "ERROR: .env contains literal secret values — refusing to commit." >&2
-    echo "" >&2
-    echo "Offending lines:" >&2
-    echo "$violations" | sed 's/^/  /' >&2
-    echo "" >&2
-    echo "Fix: use \${VAR} references (resolved from the host env), e.g.:" >&2
-    echo "  GITHUB_TOKEN=\${GITHUB_TOKEN}" >&2
-    echo "Committing real credentials into git history is irreversible." >&2
-    exit 1
+    echo "$violations" | sed 's/^/  .env:/' >&2
+    echo "Fix: use \${VAR} references (resolved from the host env)." >&2
+    fail=1
   fi
+fi
+
+# --- Layer 2: scan ALL staged files for known secret formats ---------------
+# Known token signatures (checked against staged file content):
+patterns='ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-or-v1-[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|glpat-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[[ -z "$staged" ]] && { (( fail )) && exit 1 || exit 0; }
+
+while IFS= read -r f; do
+  [[ -z "$f" ]] && continue
+  # Skip this hook itself: its source contains the detection patterns.
+  [[ "$f" == .githooks/* ]] && continue
+  # Binary files: check, but report only file name (grep would print noise):
+  if hits=$(git show ":$f" 2>/dev/null | grep -nE "$patterns" | head -5); then
+    if [[ -n "$hits" ]]; then
+      echo "ERROR: possible secret in staged file '$f' — refusing to commit." >&2
+      # Show line numbers only, never the matching content, so the guard
+      # itself never echoes a secret into logs/terminals:
+      echo "$hits" | cut -d: -f1 | sed 's/^/  line /; s/$/ looks like a credential/' >&2
+      echo "Remove the secret, or if this is a false positive, restructure" >&2
+      echo "the code so the pattern does not appear verbatim." >&2
+      fail=1
+    fi
+  fi
+done <<< "$staged"
+
+# Bypass hatch (documented, for maintainers only):
+if (( fail )); then
+  echo "Commit blocked. (Emergency override: git commit --no-verify)" >&2
+  exit 1
 fi
 exit 0
