@@ -18,6 +18,16 @@ its own workspace — so an agent can never silently work from a stale or
 modified checkout, and the operator can compare all four agents' states
 cross-tab at a glance.
 
+**Complement to Warp's git view:** when running the agents in Warp tabs,
+the two layers of git information are deliberately different. Warp's own
+git status UI reflects the **host** copy of a repository (the directory the
+tab's shell sits in), while this extension reflects the **agent's copy
+inside the container** — a separate checkout that can legitimately differ
+from the host's (dirty from the agent's own edits, ahead after the agent
+committed, or behind until it pulls). Reading the two side by side in a
+tab therefore shows both worlds at once: host state in the Warp UI,
+agent state in the pi footer.
+
 Renders one footer status line (ID `git-status`) made of colored parts:
 
 | Part | Color | Meaning | When shown |
