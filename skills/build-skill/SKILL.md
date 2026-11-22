@@ -22,8 +22,8 @@ build to the standard, not to the tolerance.
 
 Skills are instruction packages, not applications. The deliverable is a
 directory with a `SKILL.md` (frontmatter + instructions) and, only when
-needed, supporting files. Build in this order: scope → portability → draft →
-test → review → install.
+needed, supporting files. Build in this order: scope → draft (quality axes) → portability → test →
+review → install.
 
 ## 1. Scope before writing
 
@@ -72,7 +72,19 @@ Rules:
 - Keep `SKILL.md` under ~150 lines. If longer, the skill is doing several
   jobs — split it.
 
-## 3. Portability (macOS, Linux, Windows)
+## 3. The four quality axes (bake into every draft)
+
+| Axis | Design question | Practical rule |
+|---|---|---|
+| **Accuracy** | Is the method the RIGHT one, not just a working one? | Prefer the canonical tool/technique for the job (documented API over scraped page, `gh` over raw REST, idempotent commands over clever ones). Cite the canonical command exactly; verify flags exist on all target platforms. |
+| **Consistency** | Will it produce the same result next month? | Pin everything the skill depends on: paths relative to the skill dir, no reliance on CWD, no reliance on ambient state it doesn't check first. Idempotent steps (re-running is safe). Pre-flight checks (§5) turn environment drift into loud errors, not silent wrongness. |
+| **Efficiency** | Minimal wasted motion? | No redundant re-reads of files already read; one pre-flight pass, not per-step re-checks; fail fast at step 1 rather than after 10 steps; direct commands over wrappers. Don't add steps for hypothetical cases — handle the real 95%, document the rest. |
+| **Fluency & coordination** | Do the steps flow in sync, hand to hand? | Explicit sequencing: what runs BEFORE what, what depends on what, what runs in parallel. Every step's output feeds the next step's input NAMED (e.g. "save the ID from step 2 — step 4 needs it"). Interruption-safe: each step leaves state that a re-run can pick up. |
+
+When drafting, walk the draft step by step and ask the four questions above;
+each step should have an answer for all four or be deleted/merged.
+
+## 4. Portability (macOS, Linux, Windows)
 
 The skill must not assume one platform. Inventory these five surfaces:
 
@@ -112,18 +124,6 @@ Portable-by-construction rules:
   (tools present? expected outputs sane?) and fail loudly with a one-line fix
   hint, not a stack trace.
 
-## 4. The four quality axes (bake into every draft)
-
-| Axis | Design question | Practical rule |
-|---|---|---|
-| **Accuracy** | Is the method the RIGHT one, not just a working one? | Prefer the canonical tool/technique for the job (documented API over scraped page, `gh` over raw REST, idempotent commands over clever ones). Cite the canonical command exactly; verify flags exist on all target platforms. |
-| **Consistency** | Will it produce the same result next month? | Pin everything the skill depends on: paths relative to the skill dir, no reliance on CWD, no reliance on ambient state it doesn't check first. Idempotent steps (re-running is safe). Pre-flight checks (§5) turn environment drift into loud errors, not silent wrongness. |
-| **Efficiency** | Minimal wasted motion? | No redundant re-reads of files already read; one pre-flight pass, not per-step re-checks; fail fast at step 1 rather than after 10 steps; direct commands over wrappers. Don't add steps for hypothetical cases — handle the real 95%, document the rest. |
-| **Fluency & coordination** | Do the steps flow in sync, hand to hand? | Explicit sequencing: what runs BEFORE what, what depends on what, what runs in parallel. Every step's output feeds the next step's input NAMED (e.g. "save the ID from step 2 — step 4 needs it"). Interruption-safe: each step leaves state that a re-run can pick up. |
-
-When drafting, walk the draft step by step and ask the four questions above;
-each step should have an answer for all four or be deleted/merged.
-
 ## 5. Required sections (inventory)
 
 A complete skill SKILL.md contains, in this order:
@@ -132,7 +132,7 @@ A complete skill SKILL.md contains, in this order:
 2. **Pre-flight** — environment checks with a decision table: check → status → action (never "check and hope")
 3. **The procedure** — numbered steps, each with its exact commands and its expected outcome; failure actions inline (what to do when step N fails)
 4. **Conventions/rules** — the short list of non-negotiables (the agent must not have to guess)
-5. **Quick reference** — the non-negotiables compressed to one glanceable list at the END (mirrors and reinforces §4)
+5. **Quick reference** — the non-negotiables compressed to one glanceable list at the END (mirrors and reinforces §3)
 
 Omit a section only by conscious decision — "N/A because ..." — not by oversight.
 
@@ -161,7 +161,7 @@ Skills ship only after a smoke test. Minimum:
 - [ ] Conforms to the SKILL.md / Agent Skills standard (valid frontmatter, kebab-case name matching the directory)
 - [ ] Description routes: contains "Use when ..." with concrete triggers
 - [ ] Self-contained: succeeds with SKILL.md alone; relative paths only
-- [ ] Portable: no bash 4+ features, `stat`/`sed -i`/paths handled per §3, OS case-statement if platform branching exists
+- [ ] Portable: no bash 4+ features, `stat`/`sed -i`/paths handled per §4, OS case-statement if platform branching exists
 - [ ] Brief: no sentence without behavioral effect; tables/lists over prose
 - [ ] Complete: all five required sections present or consciously marked N/A
 - [ ] Accurate: canonical methods; commands verified against target platforms
