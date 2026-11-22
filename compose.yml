@@ -34,7 +34,7 @@ services:
       - pi-configs-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-configs:/workspace
-      # Skills for THIS agent only (/skill:build-skill, ... in its TUI):
+      # Skills for THIS agent only (/skill:build-skill, /skill:github-best-practices):
       - ${HOME}/pi-configs/skills/build-skill:/repo-skills/build-skill:ro
       - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
       # Read-only repo mount: extensions stay one git pull away from all
@@ -71,7 +71,7 @@ services:
       - pi-coding-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-coding:/workspace
-      # Skills for THIS agent only (/skill:github-best-practices in its TUI):
+      # Skills for THIS agent only (/skill:github-best-practices):
       - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
@@ -106,7 +106,7 @@ services:
       - pi-research-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-research:/workspace
-      # Skills for THIS agent only (/skill:publishing-best-practices, /skill:hello-world, ...):
+      # Skills for THIS agent only (/skill:publishing-best-practices, /skill:github-best-practices):
       - ${HOME}/pi-configs/skills/publishing-best-practices:/repo-skills/publishing-best-practices:ro
       - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
       # Read-only repo mount: extensions stay one git pull away from all
@@ -143,7 +143,7 @@ services:
       - pi-personal-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-personal:/workspace
-      # Skills for THIS agent only (/skill:publishing-best-practices, /skill:hello-world, ...):
+      # Skills for THIS agent only (/skill:publishing-best-practices, /skill:hello-world, /skill:github-best-practices):
       - ${HOME}/pi-configs/skills/publishing-best-practices:/repo-skills/publishing-best-practices:ro
       - ${HOME}/pi-configs/skills/hello-world:/repo-skills/hello-world:ro
       - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
