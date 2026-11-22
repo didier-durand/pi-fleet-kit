@@ -22,16 +22,23 @@ agent's sandbox. The compose service `command` includes `--continue`, so
 each launch resumes that agent's most recent session (fresh start: `/new`
 inside pi).
 
-**One instance per agent:** `agent_run.sh` checks whether the agent's
-container is already running (i.e. its tab is already open) and, if so,
-prints a notice instead of starting a second copy. Each agent's container
-also gets a fixed name, so even a double-click cannot race two copies into
-existence — Docker rejects the duplicate container name. Repeatedly opening
-a tab config therefore never piles up duplicate agent tabs. Docker is
-looked up beyond `PATH` (Docker Desktop install locations) so the check also
-works when the scripts are launched from Automator apps with a minimal
-`PATH`. If the check says an agent is up but no tab shows it (orphaned
-container), reset with `docker rm -f <agent>` (hint printed by the script).
+**One instance per agent:** `agent_run.sh` refuses to start a second copy
+if the agent is already up in an open tab. "Up" is detected via the
+container **plus a per-tab heartbeat**: closing a Warp tab kills the docker
+client but *not* its container, so a live container alone doesn't prove a
+tab is open. Each tab keeps a heartbeat file fresh while its docker client
+is alive; a stale heartbeat with a live container means the tab is gone —
+the orphaned container is removed automatically and a fresh tab opens.
+This makes icon clicks idempotent: agents already up in tabs are skipped,
+orphans are healed, and everything else gets exactly one tab. Each agent's
+container also gets a fixed name + fleet label, so even a double-click
+cannot race two copies into existence — Docker rejects the duplicate name.
+Docker is looked up beyond `PATH` (Docker Desktop install locations) so the
+check also works from Automator launchers with a minimal `PATH`.
+
+Manually started sessions (plain `docker compose run --rm <agent>`, no
+fleet label) are never touched and simply count as "in use": the icon
+skips that agent until you stop the manual run.
 
 `agents_start.sh` (see below) opens one tab per agent in Warp and starts
 the agents in their sandboxes. `tabs_install.sh` (see below) copies the

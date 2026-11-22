@@ -6,11 +6,12 @@
 #   1. (optionally) installs its Tab Config into Warp's config directory,
 #      reusing tabs_install.sh (idempotent — only changed files are copied);
 #   2. opens the config as a tab in Warp via the `warp://tab_config/<name>`
-#      URI scheme — but ONLY for agents that are not already running (an
-#      open tab means a live container, so repeated clicks never pile up
-#      duplicate tabs). If EVERY requested agent is already up, the script
-#      just brings the Warp window to the front and opens nothing at all —
-#      which is the expected behavior of a second click on the fleet icon.
+#      URI scheme — but ONLY for agents that are not already up in an open
+#      tab (detected via container + per-tab heartbeat; orphaned containers
+#      left behind by closed tabs are removed automatically first). If
+#      EVERY requested agent is already up, the script just brings the
+#      Warp window to the front and opens nothing at all — the expected
+#      behavior of a second click on the fleet icon.
 #      The tab itself runs agent_run.sh, which starts the agent inside its
 #      sandbox and enforces one instance per agent.
 #
@@ -127,8 +128,14 @@ focus_warp() {
 # this script with a minimal PATH that lacks Docker's install directory)
 # lives in exactly one place.
 agent_running() {
-  local agent="$1"
-  "$WARP_DIR/agent_run.sh" --check "$agent" >/dev/null 2>&1
+  local agent="$1" out=""
+  if out="$($WARP_DIR/agent_run.sh --check "$agent" 2>&1)"; then
+    return 0
+  else
+    # Surface any notes (e.g. orphan-container cleanup) from the check.
+    [[ -n "$out" ]] && echo "$out" >&2
+    return 1
+  fi
 }
 
 echo
