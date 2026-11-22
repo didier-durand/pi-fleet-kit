@@ -23,8 +23,8 @@ Each agent loads **only the skills assigned to it** — defined in
 |---|---|
 | `pi-configs` | `build-skill`, `github-best-practices` |
 | `pi-coding` | `github-best-practices` |
-| `pi-research` | `publishing-best-practices` |
-| `pi-personal` | `publishing-best-practices`, `hello-world` |
+| `pi-research` | `publishing-best-practices`, `github-best-practices` |
+| `pi-personal` | `publishing-best-practices`, `hello-world`, `github-best-practices` |
 
 To change an agent's list: edit that service's two blocks in `compose.yml`
 (the mounts under `volumes:` and the `--skill` flags under `command:`), then
