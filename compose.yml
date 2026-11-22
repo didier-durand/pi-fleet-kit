@@ -41,8 +41,9 @@ services:
       - GITHUB_TOKEN
       - GITHUB_USER_NAME
       - GITHUB_USER_EMAIL
-    # Default model (adjust the model ID to taste):
-    command: ["--model", "openrouter/z-ai/glm-5.3"]
+    # Default model (adjust the model ID to taste), and --continue to resume
+    # the most recent session automatically (fresh start: /new inside pi):
+    command: ["--model", "openrouter/z-ai/glm-5.3", "--continue"]
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
@@ -64,8 +65,9 @@ services:
       - GITHUB_TOKEN
       - GITHUB_USER_NAME
       - GITHUB_USER_EMAIL
-    # Default model (adjust the model ID to taste):
-    command: ["--model", "openrouter/z-ai/glm-5.3"]
+    # Default model (adjust the model ID to taste), and --continue to resume
+    # the most recent session automatically (fresh start: /new inside pi):
+    command: ["--model", "openrouter/z-ai/glm-5.3", "--continue"]
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
@@ -87,8 +89,9 @@ services:
       - GITHUB_TOKEN
       - GITHUB_USER_NAME
       - GITHUB_USER_EMAIL
-    # Default model (adjust the model ID to taste):
-    command: ["--model", "openrouter/z-ai/glm-5.3"]
+    # Default model (adjust the model ID to taste), and --continue to resume
+    # the most recent session automatically (fresh start: /new inside pi):
+    command: ["--model", "openrouter/z-ai/glm-5.3", "--continue"]
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
@@ -110,8 +113,9 @@ services:
       - GITHUB_TOKEN
       - GITHUB_USER_NAME
       - GITHUB_USER_EMAIL
-    # Default model (adjust the model ID to taste):
-    command: ["--model", "openrouter/z-ai/glm-5.3"]
+    # Default model (adjust the model ID to taste), and --continue to resume
+    # the most recent session automatically (fresh start: /new inside pi):
+    command: ["--model", "openrouter/z-ai/glm-5.3", "--continue"]
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
