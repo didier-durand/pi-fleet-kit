@@ -1,7 +1,3 @@
-# Secrets: .env only holds ${VAR} references, but keep it out of the repo
-# anyway so real values never end up in git history.
-.env
-
 # macOS noise:
 .DS_Store
 
