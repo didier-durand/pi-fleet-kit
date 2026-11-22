@@ -25,5 +25,9 @@ Greet the user warmly. Follow these rules:
    bash scripts/hello.sh <name or "World">
    ```
 
+   The script also reports the current user (`id -un`/`whoami`) and the
+   current session id (from the `PI_SESSION_ID` environment variable),
+   which Pi exposes to the processes it runs.
+
 5. Finish by telling the user that if they saw both the greeting and the
    script output, skills are loading correctly.
