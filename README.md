@@ -8,12 +8,39 @@ mirroring the host's setup.
 
 | File | Purpose |
 |---|---|
-| `compose.yml` | Defines the agent service(s). Currently a single agent, `pi-finance`, running the `pi-sandbox` image with its own persistent Pi-home volume and a bind-mounted workspace at `~/pi-agents/pi-finance`. |
+| `compose.yml` | Defines the agent service(s). Currently two agents, `pi-finance` and `pi-coding`, both running the `pi-sandbox` image, each with its own persistent Pi-home volume and a bind-mounted workspace under `~/pi-agents/` (`pi-finance`, `pi-coding`). |
 | `Dockerfile.pi` | Builds the `pi-sandbox` image: Node 24 base, git + ripgrep, `pi` installed globally, the entrypoint wrapper below, and a non-root `pi` user (least privilege — the agent runs unprivileged). |
 | `entrypoint.sh` | Container entrypoint. Before handing off to `pi`, it configures the agent's git environment from env vars passed by Compose: commit identity (`GITHUB_USER_NAME`/`GITHUB_USER_EMAIL`) and a token-based git credential helper (`GITHUB_TOKEN`) — the container has no keyring, so auth must come from the environment. |
 | `.env` | Credentials bridge for Compose. Holds **`${VAR}` references only** (e.g. `GITHUB_TOKEN=${GITHUB_TOKEN}`), resolved from the host shell when `docker compose` runs. |
 | `.gitignore` | Excludes `.DS_Store` and the legacy agent workspace (`finance-agent/`); agent workspaces now live outside this repo in `~/pi-agents/`. |
 | `.githooks/pre-commit` | Secret-leak guard (see below). |
+| `package.json` | Pi package manifest (see below). |
+| `skills/` | Installable Pi skills; each subdirectory holds a `SKILL.md` (Agent Skills spec). Currently `hello-world`. |
+| `warp/` | Warp editor config: Tab Configs for the agents (`tab_configs/`), an installer (`tabs_install.sh`), and feature-request drafts (`issues/`). |
+
+## Pi package (fetching skills from GitHub)
+
+This repo is a valid [Pi package](https://github.com/earendil-works/pi-coding-agent/blob/main/docs/packages.md):
+`package.json` declares the `pi-package` keyword and points Pi's `pi.skills`
+manifest at `./skills`, so any agent can fetch its skills directly from this
+GitHub repository with:
+
+```bash
+pi install git:github.com/didier-durand/pi-configs@v1.0.0
+```
+
+(Git tags and commits are pinned; `pi update --extensions` reconciles the
+checkout without moving a pinned ref.)
+
+Inside the Docker sandboxes, agents can do the same — `GITHUB_TOKEN` is
+already passed through for git-over-HTTPS auth, so no extra login is needed:
+
+```bash
+pi install git:github.com/didier-durand/pi-configs@v1.0.0
+```
+
+Only the resources declared in the manifest (`skills/`) are loaded; the rest
+of the repo (compose, Dockerfile, warp configs) is ignored by Pi.
 
 ## Usage
 
