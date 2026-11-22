@@ -27,7 +27,11 @@ container is already running (i.e. its tab is already open) and, if so,
 prints a notice instead of starting a second copy. Each agent's container
 also gets a fixed name, so even a double-click cannot race two copies into
 existence — Docker rejects the duplicate container name. Repeatedly opening
-a tab config therefore never piles up duplicate agent tabs.
+a tab config therefore never piles up duplicate agent tabs. Docker is
+looked up beyond `PATH` (Docker Desktop install locations) so the check also
+works when the scripts are launched from Automator apps with a minimal
+`PATH`. If the check says an agent is up but no tab shows it (orphaned
+container), reset with `docker rm -f <agent>` (hint printed by the script).
 
 `agents_start.sh` (see below) opens one tab per agent in Warp and starts
 the agents in their sandboxes. `tabs_install.sh` (see below) copies the
@@ -51,7 +55,9 @@ The script opens each config via the `warp://tab_config/<name>` URI scheme,
 and each tab runs `agent_run.sh`, so the agents boot into their sandboxes
 as the tabs open. Agents whose container is already running are skipped
 (their tab is already open), so re-running the script — or clicking a
-launcher that invokes it — never creates duplicate tabs.
+launcher that invokes it — never creates duplicate tabs. If **every**
+requested agent is already up, a second click simply brings the existing
+Warp window to the front and opens nothing at all.
 
 | Invocation | Behavior |
 |---|---|

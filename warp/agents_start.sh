@@ -6,10 +6,13 @@
 #   1. (optionally) installs its Tab Config into Warp's config directory,
 #      reusing tabs_install.sh (idempotent — only changed files are copied);
 #   2. opens the config as a tab in Warp via the `warp://tab_config/<name>`
-#      URI scheme — but ONLY if the agent is not already running (an open
-#      tab means a live container, so repeated clicks never pile up
-#      duplicate tabs). The tab itself runs agent_run.sh, which starts the
-#      agent inside its sandbox and enforces one instance per agent.
+#      URI scheme — but ONLY for agents that are not already running (an
+#      open tab means a live container, so repeated clicks never pile up
+#      duplicate tabs). If EVERY requested agent is already up, the script
+#      just brings the Warp window to the front and opens nothing at all —
+#      which is the expected behavior of a second click on the fleet icon.
+#      The tab itself runs agent_run.sh, which starts the agent inside its
+#      sandbox and enforces one instance per agent.
 #
 # Usage:
 #   ./agents_start.sh                 # all agents, as tabs
@@ -109,12 +112,23 @@ fi
 
 # --- 2. Open one tab per agent ----------------------------------------------
 
+# Bring the running Warp window to the front (no new window, no new tab).
+focus_warp() {
+  case "$OS" in
+    Darwin) open -a Warp >/dev/null 2>&1 || true ;;
+    Linux)  command -v wmctrl >/dev/null 2>&1 && wmctrl -xa Warp >/dev/null 2>&1 || true ;;
+    *) true ;;
+  esac
+}
+
 # True if a container for this agent is already up (i.e. its tab is already
-# open). compose `run` containers carry the service label, so this works
-# whether the agent was started from a tab or from the CLI.
+# open). Delegates to agent_run.sh --check so the detection logic (and the
+# robust docker lookup, needed because launchers like Automator apps run
+# this script with a minimal PATH that lacks Docker's install directory)
+# lives in exactly one place.
 agent_running() {
   local agent="$1"
-  [[ -n "$(docker ps --filter "label=com.docker.compose.service=$agent" --format '{{.Names}}' 2>/dev/null)" ]]
+  "$WARP_DIR/agent_run.sh" --check "$agent" >/dev/null 2>&1
 }
 
 echo
@@ -138,5 +152,10 @@ for agent in "${agents[@]}"; do
 done
 
 echo
-echo "Done: $opened started, $skipped skipped (already running)."
-echo "Each new tab runs agent_run.sh: one instance per agent, last session resumed."
+if (( opened == 0 )); then
+  echo "All requested agents are already running — focusing Warp (no new tabs)."
+  focus_warp
+else
+  echo "Done: $opened started, $skipped skipped (already running)."
+  echo "Each new tab runs agent_run.sh: one instance per agent, last session resumed."
+fi
