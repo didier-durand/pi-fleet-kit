@@ -1,8 +1,19 @@
 # Extensions
 
-Shared Pi extensions loaded by every agent via compose
-(`--extension /repo-extensions/...`, read-only mount, one `git pull` to
-update all agents).
+Shared Pi extensions loaded by every agent via compose. Two loading
+channels:
+
+- **Repo-local** (`--extension /repo-extensions/...`): read-only mount,
+  one `git pull` to update all agents.
+- **From origin** (`--extension npm:pi-web-access`): Pi caches the package
+  under the agent home and checks npm on every start, re-installing when a
+  newer matching version exists — the extension auto-updates from its
+  registry origin.
+
+Currently loaded by all agents: `git-status.ts` (repo-local) and
+`pi-web-access` (npm — web search, URL fetching, GitHub repo cloning, PDF
+extraction, YouTube transcription; source:
+[github.com/nicobailon/pi-web-access](https://github.com/nicobailon/pi-web-access)).
 
 ### `git-status.ts` — live git state in the footer
 

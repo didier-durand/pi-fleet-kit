@@ -55,6 +55,7 @@ services:
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/git-status.ts",
+       "--extension", "npm:pi-web-access",
        "--skill", "/repo-skills/build-skill",
        "--skill", "/repo-skills/github-best-practices"]
     # Uncomment to reach MCP servers or services running on the host:
@@ -91,6 +92,7 @@ services:
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/git-status.ts",
+       "--extension", "npm:pi-web-access",
        "--skill", "/repo-skills/github-best-practices"]
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
@@ -123,6 +125,7 @@ services:
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/git-status.ts",
+       "--extension", "npm:pi-web-access",
        "--skill", "/repo-skills/github-best-practices"]
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
@@ -160,6 +163,7 @@ services:
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/git-status.ts",
+       "--extension", "npm:pi-web-access",
        "--skill", "/repo-skills/publishing-best-practices",
        "--skill", "/repo-skills/github-best-practices"]
     # Uncomment to reach MCP servers or services running on the host:
@@ -198,6 +202,7 @@ services:
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/git-status.ts",
+       "--extension", "npm:pi-web-access",
        "--skill", "/repo-skills/publishing-best-practices",
        "--skill", "/repo-skills/hello-world",
        "--skill", "/repo-skills/github-best-practices"]
