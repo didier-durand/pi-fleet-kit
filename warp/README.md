@@ -133,8 +133,10 @@ Newly added files appear in the `+` menu automatically — no restart needed.
 
 A plain one-shot launcher (e.g. an Automator app) exits immediately after the
 click — so the Dock never shows the standard black dot for a running
-application, and a click while it "runs" cannot be handled. Build a proper
-stay-open applet instead:
+application, and a click while it "runs" cannot be handled. osacompile
+applets have the same flaw: they are not stay-open by default and quit as
+soon as the run handler returns. The builder therefore compiles a tiny
+**native Swift app** (using `swiftc` from the Xcode Command Line Tools):
 
 ```bash
 ~/pi-configs/warp/build_fleet_app.sh            # builds into ~/Applications
@@ -144,12 +146,17 @@ stay-open applet instead:
 Behavior:
 
 - **Every click converges the fleet** — launch and Dock-click-while-running
-  both run `agents_start.sh` (missing agents added, running ones skipped,
-  orphans healed).
+  (`applicationShouldHandleReopen`) both run `agents_start.sh` (missing
+  agents added, running ones skipped, orphans healed).
 - **Black dot while the fleet runs** — the app stays open as long as any
   agent container is up.
 - **Dot disappears when the fleet stops** — the app auto-quits ~60s after
   the last agent stops (grace period, also covering slow container boot).
+
+If `swiftc` is missing the builder falls back to an osacompile applet that
+can launch the fleet but will not stay running (no dot, no click-while-
+running). Install the Command Line Tools (`xcode-select --install`) and
+rebuild for the full behavior.
 
 After building, remove any previous launcher app from the Dock and drag
 `Pi Agent Fleet.app` in. The icon is generated from
