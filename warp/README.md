@@ -18,7 +18,9 @@ One Tab Config per agent defined in `../compose.yml`:
 
 Each config opens a terminal in `~/pi-configs` and runs the agent's
 `docker compose` command, so selecting it from the `+` menu drops you
-directly into that agent's sandbox.
+directly into that agent's sandbox. The compose service `command` includes
+`--continue`, so each launch resumes that agent's most recent session
+(fresh start: `/new` inside pi).
 
 `agents_start.sh` (see below) opens one tab per agent in Warp and starts
 the agents in their sandboxes. `tabs_install.sh` (see below) copies the
