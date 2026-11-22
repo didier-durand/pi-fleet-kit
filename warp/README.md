@@ -11,16 +11,23 @@ One Tab Config per agent defined in `../compose.yml`:
 
 | File | Tab name | Color | Launches |
 |---|---|---|---|
-| `tab_configs/pi_configs.toml` | pi-configs | yellow | `docker compose run --rm pi-configs` |
-| `tab_configs/pi_coding.toml` | pi-coding | blue | `docker compose run --rm pi-coding` |
-| `tab_configs/pi_research.toml` | pi-research | green | `docker compose run --rm pi-research` |
-| `tab_configs/pi_personal.toml` | pi-personal | magenta | `docker compose run --rm pi-personal` |
+| `tab_configs/pi_configs.toml` | pi-configs | yellow | `agent_run.sh pi-configs` |
+| `tab_configs/pi_coding.toml` | pi-coding | blue | `agent_run.sh pi-coding` |
+| `tab_configs/pi_research.toml` | pi-research | green | `agent_run.sh pi-research` |
+| `tab_configs/pi_personal.toml` | pi-personal | magenta | `agent_run.sh pi-personal` |
 
-Each config opens a terminal in `~/pi-configs` and runs the agent's
-`docker compose` command, so selecting it from the `+` menu drops you
-directly into that agent's sandbox. The compose service `command` includes
-`--continue`, so each launch resumes that agent's most recent session
-(fresh start: `/new` inside pi).
+Each config opens a terminal in `~/pi-configs` and runs `agent_run.sh` for
+that agent, so selecting it from the `+` menu drops you directly into the
+agent's sandbox. The compose service `command` includes `--continue`, so
+each launch resumes that agent's most recent session (fresh start: `/new`
+inside pi).
+
+**One instance per agent:** `agent_run.sh` checks whether the agent's
+container is already running (i.e. its tab is already open) and, if so,
+prints a notice instead of starting a second copy. Each agent's container
+also gets a fixed name, so even a double-click cannot race two copies into
+existence — Docker rejects the duplicate container name. Repeatedly opening
+a tab config therefore never piles up duplicate agent tabs.
 
 `agents_start.sh` (see below) opens one tab per agent in Warp and starts
 the agents in their sandboxes. `tabs_install.sh` (see below) copies the
@@ -41,8 +48,10 @@ needed):
 ```
 
 The script opens each config via the `warp://tab_config/<name>` URI scheme,
-and each tab runs its agent's `docker compose run` command, so the agents
-boot into their sandboxes as the tabs open.
+and each tab runs `agent_run.sh`, so the agents boot into their sandboxes
+as the tabs open. Agents whose container is already running are skipped
+(their tab is already open), so re-running the script — or clicking a
+launcher that invokes it — never creates duplicate tabs.
 
 | Invocation | Behavior |
 |---|---|
@@ -50,6 +59,7 @@ boot into their sandboxes as the tabs open.
 | `agents_start.sh -w` | All four agents, in a new Warp window |
 | `agents_start.sh pi-coding pi-personal` | Only the named agents |
 | `agents_start.sh -n` | Skip the install step (configs already installed) |
+| (any invocation) | Agents already running are skipped — no duplicate tabs |
 
 It is cross-platform: `open` on macOS, `xdg-open` on Linux, `start` on
 Windows, and the tab-config directory is chosen per platform (override with

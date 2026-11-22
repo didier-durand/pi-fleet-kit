@@ -6,8 +6,10 @@
 #   1. (optionally) installs its Tab Config into Warp's config directory,
 #      reusing tabs_install.sh (idempotent — only changed files are copied);
 #   2. opens the config as a tab in Warp via the `warp://tab_config/<name>`
-#      URI scheme. The tab itself runs the agent's `docker compose run` line,
-#      so the agent starts inside its sandbox as the tab opens.
+#      URI scheme — but ONLY if the agent is not already running (an open
+#      tab means a live container, so repeated clicks never pile up
+#      duplicate tabs). The tab itself runs agent_run.sh, which starts the
+#      agent inside its sandbox and enforces one instance per agent.
 #
 # Usage:
 #   ./agents_start.sh                 # all agents, as tabs
@@ -107,17 +109,34 @@ fi
 
 # --- 2. Open one tab per agent ----------------------------------------------
 
+# True if a container for this agent is already up (i.e. its tab is already
+# open). compose `run` containers carry the service label, so this works
+# whether the agent was started from a tab or from the CLI.
+agent_running() {
+  local agent="$1"
+  [[ -n "$(docker ps --filter "label=com.docker.compose.service=$agent" --format '{{.Names}}' 2>/dev/null)" ]]
+}
+
 echo
-echo "Opening ${#agents[@]} agent tab(s) in Warp:"
+echo "Opening agent tab(s) in Warp (skipping agents already running):"
+opened=0
+skipped=0
 for agent in "${agents[@]}"; do
+  if agent_running "$agent"; then
+    echo "  skipped:  $agent (already running in an open tab)"
+    skipped=$((skipped + 1))
+    continue
+  fi
   uri="warp://tab_config/${agent//-/_}"
   (( NEW_WINDOW )) && uri="$uri?new_window=true"
   if open_uri "$uri"; then
-    echo "  started: $agent  ($uri)"
+    echo "  started:  $agent  ($uri)"
+    opened=$((opened + 1))
   else
     echo "  FAILED:  $agent" >&2
   fi
 done
 
 echo
-echo "Done. Each tab runs its agent's 'docker compose run' command in its sandbox."
+echo "Done: $opened started, $skipped skipped (already running)."
+echo "Each new tab runs agent_run.sh: one instance per agent, last session resumed."
