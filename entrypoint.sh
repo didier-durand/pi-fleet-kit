@@ -29,5 +29,17 @@ if [[ -n "${GITHUB_TOKEN:-}" ]]; then
   git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=${GITHUB_TOKEN}"; }; f'
 fi
 
+# Optional commit signing: if a dedicated SSH signing key is mounted
+# (compose: ~/.ssh/pi-agent-signing -> /home/pi/.ssh/signing_key), configure
+# git to sign every commit with it. The key must be a SIGNING-ONLY key whose
+# public half is registered on GitHub (Settings -> SSH and GPG keys ->
+# type: Signing key); then commits made here show the Verified badge.
+SIGN_KEY=/home/pi/.ssh/signing_key
+if [[ -s "$SIGN_KEY" ]]; then
+  git config --global gpg.format ssh
+  git config --global user.signingkey "$SIGN_KEY"
+  git config --global commit.gpgsign true
+fi
+
 # Hand off to the original entrypoint (pi) with the compose `command` args:
 exec pi "$@"

@@ -37,6 +37,9 @@ services:
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-configs/extensions:/repo-extensions:ro
+      # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
+      # key registered on GitHub as "Signing key" -> Verified badges.
+      - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
     environment:
       - OPENROUTER_API_KEY
       # GitHub auth (host passthrough — no need to define these in .env if
@@ -66,6 +69,9 @@ services:
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-configs/extensions:/repo-extensions:ro
+      # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
+      # key registered on GitHub as "Signing key" -> Verified badges.
+      - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
     environment:
       - OPENROUTER_API_KEY
       # GitHub auth (host passthrough — no need to define these in .env if
@@ -95,6 +101,9 @@ services:
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-configs/extensions:/repo-extensions:ro
+      # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
+      # key registered on GitHub as "Signing key" -> Verified badges.
+      - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
     environment:
       - OPENROUTER_API_KEY
       # GitHub auth (host passthrough — no need to define these in .env if
@@ -124,6 +133,9 @@ services:
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-configs/extensions:/repo-extensions:ro
+      # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
+      # key registered on GitHub as "Signing key" -> Verified badges.
+      - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
     environment:
       - OPENROUTER_API_KEY
       # GitHub auth (host passthrough — no need to define these in .env if

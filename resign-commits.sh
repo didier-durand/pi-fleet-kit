@@ -1,39 +1,32 @@
 #!/usr/bin/env bash
-# Re-sign unverified commits so GitHub shows the "Verified" badge.
+# Re-sign commits so GitHub shows the "Verified" badge.
 #
 # Why a rewrite is needed: the Verified badge is a GPG/SSH signature made at
 # commit time. Existing commits cannot be marked verified after the fact —
 # they must be re-signed (history rewrite) and force-pushed, which changes
-# their SHAs. Run this on a machine holding the private signing key; never in
-# an agent sandbox.
+# their SHAs. Run where the private signing key is available: the host OR an
+# agent sandbox configured with a dedicated signing key (see entrypoint.sh).
 #
-# One-time setup (macOS/Linux, SSH signing — easiest path):
+# Works WITHOUT gh: detection falls back to local unsigned-commit detection
+# (%G? == N). GitHub shows Verified only if the key is registered there
+# (Settings -> SSH and GPG keys -> New SSH key -> type: Signing key).
+#
+# One-time signing setup (SSH signing — easiest):
 #   git config --global gpg.format ssh
-#   git config --global user.signingkey ~/.ssh/id_ed25519.pub   # your public key
+#   git config --global user.signingkey <path-to-PRIVATE-key>   # or its .pub
 #   git config --global commit.gpgsign true
-#   # GitHub -> Settings -> SSH and GPG keys -> New SSH key -> type: SIGNING key
 #
 # Usage:
-#   ./resign-commits.sh            # re-sign everything from the first
-#                                  # unverified commit reachable from HEAD
-#   ./resign-commits.sh <sha>      # re-sign <sha>..HEAD (inclusive)
-#   ./resign-commits.sh --dry-run  # show what would be rewritten
-#
-# Requires: gh CLI (to detect unverified commits) OR a first-commit SHA.
+#   ./resign-commits.sh             # re-sign from the first unsigned commit
+#   ./resign-commits.sh <sha>       # re-sign <sha>..HEAD (inclusive)
+#   ./resign-commits.sh --all       # re-sign EVERY commit from the root
+#   ./resign-commits.sh --dry-run   # show what would be rewritten
 
 set -euo pipefail
 
 REMOTE="${1:-origin}"
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 [[ "$BRANCH" != "HEAD" ]] || { echo "error: detached HEAD" >&2; exit 1; }
-
-# --- locate gh (PATH may be minimal) ------------------------------------------
-GH=gh
-command -v gh >/dev/null 2>&1 || GH="/opt/homebrew/bin/gh"
-[[ -x "$GH" ]] || GH="/usr/local/bin/gh"
-[[ -x "$GH" ]] || { echo "error: gh CLI not found (brew install gh)" >&2; exit 1; }
-
-REPO="$("$GH" repo view --json nameWithOwner -q .nameWithOwner)"
 
 # --- signing must be configured BEFORE rewriting -------------------------------
 fmt="$(git config gpg.format || true)"
@@ -48,14 +41,13 @@ if [[ "${1:-}" == "--dry-run" || "${2:-}" == "--dry-run" ]]; then
   :
 elif [[ -n "${1:-}" && "$1" != "--dry-run" ]]; then
   BASE="$1"
+elif [[ "${1:-}" == "--all" || "${2:-}" == "--all" ]]; then
+  BASE="$(git rev-list --max-parents=0 HEAD)"   # root commit
 else
-  echo "Detecting first unverified commit in $REPO..."
-  SHA="$("$GH" api "repos/$REPO/commits?per_page=100&sha=$BRANCH" \
-    --jq '[.[] | select(.commit.verification.verified != true)][-1].sha' 2>/dev/null || true)"
-  [[ -n "$SHA" && "$SHA" != "null" ]] || {
-    echo "No unverified commits found in the last 100 (or API failed). Nothing to do."
-    exit 0
-  }
+  echo "Detecting first unsigned commit reachable from $BRANCH..."
+  # git log is newest-first -> tail gives the OLDEST unsigned commit
+  SHA=$(git log --format='%H %G?' "$BRANCH" | awk '$2=="N"{print $1}' | tail -1)
+  [[ -n "$SHA" ]] || { echo "No unsigned commits found. Nothing to do."; exit 0; }
   BASE="$SHA"
 fi
 [[ -z "$BASE" ]] || echo "Re-signing from: $(git log -1 --format='%h %s' "$BASE")"
@@ -73,22 +65,28 @@ echo "This REWRITES history and FORCE-PUSHES '$BRANCH' to $REMOTE."
 echo "Any open PRs referencing these commits keep working (same branch), but"
 echo "commit SHAs in comments/links change. Protected branches will refuse the"
 echo "force-push — unprotect temporarily if needed."
-printf 'Proceed? [y/N] '
-read -r answer
-[[ "$answer" == "y" || "$answer" == "Y" ]] || { echo "aborted"; exit 1; }
+if [[ -t 0 ]]; then
+  printf 'Proceed? [y/N] '
+  read -r answer
+  [[ "$answer" == "y" || "$answer" == "Y" ]] || { echo "aborted"; exit 1; }
+else
+  echo "Non-interactive session — proceeding (use --dry-run to preview)."
+fi
 
 # --- rewrite -------------------------------------------------------------------
-git fetch "$REMOTE" "$BRANCH"
-RANGE="$BASE~1..HEAD"
-git rebase "$BASE~1" --exec 'git commit --amend --no-edit -S'
+git fetch "$REMOTE" "$BRANCH" 2>/dev/null || true
+if [[ "${1:-}" == "--all" || "${2:-}" == "--all" ]]; then
+  git rebase --root --exec 'git commit --amend --no-edit -S'
+else
+  git rebase "$BASE~1" --exec 'git commit --amend --no-edit -S'
+fi
 
 # --- verify locally ------------------------------------------------------------
-BAD=$(git rev-list "$REMOTE/$BRANCH..HEAD" --count 2>/dev/null || echo "?")
-echo "Local check — commits with signatures:"
-git log --format='%h %G? %s' -"$(( BAD > 0 ? BAD : 1 ))" | head -20
+RANGE_N=$(git rev-list --count "$BASE~1..HEAD" 2>/dev/null || echo 0)
+echo "Local check — rewritten commits and signature status (%G? G=good, N=none):"
+git log --format='%h %G? %s' -"$(( RANGE_N > 0 ? RANGE_N : 1 ))" | head -30
 
 # --- push ----------------------------------------------------------------------
 git push --force-with-lease "$REMOTE" "$BRANCH"
 echo
 echo "Done. GitHub re-verifies on push; badges may take a few seconds to appear."
-echo "Check: $GH api repos/$REPO/commits --jq '.[] | \"\\(.sha[0:8]) \\(.commit.verification.verified)\"' | head -5"
