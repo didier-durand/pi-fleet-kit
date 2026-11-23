@@ -102,8 +102,8 @@ flowchart TB
   subgraph MACHINE["Developer machine / Server"]
     subgraph HOST["HOST — macOS · Linux · Windows"]
     direction LR
-    WARP["Warp terminal — one tab per agent · agent_run.sh → docker compose run --rm<br/>one instance per agent (heartbeat + fixed name) · agents_start.sh · tabs_install.sh · fleet_doctor.sh · fleet app (macOS)"]
-    FILES["Host files & shell env · ~/pi-fleet-kit — repo: compose · skills · extensions<br/>~/pi-agents/[agent] — workspace clones · ~/pi-exchange/[agent] — watchdog dirs · ~/.ssh — signing key<br/>env: model key · GitHub token · git identity · .env = dollar-brace refs"]
+    WARP["Warp terminal — one tab per agent · agent_run.sh → docker compose run --rm · one instance per agent (heartbeat + fixed name)<br/>agents_start.sh · tabs_install.sh · fleet_doctor.sh · fleet app (macOS)"]
+    FILES["Host files & shell env · ~/pi-fleet-kit — repo: compose · skills · extensions · ~/pi-agents/[agent] — workspace clones<br/>~/pi-exchange/[agent] — watchdog dirs · ~/.ssh — signing key · env: model key · GitHub token · git identity · .env = dollar-brace refs"]
   end
   subgraph DOCKER["Docker — compose project: pi-agents · image: pi-sandbox"]
     direction LR
