@@ -1,6 +1,6 @@
 # `prompt-trigger` extension
 
-Shared loading info (channels, Pi Package vs `--extension`): [../README.md](../README.md).
+Shared loading info (channels, Pi Package vs `--extension`): [pi-fleet-kit extensions README](https://github.com/didier-durand/pi-fleet-kit/blob/main/extensions/README.md).
 
 ## Purpose
 

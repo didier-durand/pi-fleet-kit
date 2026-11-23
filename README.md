@@ -77,6 +77,20 @@ pi install git:github.com/didier-durand/pi-fleet-kit@v1.0.0
 Only the resources declared in the manifest (`skills/`) are loaded; the rest
 of the repo (compose, Dockerfile, warp configs) is ignored by Pi.
 
+## Community packages on npm
+
+The two extensions are also published as standalone, individually
+installable Pi Packages — no fleet-kit infrastructure required:
+
+```bash
+pi install npm:pi-git-status      # live git state in the pi footer
+pi install npm:pi-prompt-trigger  # file-triggered prompts for a running TUI
+```
+
+Both carry the `pi-package` keyword and appear in the Pi package gallery.
+See [extensions/README.md](extensions/README.md) for details and the
+release workflow.
+
 ## Usage
 
 ```bash
