@@ -59,8 +59,8 @@ services:
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
-       "--extension", "/repo-extensions/git-status.ts",
-       "--extension", "/repo-extensions/prompt-trigger.ts",
+       "--extension", "/repo-extensions/git-status/git-status.ts",
+       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/build-skill",
        "--skill", "/repo-skills/github-best-practices"]
     # Uncomment to reach MCP servers or services running on the host:
@@ -101,8 +101,8 @@ services:
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
-       "--extension", "/repo-extensions/git-status.ts",
-       "--extension", "/repo-extensions/prompt-trigger.ts",
+       "--extension", "/repo-extensions/git-status/git-status.ts",
+       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/github-best-practices"]
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
@@ -139,8 +139,8 @@ services:
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
-       "--extension", "/repo-extensions/git-status.ts",
-       "--extension", "/repo-extensions/prompt-trigger.ts",
+       "--extension", "/repo-extensions/git-status/git-status.ts",
+       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/github-best-practices"]
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
@@ -182,8 +182,8 @@ services:
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
-       "--extension", "/repo-extensions/git-status.ts",
-       "--extension", "/repo-extensions/prompt-trigger.ts",
+       "--extension", "/repo-extensions/git-status/git-status.ts",
+       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/publishing-best-practices",
        "--skill", "/repo-skills/github-best-practices",
        "--skill", "/repo-skills/web-research"]
@@ -227,8 +227,8 @@ services:
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
-       "--extension", "/repo-extensions/git-status.ts",
-       "--extension", "/repo-extensions/prompt-trigger.ts",
+       "--extension", "/repo-extensions/git-status/git-status.ts",
+       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/publishing-best-practices",
        "--skill", "/repo-skills/hello-world",
        "--skill", "/repo-skills/github-best-practices"]
