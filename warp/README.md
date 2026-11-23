@@ -138,6 +138,15 @@ that aren't part of this repo are left untouched.
 
 To target a non-default location, set `TAB_CONFIGS_DIR`:
 
+```bash
+TAB_CONFIGS_DIR=~/.warp-preview/tab_configs ~/pi-fleet-kit/warp/tabs_install.sh
+```
+
+Warp Preview (macOS) reads `~/.warp-preview/tab_configs/` — the same
+override covers it.
+
+Newly added files appear in the `+` menu automatically — no restart needed.
+
 ## Fleet app: Dock icon with running dot (`build_fleet_app.sh`)
 
 A plain one-shot launcher (e.g. an Automator app) exits immediately after the
