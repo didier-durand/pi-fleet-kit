@@ -1,6 +1,6 @@
 # pi-configs
 
-See the dedicated READMEs: [extensions/intro](extensions/README-intro.md),
+See the dedicated READMEs: [extensions/intro](extensions/README.md),
 [extensions/git-status](extensions/git-status/README.md),
 [extensions/prompt-trigger](extensions/prompt-trigger/README.md),
 [warp/](warp/README.md), [skills/](skills/), [docs/](docs/).
