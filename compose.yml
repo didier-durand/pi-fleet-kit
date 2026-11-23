@@ -35,9 +35,6 @@ services:
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-configs:/workspace
       # Watched dir for file-triggered prompts (extension prompt-trigger):
-      # Exchange dir: watchdog drops prompt files here; per-agent so no
-      # agent sees another agent's exchanges
-      - ${HOME}/pi-exchange/pi-configs:/exchange
       # Skills for THIS agent only (/skill:build-skill, /skill:github-best-practices):
       - ${HOME}/pi-configs/skills/build-skill:/repo-skills/build-skill:ro
       - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
@@ -56,7 +53,6 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
-      - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
@@ -80,8 +76,6 @@ services:
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-coding:/workspace
       # Watched dir for file-triggered prompts (extension prompt-trigger):
-      # Exchange dir: watchdog drops prompt files here; per-agent so no
-      # agent sees another agent's exchanges
       - ${HOME}/pi-exchange/pi-coding:/exchange
       # Skills for THIS agent only (/skill:github-best-practices):
       - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
@@ -120,8 +114,6 @@ services:
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-review:/workspace
       # Watched dir for file-triggered prompts (extension prompt-trigger):
-      # Exchange dir: watchdog drops prompt files here; per-agent so no
-      # agent sees another agent's exchanges
       - ${HOME}/pi-exchange/pi-review:/exchange
       # Skills for THIS agent only (/skill:github-best-practices):
       - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
