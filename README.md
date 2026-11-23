@@ -50,8 +50,11 @@ mirroring the host's setup.
 | `.gitignore` | Excludes `.DS_Store` and the legacy agent workspace (`finance-agent/`); agent workspaces now live outside this repo in `~/pi-agents/`. |
 | `.githooks/pre-commit` | Secret-leak guard (see below). |
 | `package.json` | Pi package manifest (see below). |
-| `skills/` | Installable Pi skills; each subdirectory holds a `SKILL.md` (Agent Skills spec). Currently `hello-world`. |
-| `warp/` | Warp editor config: Tab Configs for the agents (`tab_configs/`), an installer (`tabs_install.sh`), an all-agents launcher (`agents_start.sh`), and feature-request drafts (`issues/`). |
+| `skills/` | Installable Pi skills; each subdirectory holds a `SKILL.md` (Agent Skills spec). Currently `build-skill`, `github-best-practices`, `hello-world`, `publishing-best-practices`, `pull-request`, `web-research`. |
+| `extensions/` | Shared Pi extensions (`git-status`, `prompt-trigger`), also published as standalone npm Pi Packages (`pi-git-status`, `pi-prompt-trigger`) — see [extensions/README.md](extensions/README.md). |
+| `docs/` | Supplementary docs (e.g. registering the agents' SSH signing key on GitHub). |
+| `LICENSE` | MIT license text. |
+| `warp/` | Warp editor config: Tab Configs for the agents (`tab_configs/`), a launcher (`agent_run.sh`), an all-agents launcher (`agents_start.sh`), a config installer (`tabs_install.sh`), a fleet diagnostic (`fleet_doctor.sh`), a macOS Dock app builder (`build_fleet_app.sh`), and feature-request drafts (`issues/`). |
 
 ## Pi package (fetching skills from GitHub)
 

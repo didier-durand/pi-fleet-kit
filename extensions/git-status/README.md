@@ -61,23 +61,15 @@ Reading examples:
 ⎇ main ● f:613 l:>500           613 dirty files — diff skipped for cost, file count still exact
 ```
 
-Reading examples:
-
-```
-⎇ main ✓clean                    in sync with origin, nothing to commit
-⎇ main ↑2 ●5                     2 unpushed commits, 5 dirty files
-⎇ fix/heartbeat-race ↓1 ●1       1 behind origin, 1 dirty file — pull needed
-```
-
 What each part tells the operator, decision-wise:
 
 - `⎇ branch` — which code line the agent is working on (never a surprise
   branch again)
-- `↑n` — the agent produced commits it hasn't shared: consider pushing or
+- `↑ c:…` — the agent produced commits it hasn't shared: consider pushing or
   reviewing them
-- `↓n` — the checkout is stale relative to upstream: the agent may be
+- `↓ c:…` — the checkout is stale relative to upstream: the agent may be
   working against outdated code; a pull/`/reload` is due
-- `●n` — mid-task edits live in the worktree: do not `git checkout` or
+- `● f:…` — mid-task edits live in the worktree: do not `git checkout` or
   rebuild the workspace without preserving them
 - `✓clean` — safe ground: the checkout can be reset/recloned without loss
 

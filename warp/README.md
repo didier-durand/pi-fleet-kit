@@ -13,6 +13,7 @@ One Tab Config per agent defined in `../compose.yml`:
 |---|---|---|---|
 | `tab_configs/pi_fleet_kit.toml` | pi-fleet-kit | yellow | `agent_run.sh pi-fleet-kit` |
 | `tab_configs/pi_coding.toml` | pi-coding | blue | `agent_run.sh pi-coding` |
+| `tab_configs/pi_review.toml` | pi-review | cyan | `agent_run.sh pi-review` |
 | `tab_configs/pi_research.toml` | pi-research | green | `agent_run.sh pi-research` |
 | `tab_configs/pi_personal.toml` | pi-personal | magenta | `agent_run.sh pi-personal` |
 
@@ -84,8 +85,8 @@ are skipped rather than duplicated.
 
 | Invocation | Behavior |
 |---|---|
-| `agents_start.sh` | All four agents, as tabs in the focused Warp window |
-| `agents_start.sh -w` | All four agents, in a new Warp window |
+| `agents_start.sh` | All five agents, as tabs in the focused Warp window |
+| `agents_start.sh -w` | All five agents, in a new Warp window |
 | `agents_start.sh pi-coding pi-personal` | Only the named agents |
 | `agents_start.sh -n` | Skip the install step (configs already installed) |
 | `agents_start.sh -R` | Reorder: stop the fleet, reopen all tabs in `compose.yml` order |
@@ -97,7 +98,8 @@ URI scheme). Tabs opened one at a time therefore accumulate in "reopened
 last = far right" order. To restore the canonical order (pi-fleet-kit,
 pi-coding, pi-research, pi-personal), run `agents_start.sh -R`: it stops all
 agent containers (sessions are kept on disk and resumed via `--continue`),
-then reopens every tab in compose order — close the leftover old tabs
+then reopens every tab in compose order (pi-fleet-kit, pi-coding,
+pi-review, pi-research, pi-personal) — close the leftover old tabs
 afterwards. A Warp feature request for proper tab-position control is
 drafted in `issues/issue_tab_config_tab_position.md`.
 
@@ -185,6 +187,18 @@ Raycast/Alfred launcher:
 ```bash
 open "warp://tab_config/pi_personal"            # new tab in focused window
 open "warp://tab_config/pi_personal?new_window=true"  # new window
+```
+
+## Diagnose: `fleet_doctor.sh`
+
+When a closed tab's agent does not come back up, this read-only diagnostic
+prints the full state chain — docker binary used, heartbeat file and its
+recorded PID (alive/dead/zombie), `agent_run.sh --check` result, containers
+for the agent, docker reachability, compose file presence, and all
+heartbeats. It never modifies anything:
+
+```bash
+~/pi-fleet-kit/warp/fleet_doctor.sh pi-coding
 ```
 
 ## Editing

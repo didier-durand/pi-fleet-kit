@@ -47,7 +47,7 @@
 set -euo pipefail
 
 WARP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ALL_AGENTS=(pi-fleet-kit pi-coding pi-research pi-personal pi-review)
+ALL_AGENTS=(pi-fleet-kit pi-coding pi-review pi-research pi-personal)
 
 NEW_WINDOW=0
 NO_INSTALL=0
