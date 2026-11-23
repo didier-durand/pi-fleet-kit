@@ -205,7 +205,6 @@ services:
       - pi-personal-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-personal:/workspace
-      # Watched dir for file-triggered prompts (extension prompt-trigger):
       # Skills for THIS agent only (/skill:publishing-best-practices, /skill:hello-world, /skill:github-best-practices):
       - ${HOME}/pi-configs/skills/publishing-best-practices:/repo-skills/publishing-best-practices:ro
       - ${HOME}/pi-configs/skills/hello-world:/repo-skills/hello-world:ro
