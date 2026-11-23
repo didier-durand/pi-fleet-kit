@@ -97,19 +97,20 @@ release workflow.
 ## Running environment
 
 ```mermaid
+%%{init: {"flowchart": {"nodeSpacing": 12, "rankSpacing": 28, "padding": 6, "diagramPadding": 8, "subGraphTitleMargin": {"top": 4, "bottom": 2}}}}%%
 flowchart TB
   subgraph HOST["HOST — macOS · Linux · Windows"]
     direction LR
     WARP["Warp terminal — one tab per agent<br/>agent_run.sh → docker compose run --rm<br/>one instance per agent: heartbeat claim + fixed container name<br/>agents_start.sh · tabs_install.sh · fleet_doctor.sh<br/>macOS: Pi Agent Fleet Dock app (swiftc)"]
     FILES["Host files & shell env<br/>~/pi-fleet-kit — compose.yml · Dockerfile.pi · extensions/ · skills/<br/>~/pi-agents/[agent] — workspace git clone<br/>~/pi-exchange/pi-coding · pi-review — watchdog drop dirs<br/>~/.ssh/pi-agent-signing — signing-only SSH key<br/>env: OPENROUTER_API_KEY · GITHUB_TOKEN · GITHUB_USER_NAME/EMAIL<br/>.env = dollar-brace references only"]
   end
-  subgraph DOCKER["Docker Engine — compose project: pi-agents · image: pi-sandbox"]
+  subgraph DOCKER["Docker — compose project: pi-agents · image: pi-sandbox"]
     direction LR
-    FLEET["pi-fleet-kit<br/>vol: pi-fleet-kit-home → ~/.pi/agent<br/>workspace → /workspace"]
-    CODING["pi-coding<br/>vol: pi-coding-home<br/>+ /exchange (prompt-trigger)"]
-    REVIEW["pi-review<br/>vol: pi-review-home<br/>+ /exchange (prompt-trigger)"]
-    RESEARCH["pi-research<br/>vol: pi-research-home"]
-    PERSONAL["pi-personal<br/>vol: pi-personal-home"]
+    FLEET["pi-fleet-kit<br/>pi-fleet-kit-home → ~/.pi/agent"]
+    CODING["pi-coding<br/>pi-coding-home → ~/.pi/agent<br/>+ /exchange"]
+    REVIEW["pi-review<br/>pi-review-home → ~/.pi/agent<br/>+ /exchange"]
+    RESEARCH["pi-research<br/>pi-research-home → ~/.pi/agent"]
+    PERSONAL["pi-personal<br/>pi-personal-home → ~/.pi/agent"]
   end
   LLM["LLM providers (OpenRouter)<br/>model set per agent in compose.yml"]
   GH["GitHub<br/>clone / pull / push over HTTPS (GITHUB_TOKEN)<br/>SSH-signed commits → Verified badge"]
