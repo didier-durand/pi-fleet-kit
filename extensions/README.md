@@ -23,3 +23,40 @@ channels:
 Loading details per channel are above; installation specifics
 (`pi install npm:pi-web-access`, once per agent home) in the Pi Package
 bullet.
+
+## Community packages — install from npm
+
+Both extensions are published as standalone Pi Packages, installable into
+any Pi agent (no fleet-kit infrastructure required):
+
+```bash
+pi install npm:pi-git-status
+pi install npm:pi-prompt-trigger
+```
+
+Or try one without installing (ephemeral cache mode):
+
+```bash
+pi -e npm:pi-git-status
+```
+
+Inside this fleet, the repo-local channel (`--extension` via the
+`/repo-extensions` mount) takes precedence over installing these packages
+into the agents' homes — do not mix both for the same extension, or it
+loads twice.
+
+## Publishing a new version
+
+Each extension directory is a self-contained npm package (own
+`package.json` with the `pi` manifest and `pi-package` keyword, own
+`CHANGELOG.md`). To release:
+
+1. Bump `version` in `extensions/<name>/package.json`.
+2. Add a matching `## [x.y.z]` heading to `extensions/<name>/CHANGELOG.md`
+   (Pi shows entries newer than the last seen version on next launch).
+3. `cd extensions/<name> && npm publish`.
+
+`peerDependencies` pin the host-provided `@earendil-works/pi-coding-agent`
+with a `*` range — never list it in `dependencies` (Pi module-maps it, a
+bundled copy would create duplicate registries). No build step: Pi loads
+TypeScript extensions directly.

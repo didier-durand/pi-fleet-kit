@@ -1,0 +1,30 @@
+{
+  "name": "pi-git-status",
+  "version": "1.0.0",
+  "description": "Live git status in the Pi coding agent footer: branch, ahead/behind vs upstream, uncommitted change count and +/- line stats",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "git",
+    "status"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/didier-durand/pi-fleet-kit.git",
+    "directory": "extensions/git-status"
+  },
+  "files": [
+    "git-status.ts",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "pi": {
+    "extensions": [
+      "./git-status.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}

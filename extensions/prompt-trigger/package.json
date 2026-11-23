@@ -1,0 +1,30 @@
+{
+  "name": "pi-prompt-trigger",
+  "description": "File-triggered prompts for the Pi coding agent: files dropped into a watched directory are injected into the running TUI as if typed by the user",
+  "version": "1.0.0",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "automation",
+    "prompt"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/didier-durand/pi-fleet-kit.git",
+    "directory": "extensions/prompt-trigger"
+  },
+  "files": [
+    "prompt-trigger.ts",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "pi": {
+    "extensions": [
+      "./prompt-trigger.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}
