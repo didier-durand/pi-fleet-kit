@@ -19,7 +19,7 @@ automation and the interactive session you are watching.
 | Dormant when | env unset or directory missing | extension polls nothing |
 
 The extension announces itself in the TUI at startup:
-`[prompt-trigger] watching /triggers (poll 1500ms)`.
+`[prompt-trigger] watching /exchange (poll 1500ms)`.
 
 ## The watchdog contract (producer protocol)
 
