@@ -33,10 +33,28 @@ five parts, left to right:
 | Part | Color | Meaning | When shown |
 |---|---|---|---|
 | `⎇ <branch>` | accent | Current branch name (`⎇ detached` if detached HEAD) | Always, inside a git repo |
-| `↑<n>` | success | **n commits ahead** of the upstream remote | only when ahead > 0 |
+| `↑<n>(+a/−d)` | success | **n commits ahead** of upstream; `+a/−d` = changed lines across those commits | only when ahead > 0 |
 | `↓<n>` | warning | **n commits behind** the upstream remote | only when behind > 0 |
-| `●<n>` | warning | **n uncommitted changes** — staged + unstaged + untracked counted together | only when n > 0 |
+| `●<n>(+a/−d)` | warning | **n uncommitted changes** (staged + unstaged + untracked together); `+a/−d` = changed lines across worktree and index | only when n > 0, ≤ 500 |
+| `●>500` | warning | Change surface too large — line counts skipped (diff cost would dominate) | when n > 500 |
 | `✓clean` | success | Zero changes in the worktree | replaces the dot when clean |
+
+Line-count economics: computed only when the corresponding count is
+non-zero and ≤ 500 files — two `git diff --shortstat` calls (worktree,
+index) plus one `@{u}..HEAD` diff for the ahead range, each a few
+milliseconds on healthy repos. Above the 500-file guard the footer shows
+`●>500`: exactly the case where diffing would be slow and a line count
+meaningless. Display as requested: no bare `●n` fallback — oversized
+change surfaces are shown as `●>500`.
+
+Reading examples:
+
+```
+⎇ main ✓clean                    in sync with origin, nothing to commit
+⎇ main ↑2(+41/−12) ●5(+156/−89)  2 unpushed commits (+41/−12), 5 dirty files (+156/−89)
+⎇ fix/heartbeat-race ↓1 ●1(+2/−0) 1 behind origin, 1 dirty file
+⎇ main ●>500                     massive change surface — line counts withheld
+```
 
 Reading examples:
 
