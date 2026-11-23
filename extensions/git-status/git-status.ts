@@ -109,6 +109,8 @@ function sum(x: string, y: string): string {
 export default function (pi: ExtensionAPI) {
 	let last = 0;
 	let pending = false;
+	let streaming = false; // skip periodic ticks while a turn is running
+	let pollTimer: NodeJS.Timeout | undefined;
 
 	const throttled = async (pi: ExtensionAPI, ctx: ExtensionContext) => {
 		const now = Date.now();
@@ -126,7 +128,28 @@ export default function (pi: ExtensionAPI) {
 		await refresh(pi, ctx);
 	};
 
-	pi.on("session_start", async (_event, ctx) => void refresh(pi, ctx));
+	pi.on("session_start", async (_event, ctx) => {
+		void refresh(pi, ctx);
+		// Periodic re-refresh: catches changes by EXTERNAL actors (the user in
+		// another terminal, sibling agents, the watchdog, a git pull elsewhere)
+		// that no tool event will announce. Zero tokens — filesystem work only.
+		const pollMs = Number(process.env.PI_GIT_POLL_MS) || 3000;
+		if (pollTimer) clearInterval(pollTimer);
+		pollTimer = setInterval(() => {
+			if (streaming) return; // tool-triggered refreshes cover this period
+			void throttled(pi, ctx);
+		}, pollMs);
+	});
+	pi.on("session_shutdown", async () => {
+		if (pollTimer) clearInterval(pollTimer);
+		pollTimer = undefined;
+	});
 	pi.on("tool_result", async (_event, ctx) => void throttled(pi, ctx));
 	pi.on("agent_end", async (_event, ctx) => void throttled(pi, ctx));
+	pi.on("agent_start", async () => {
+		streaming = true;
+	});
+	pi.on("agent_end", async () => {
+		streaming = false;
+	});
 }

@@ -85,8 +85,10 @@ What each part tells the operator, decision-wise:
 
 | Aspect | Detail |
 |---|---|
-| Refresh triggers | after every tool call (bash/edit/write mutate git state), at `agent_end`, and at `session_start` |
+| Refresh triggers | after every tool call (bash/edit/write mutate git state), at `agent_end`, at `session_start`, **and on a periodic tick** (default 3s, `PI_GIT_POLL_MS` to override; skipped while a turn streams — tool events cover that window) |
 | Refresh throttle | ~2 runs/second maximum, with burst coalescing |
+| External actors | **detected**: the periodic tick re-reads git every ~3s, so changes from other terminals, sibling agents, or the watchdog appear within seconds — no tool call needed |
+| Idle cost | a `git status` (+ shortstat diffs when counts changed) every ~3s — **zero tokens**; CPU a few ms per tick |
 | Data source | `git status --porcelain=v1 -b` (stable plumbing format, portable) |
 | Outside a repo | the status entry clears itself entirely |
 | Non-TUI modes | inert in `--print`/JSON mode (`ctx.hasUI` guard) |
