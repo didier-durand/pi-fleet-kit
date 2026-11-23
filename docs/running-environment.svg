@@ -24,7 +24,7 @@
     <rect x="388" y="170" width="96" height="22" rx="6" fill="#DCFCE7" stroke="#15803D"/><text x="436" y="185" fill="#166534">pi-research</text>
     <rect x="492" y="170" width="96" height="22" rx="6" fill="#FCE7F3" stroke="#BE185D"/><text x="540" y="185" fill="#9D174D">pi-personal</text>
   </g>
-  <text x="76" y="214" font-size="10.5" fill="#334155">each tab → <tspan font-weight="600">agent_run.sh <agent></tspan> → docker compose run --rm</text>
+  <text x="76" y="214" font-size="10.5" fill="#334155">each tab → <tspan font-weight="600">agent_run.sh &lt;agent&gt;</tspan> → docker compose run --rm</text>
   <text x="76" y="232" font-size="10.5" fill="#334155"><tspan font-weight="600">agents_start.sh</tspan>: opens every missing tab, heals orphans, verifies each agent came up</text>
   <text x="76" y="250" font-size="10.5" fill="#334155">one instance per agent: heartbeat claim + fixed container name — no duplicates, no orphans</text>
   <text x="76" y="272" font-size="10.5" fill="#334155">macOS: <tspan font-weight="600">Pi Agent Fleet</tspan> Dock app (build_fleet_app.sh · swiftc) — one click runs the fleet</text>
@@ -32,10 +32,10 @@
 
   <!-- Host files sub-box -->
   <rect x="640" y="120" width="540" height="190" rx="8" fill="#FFFFFF" stroke="#9DB6D8"/>
-  <text x="656" y="142" font-size="12" font-weight="700" fill="#1F2937">Host files & shell environment</text>
+  <text x="656" y="142" font-size="12" font-weight="700" fill="#1F2937">Host files &amp; shell environment</text>
   <g font-size="10.5" fill="#334155">
     <text x="656" y="164"><tspan font-weight="600">~/pi-fleet-kit</tspan> — this repo: compose.yml · Dockerfile.pi · extensions/ · skills/</text>
-    <text x="656" y="182"><tspan font-weight="600">~/pi-agents/<agent></tspan> — per-agent workspace (independent git clone)</text>
+    <text x="656" y="182"><tspan font-weight="600">~/pi-agents/&lt;agent&gt;</tspan> — per-agent workspace (independent git clone)</text>
     <text x="656" y="200"><tspan font-weight="600">~/pi-exchange/pi-coding · pi-review</tspan> — watchdog drop dirs (prompt files)</text>
     <text x="656" y="218"><tspan font-weight="600">~/.ssh/pi-agent-signing</tspan> — signing-only SSH key (commits → Verified)</text>
     <text x="656" y="240">shell env: OPENROUTER_API_KEY · GITHUB_TOKEN · GITHUB_USER_NAME / EMAIL</text>
@@ -45,7 +45,7 @@
 
   <!-- host -> docker arrow -->
   <line x1="620" y1="330" x2="620" y2="396" stroke="#667085" stroke-width="2" marker-end="url(#arr)"/>
-  <text x="636" y="352" font-size="10.5" fill="#475569">docker compose run --rm --name <agent> --label pi.agent.fleet=1</text>
+  <text x="636" y="352" font-size="10.5" fill="#475569">docker compose run --rm --name &lt;agent&gt; --label pi.agent.fleet=1</text>
   <text x="636" y="369" font-size="10.5" fill="#475569">env passthrough · named volumes · bind mounts (ro: skills, extensions, key)</text>
 
   <!-- ================= DOCKER ================= -->
@@ -171,5 +171,5 @@
     <text x="876" y="818">listed in the gallery via the pi-package keyword</text>
   </g>
 
-  <text x="620" y="890" text-anchor="middle" font-size="10.5" fill="#475569">git-status: live git state per agent in the pi footer · prompt-trigger: watchdog drops a file into ~/pi-exchange/<agent> → delivered as if typed by the user (pi-coding, pi-review)</text>
+  <text x="620" y="890" text-anchor="middle" font-size="10.5" fill="#475569">git-status: live git state per agent in the pi footer · prompt-trigger: watchdog drops a file into ~/pi-exchange/&lt;agent&gt; → delivered as if typed by the user (pi-coding, pi-review)</text>
 </svg>
