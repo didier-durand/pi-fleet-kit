@@ -1,6 +1,7 @@
 # pi-configs
 
-See the dedicated READMEs: [extensions/git-status](extensions/README-git-status.md),
+See the dedicated READMEs: [extensions/intro](extensions/README-intro.md),
+[extensions/git-status](extensions/README-git-status.md),
 [extensions/prompt-trigger](extensions/README-prompt-trigger.md),
 [warp/](warp/README.md), [skills/](skills/), [docs/](docs/).
 
