@@ -35,7 +35,7 @@ five parts, left to right:
 | `⎇ <branch>` | accent | Current branch name (`⎇ detached` if detached HEAD) | Always, inside a git repo |
 | `↑<n>·<m>f(+a/−d)` | success | **n commits ahead** of upstream, touching **m files**, `+a/−d` changed lines | only when ahead > 0 |
 | `↓<n>` | warning | **n commits behind** the upstream remote | only when behind > 0 |
-| `●<n>(+a/−d)` | warning | **n impacted files** uncommitted (staged + unstaged + untracked together; n *is* the file count), `+a/−d` changed lines across worktree and index | only when n > 0, ≤ 500 |
+| `●<n>f(+a/−d)` | warning | **n impacted files** uncommitted (staged + unstaged + untracked together; `f` marks the file count, consistent with `↑`), `+a/−d` changed lines across worktree and index | only when n > 0, ≤ 500 |
 | `●>500` | warning | Change surface too large — line counts skipped (diff cost would dominate) | when n > 500 |
 | `✓clean` | success | Zero changes in the worktree | replaces the dot when clean |
 
@@ -51,8 +51,8 @@ Reading examples:
 
 ```
 ⎇ main ✓clean                    in sync with origin, nothing to commit
-⎇ main ↑2·3f(+41/−12) ●5(+156/−89)  2 unpushed commits touching 3 files (+41/−12); 5 dirty files (+156/−89)
-⎇ fix/heartbeat-race ↓1 ●1(+2/−0) 1 behind origin, 1 dirty file
+⎇ main ↑2·3f(+41/−12) ●5f(+156/−89)  2 unpushed commits touching 3 files (+41/−12); 5 dirty files (+156/−89)
+⎇ fix/heartbeat-race ↓1 ●1f(+2/−0) 1 behind origin, 1 dirty file
 ⎇ main ●>500                     massive change surface — line counts withheld
 ```
 

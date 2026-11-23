@@ -67,7 +67,7 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 	if (ahead) parts.push(theme.fg("success", aheadAddDel ? `↑${ahead}·${aheadFiles}f(${aheadAddDel})` : `↑${ahead}`));
 	if (behind) parts.push(theme.fg("warning", `↓${behind}`));
 	if (dirty > DIFF_FILE_LIMIT) parts.push(theme.fg("warning", `●>${DIFF_FILE_LIMIT}`));
-	else if (dirty > 0) parts.push(theme.fg("warning", addDel ? `●${dirty}(${addDel})` : `●${dirty}`));
+	else if (dirty > 0) parts.push(theme.fg("warning", addDel ? `●${dirty}f(${addDel})` : `●${dirty}f`));
 	else parts.push(theme.fg("success", "✓clean"));
 
 	ctx.ui.setStatus(ID, parts.join(" "));
