@@ -94,6 +94,18 @@ Both carry the `pi-package` keyword and appear in the Pi package gallery.
 See [extensions/README.md](extensions/README.md) for details and the
 release workflow.
 
+## Running environment
+
+![Running environment](docs/running-environment.svg)
+
+The whole system in one picture: the host runs **Warp** (one tab per agent,
+launching through `agent_run.sh`) and, on macOS, the **Pi Agent Fleet** Dock
+app; Docker runs five `pi-sandbox` containers from the `pi-agents` compose
+project, each with its own persistent Pi-home volume, its own workspace git
+clone, and read-only mounts of this repo's skills/extensions; outside, the
+agents talk to the model API (OpenRouter), GitHub (HTTPS auth + SSH commit
+signing), and npm (Pi Packages, including this repo's published extensions).
+
 ## Usage
 
 ```bash
