@@ -30,6 +30,25 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 	const head = lines[0] ?? ""; // "## main...origin/main [ahead 1, behind 2]"
 	const dirty = lines.length - 1;
 
+	// Line counts (+added/−deleted) for dirty worktree and ahead range.
+	// Skipped when the change surface is too large (diff cost grows with it).
+	const DIFF_FILE_LIMIT = 500;
+	let addDel = "";      // e.g. "+156/−89" for the worktree
+	let aheadAddDel = ""; // e.g. "+41/−12" for the ahead commit range
+	if (dirty > 0 && dirty <= DIFF_FILE_LIMIT) {
+		const [wt, ix] = await Promise.all([
+			pi.exec("git", ["diff", "--shortstat"]),
+			pi.exec("git", ["diff", "--cached", "--shortstat"]),
+		]);
+		// worktree + index: sum both shortstats when they differ
+		const a=shortstat(wt.stdout), b=shortstat(ix.stdout);
+		addDel = a && b && a!==b ? sum(a,b) : (a || b);
+	}
+	if (ahead && Number(ahead) > 0 && Number(ahead) <= DIFF_FILE_LIMIT) {
+		const ab2 = await pi.exec("git", ["diff", "--shortstat", "@{u}..HEAD"]);
+		aheadAddDel = shortstat(ab2.stdout);
+	}
+
 	// branch: "## main..." | "## No commits yet on main" | "## HEAD (no branch)"
 	let branch = head.replace(/^## /, "");
 	branch = branch.split("...")[0].replace("No commits yet on ", "").trim();
@@ -42,12 +61,21 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 	const theme = ctx.ui.theme;
 	const parts: string[] = [];
 	parts.push(theme.fg("accent", `⎇ ${branch || "detached"}`));
-	if (ahead) parts.push(theme.fg("success", `↑${ahead}`));
+	if (ahead) parts.push(theme.fg("success", aheadAddDel ? `↑${ahead}(${aheadAddDel})` : `↑${ahead}`));
 	if (behind) parts.push(theme.fg("warning", `↓${behind}`));
-	if (dirty > 0) parts.push(theme.fg("warning", `●${dirty}`));
+	if (dirty > DIFF_FILE_LIMIT) parts.push(theme.fg("warning", `●>${DIFF_FILE_LIMIT}`));
+	else if (dirty > 0) parts.push(theme.fg("warning", addDel ? `●${dirty}(${addDel})` : `●${dirty}`));
 	else parts.push(theme.fg("success", "✓clean"));
 
 	ctx.ui.setStatus(ID, parts.join(" "));
+}
+
+// " 3 files changed, 156 insertions(+), 89 deletions(-)" -> "+156/−89"
+function shortstat(out: string): string {
+	const a = /((\d+) insertion[s]?)/.exec(out);
+	const d = /((\d+) deletion[s]?)/.exec(out);
+	if (!a && !d) return "";
+	return `+${a?.[2] ?? 0}/−${d?.[2] ?? 0}`;
 }
 
 export default function (pi: ExtensionAPI) {
