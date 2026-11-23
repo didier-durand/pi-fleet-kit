@@ -12,8 +12,14 @@ channels:
   shows the extension under its manifest directory name (`dist`) instead of
   the package name.
 
-Currently loaded: `git-status.ts` (repo-local, all agents) and `pi-web-access`
-(Pi Package, npm — web search, URL fetching, GitHub repo cloning, PDF
-extraction, YouTube transcription; install once per agent home with
-`pi install npm:pi-web-access`; source:
-[github.com/nicobailon/pi-web-access](https://github.com/nicobailon/pi-web-access)).
+## Inventory — brief description per extension
+
+| Extension | What it does | Docs |
+|---|---|---|
+| `git-status/` | Live per-agent git state in the pi footer (branch, ↑ahead/↓behind, dirty count, ✓clean) — each agent has its own checkout; complements Warp's host-side git view | [git-status/README.md](git-status/README.md) |
+| `prompt-trigger/` | Turns files dropped in a watched directory into prompts in the running TUI (as if typed), with `/new [kickoff]` for fresh sessions — the watchdog-to-agent bridge | [prompt-trigger/README.md](prompt-trigger/README.md) |
+| `pi-web-access` (Pi Package, npm) | Web search, URL fetching, GitHub repo cloning, PDF extraction, YouTube transcription — the web-research toolchain | [package on npm](https://www.npmjs.com/package/pi-web-access) · [source](https://github.com/nicobailon/pi-web-access) |
+
+Loading details per channel are above; installation specifics
+(`pi install npm:pi-web-access`, once per agent home) in the Pi Package
+bullet.
