@@ -49,6 +49,14 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 		addDel = a.addDel && b.addDel && a.addDel !== b.addDel ? sum(a.addDel, b.addDel) : (a.addDel || b.addDel);
 		if (overLines(addDel, LINE_LIMIT)) addDel = `>${LINE_LIMIT}L`; // align guard with lines
 	}
+	// ahead/behind from "[ahead 1, behind 2]" — parsed BEFORE the ahead-diff
+	// block below, which reads `ahead` (const: TDZ crash if declared later)
+	// NOTE: no `.*` in the behind-only alternative — a leading `.*` matches at
+	// position 0 and steals the match from the `\[ahead` alternative.
+	const ab = /\[ahead (\d+)(?:, behind (\d+))?|behind (\d+)\]/.exec(head);
+	const ahead = ab?.[1] ?? ""; // behind-only match: no ahead commits → hide ↑
+	const behind = ab?.[2] ?? ab?.[3] ?? "";
+
 	let aheadFiles = "";
 	if (ahead && Number(ahead) > 0 && Number(ahead) <= DIFF_FILE_LIMIT) {
 		const ab2 = await pi.exec("git", ["diff", "--shortstat", "@{u}..HEAD"]);
@@ -61,11 +69,6 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 	// branch: "## main..." | "## No commits yet on main" | "## HEAD (no branch)"
 	let branch = head.replace(/^## /, "");
 	branch = branch.split("...")[0].replace("No commits yet on ", "").trim();
-
-	// ahead/behind from "[ahead 1, behind 2]"
-	const ab = /\[ahead (\d+)(?:, behind (\d+))?|.*behind (\d+)\]/.exec(head);
-	const ahead = ab?.[1] ?? (ab?.[3] ? "0" : "");
-	const behind = ab?.[2] ?? ab?.[3] ?? "";
 
 	const theme = ctx.ui.theme;
 	const parts: string[] = [];
@@ -87,7 +90,7 @@ function shortstatFull(out: string): { files: string; addDel: string } {
 	const a = /(\d+) insertions?/.exec(out);
 	const d = /(\d+) deletions?/.exec(out);
 	if (!a && !d) return { files: "", addDel: "" };
-	return { files: f?.[1] ?? "", addDel: `+${a?.[2] ?? 0}/−${d?.[2] ?? 0}` };
+	return { files: f?.[1] ?? "", addDel: `+${a?.[1] ?? 0}/−${d?.[1] ?? 0}` };
 }
 
 // "+156/−89" -> true when added+deleted exceed the guard limit
