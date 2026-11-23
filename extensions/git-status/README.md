@@ -33,10 +33,10 @@ five parts, left to right:
 | Part | Color | Meaning | When shown |
 |---|---|---|---|
 | `⎇ <branch>` | accent | Current branch name (`⎇ detached` if detached HEAD) | Always, inside a git repo |
-| `↑<n>·<m>f(+a/−d)` | success | **n commits ahead** of upstream, touching **m files**, `+a/−d` changed lines | only when ahead > 0 |
+| `↑<n>·f:<m> l:+a/−d` | success | **n commits ahead** of upstream, touching **m files** (`f:`), `+a/−d` changed lines (`l:`) | only when ahead > 0 |
 | `↓<n>` | warning | **n commits behind** the upstream remote | only when behind > 0 |
-| `●<n>f(+a/−d)` | warning | **n impacted files** uncommitted (staged + unstaged + untracked together; `f` marks the file count, consistent with `↑`), `+a/−d` changed lines across worktree and index | only when 0 < n ≤ 500 and lines ≤ 500 |
-| `●<n>f>500L` | warning | Guard aligned with **lines**: more than 500 changed lines — exact line counts withheld, file count still shown | when computed lines > 500, or n > 500 files (diff skipped for cost) |
+| `●f:<n> l:+a/−d` | warning | **n impacted files** (`f:`) uncommitted, `+a/−d` changed lines (`l:`) across worktree and index | only when 0 < n ≤ 500 and lines ≤ 500 |
+| `●f:<n>>500L` | warning | Guard aligned with **lines**: more than 500 changed lines — file count still shown (`f:`), line counts withheld | when computed lines > 500, or n > 500 files (diff skipped for cost) |
 | `✓clean` | success | Zero changes in the worktree | replaces the dot when clean |
 
 Guardrail economics (line-aligned, as requested):
@@ -55,10 +55,10 @@ Reading examples:
 
 ```
 ⎇ main ✓clean                    in sync with origin, nothing to commit
-⎇ main ↑2·3f(+41/−12) ●5f(+156/−89)  2 unpushed commits touching 3 files (+41/−12); 5 dirty files (+156/−89)
-⎇ fix/heartbeat-race ↓1 ●1f(+2/−0) 1 behind origin, 1 dirty file
-⎇ main ●412f>500L              412 dirty files produced >500 changed lines — counts withheld
-⎇ main ●613f>500L              613 dirty files — diff skipped for cost, files still exact
+⎇ main ↑2·f:3 l:+41/−12 ●f:5 l:+156/−89  2 unpushed commits touching 3 files; 5 dirty files
+⎇ fix/heartbeat-race ↓1 ●f:1 l:+2/−0  1 behind origin, 1 dirty file
+⎇ main ●f:412>500L             412 dirty files produced >500 changed lines — line counts withheld
+⎇ main ●f:613>500L             613 dirty files — diff skipped for cost, file count still exact
 ```
 
 Reading examples:

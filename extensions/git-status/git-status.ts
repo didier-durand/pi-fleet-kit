@@ -70,12 +70,12 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 	const theme = ctx.ui.theme;
 	const parts: string[] = [];
 	parts.push(theme.fg("accent", `⎇ ${branch || "detached"}`));
-	if (ahead) parts.push(theme.fg("success", aheadAddDel ? `↑${ahead}·${aheadFiles}f(${aheadAddDel})` : `↑${ahead}`));
+	if (ahead) parts.push(theme.fg("success", aheadAddDel ? `↑${ahead}·f:${aheadFiles} l:${aheadAddDel}` : `↑${ahead}`));
 	if (behind) parts.push(theme.fg("warning", `↓${behind}`));
 	// Guard display: exact file count is always known (from porcelain); lines
 	// beyond the limit are shown as >500L — aligned with the line metric.
-	if (dirty > DIFF_FILE_LIMIT) parts.push(theme.fg("warning", `●${dirty}f>${DIFF_FILE_LIMIT}L`));
-	else if (dirty > 0) parts.push(theme.fg("warning", addDel ? `●${dirty}f(${addDel})` : `●${dirty}f`));
+	if (dirty > DIFF_FILE_LIMIT) parts.push(theme.fg("warning", `●f:${dirty}>${DIFF_FILE_LIMIT}L`));
+	else if (dirty > 0) parts.push(theme.fg("warning", addDel ? `●f:${dirty} l:${addDel}` : `●f:${dirty}`));
 	else parts.push(theme.fg("success", "✓clean"));
 
 	ctx.ui.setStatus(ID, parts.join(" "));
