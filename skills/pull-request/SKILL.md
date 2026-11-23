@@ -4,10 +4,9 @@ description: >
   Defines the shape of a pull request body: a Summary that shows the change
   with the smallest clear visual, Evidence with a concrete before/after, and
   a Merge Danger call (one-way vs two-way door + blast radius). A format
-  reference, not a workflow — it does not push branches or open PRs. Shape
-  adapted from the /pr skill reference (aihero.dev/skills-pr). Use whenever
-  the agent writes, drafts, or rewrites a PR body — alone, after a code
-  review, or when asked to open a pull request.
+  reference, not a workflow — it does not push branches or open PRs. Use
+  whenever the agent writes, drafts, or rewrites a PR body — alone, after a
+  code review, or when asked to open a pull request.
 ---
 
 # Pull Request Body
@@ -157,5 +156,9 @@ diff often hides reversibility.
 - Every PR states a door and a blast radius, and one-way doors are the ones
   reviewers slow down on.
 
-Source of the shape and full rationale: [aihero.dev/skills-pr](https://www.aihero.dev/skills-pr)
-(/pr skill reference, AI Skills for Real Engineers).
+- The reviewer can tell what the PR changes from the Summary visual alone,
+  before opening the diff.
+- The body has no preamble: it starts at the Summary heading.
+- Evidence shows a before and an after — not a claim that tests pass.
+- Every PR states a door and a blast radius, and one-way doors are the ones
+  reviewers slow down on.
