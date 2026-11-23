@@ -99,7 +99,8 @@ release workflow.
 ```mermaid
 %%{init: {"flowchart": {"nodeSpacing": 12, "rankSpacing": 28, "padding": 6, "diagramPadding": 8, "subGraphTitleMargin": {"top": 4, "bottom": 2}}}}%%
 flowchart TB
-  subgraph HOST["HOST — macOS · Linux · Windows"]
+  subgraph MACHINE["Developer machine / Server"]
+    subgraph HOST["HOST — macOS · Linux · Windows"]
     direction LR
     WARP["Warp terminal — one tab per agent<br/>agent_run.sh → docker compose run --rm<br/>one instance per agent: heartbeat claim + fixed container name<br/>agents_start.sh · tabs_install.sh · fleet_doctor.sh<br/>macOS: Pi Agent Fleet Dock app (swiftc)"]
     FILES["Host files & shell env<br/>~/pi-fleet-kit — compose.yml · Dockerfile.pi · extensions/ · skills/<br/>~/pi-agents/[agent] — workspace git clone<br/>~/pi-exchange/pi-coding · pi-review — watchdog drop dirs<br/>~/.ssh/pi-agent-signing — signing-only SSH key<br/>env: OPENROUTER_API_KEY · GITHUB_TOKEN · GITHUB_USER_NAME/EMAIL<br/>.env = dollar-brace references only"]
@@ -111,6 +112,7 @@ flowchart TB
     REVIEW["pi-review<br/>pi-review-home → ~/.pi/agent<br/>+ /exchange"]
     RESEARCH["pi-research<br/>pi-research-home → ~/.pi/agent"]
     PERSONAL["pi-personal<br/>pi-personal-home → ~/.pi/agent"]
+  end
   end
   LLM["LLM providers (OpenRouter)<br/>model set per agent in compose.yml"]
   GH["GitHub<br/>clone / pull / push over HTTPS (GITHUB_TOKEN)<br/>SSH-signed commits → Verified badge"]
@@ -142,6 +144,7 @@ flowchart TB
   class NPM npm
   style HOST fill:#F5F9FF,stroke:#4A78B5,color:#2B4C7E
   style DOCKER fill:#F7F4FD,stroke:#6A4FA3,color:#4C3575
+  style MACHINE fill:#FBFDFF,stroke:#94A3B8,color:#334155
 ```
 
 The whole system in one picture: the host runs **Warp** (one tab per agent,
