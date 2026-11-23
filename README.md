@@ -106,6 +106,58 @@ clone, and read-only mounts of this repo's skills/extensions; outside, the
 agents talk to the model API (OpenRouter), GitHub (HTTPS auth + SSH commit
 signing), and npm (Pi Packages, including this repo's published extensions).
 
+<details>
+<summary>Editable Mermaid version of the same diagram</summary>
+
+```mermaid
+flowchart TB
+  subgraph HOST["HOST — macOS · Linux · Windows"]
+    direction LR
+    WARP["Warp terminal — one tab per agent<br/>agent_run.sh → docker compose run --rm<br/>one instance per agent: heartbeat claim + fixed container name<br/>agents_start.sh · tabs_install.sh · fleet_doctor.sh<br/>macOS: Pi Agent Fleet Dock app (swiftc)"]
+    FILES["Host files & shell env<br/>~/pi-fleet-kit — compose.yml · Dockerfile.pi · extensions/ · skills/<br/>~/pi-agents/[agent] — workspace git clone<br/>~/pi-exchange/pi-coding · pi-review — watchdog drop dirs<br/>~/.ssh/pi-agent-signing — signing-only SSH key<br/>env: OPENROUTER_API_KEY · GITHUB_TOKEN · GITHUB_USER_NAME/EMAIL<br/>.env = dollar-brace references only"]
+  end
+  subgraph DOCKER["Docker Engine — compose project: pi-agents · image: pi-sandbox"]
+    direction LR
+    FLEET["pi-fleet-kit<br/>vol: pi-fleet-kit-home → ~/.pi/agent<br/>workspace → /workspace"]
+    CODING["pi-coding<br/>vol: pi-coding-home<br/>+ /exchange (prompt-trigger)"]
+    REVIEW["pi-review<br/>vol: pi-review-home<br/>+ /exchange (prompt-trigger)"]
+    RESEARCH["pi-research<br/>vol: pi-research-home"]
+    PERSONAL["pi-personal<br/>vol: pi-personal-home"]
+  end
+  LLM["LLM providers (OpenRouter)<br/>model set per agent in compose.yml"]
+  GH["GitHub<br/>clone / pull / push over HTTPS (GITHUB_TOKEN)<br/>SSH-signed commits → Verified badge"]
+  NPM["npm registry · pi.dev/packages<br/>PI_PACKAGES=npm:pi-web-access<br/>pi-git-status · pi-prompt-trigger"]
+  WARP -->|"docker compose run"| DOCKER
+  FILES -->|"bind mounts · named volumes · env passthrough"| DOCKER
+  DOCKER -->|"LLM API calls"| LLM
+  DOCKER -->|"git over HTTPS · SSH signing"| GH
+  DOCKER -->|"pi install"| NPM
+  classDef warp fill:#DBEAFE,stroke:#2563EB,color:#1E3A8A
+  classDef files fill:#F1F5F9,stroke:#64748B,color:#334155
+  classDef yellow fill:#FEF3C7,stroke:#B45309,color:#92400E
+  classDef blue fill:#DBEAFE,stroke:#1D4ED8,color:#1E40AF
+  classDef cyan fill:#CFFAFE,stroke:#0E7490,color:#155E75
+  classDef green fill:#DCFCE7,stroke:#15803D,color:#166534
+  classDef magenta fill:#FCE7F3,stroke:#BE185D,color:#9D174D
+  classDef llm fill:#FFF8EC,stroke:#C08A2D,color:#7A5410
+  classDef gh fill:#F2FAF2,stroke:#3C8C4E,color:#256B36
+  classDef npm fill:#FFF8EC,stroke:#C08A2D,color:#7A5410
+  class WARP warp
+  class FILES files
+  class FLEET yellow
+  class CODING blue
+  class REVIEW cyan
+  class RESEARCH green
+  class PERSONAL magenta
+  class LLM llm
+  class GH gh
+  class NPM npm
+  style HOST fill:#F5F9FF,stroke:#4A78B5,color:#2B4C7E
+  style DOCKER fill:#F7F4FD,stroke:#6A4FA3,color:#4C3575
+```
+
+</details>
+
 ## Usage
 
 ```bash
