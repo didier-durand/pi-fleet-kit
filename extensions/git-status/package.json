@@ -1,6 +1,6 @@
 {
   "name": "pi-git-status",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Live git status in the Pi coding agent footer: branch, ahead/behind vs upstream, uncommitted change count and +/- line stats",
   "keywords": [
     "pi-package",
