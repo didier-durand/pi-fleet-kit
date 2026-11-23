@@ -70,12 +70,12 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 	const theme = ctx.ui.theme;
 	const parts: string[] = [];
 	parts.push(theme.fg("accent", `⎇ ${branch || "detached"}`));
-	if (ahead) parts.push(theme.fg("success", aheadAddDel ? `↑c:${ahead} f:${aheadFiles} l:${aheadAddDel}` : `↑c:${ahead}`));
-	if (behind) parts.push(theme.fg("warning", `↓c:${behind}`));
+	if (ahead) parts.push(theme.fg("success", aheadAddDel ? `↑ c:${ahead} f:${aheadFiles} l:${aheadAddDel}` : `↑ c:${ahead}`));
+	if (behind) parts.push(theme.fg("warning", `↓ c:${behind}`));
 	// Guard display: exact file count is always known (from porcelain); lines
 	// beyond the limit are shown as l:>500 — aligned with the line metric.
-	if (dirty > DIFF_FILE_LIMIT) parts.push(theme.fg("warning", `●f:${dirty} l:>${DIFF_FILE_LIMIT}`));
-	else if (dirty > 0) parts.push(theme.fg("warning", addDel ? `●f:${dirty} l:${addDel}` : `●f:${dirty}`));
+	if (dirty > DIFF_FILE_LIMIT) parts.push(theme.fg("warning", `● f:${dirty} l:>${DIFF_FILE_LIMIT}`));
+	else if (dirty > 0) parts.push(theme.fg("warning", addDel ? `● f:${dirty} l:${addDel}` : `● f:${dirty}`));
 	else parts.push(theme.fg("success", "✓clean"));
 
 	ctx.ui.setStatus(ID, parts.join(" "));

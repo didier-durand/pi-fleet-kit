@@ -33,10 +33,10 @@ five parts, left to right:
 | Part | Color | Meaning | When shown |
 |---|---|---|---|
 | `⎇ <branch>` | accent | Current branch name (`⎇ detached` if detached HEAD) | Always, inside a git repo |
-| `↑c:<n> f:<m> l:+a/−d` | success | **n commits ahead** of upstream (`c:`), touching **m files** (`f:`), `+a/−d` changed lines (`l:`) | only when ahead > 0 |
-| `↓c:<n>` | warning | **n commits behind** the upstream remote (`c:`) | only when behind > 0 |
-| `●f:<n> l:+a/−d` | warning | **n impacted files** (`f:`) uncommitted, `+a/−d` changed lines (`l:`) across worktree and index | only when 0 < n ≤ 500 and lines ≤ 500 |
-| `●f:<n>>500L` | warning | Guard aligned with **lines**: more than 500 changed lines — file count still shown (`f:`), line counts withheld | when computed lines > 500, or n > 500 files (diff skipped for cost) |
+| `↑ c:<n> f:<m> l:+a/−d` | success | **n commits ahead** of upstream (`c:`), touching **m files** (`f:`), `+a/−d` changed lines (`l:`) | only when ahead > 0 |
+| `↓ c:<n>` | warning | **n commits behind** the upstream remote (`c:`) | only when behind > 0 |
+| `● f:<n> l:+a/−d` | warning | **n impacted files** (`f:`) uncommitted, `+a/−d` changed lines (`l:`) across worktree and index | only when 0 < n ≤ 500 and lines ≤ 500 |
+| `● f:<n>>500L` | warning | Guard aligned with **lines**: more than 500 changed lines — file count still shown (`f:`), line counts withheld | when computed lines > 500, or n > 500 files (diff skipped for cost) |
 | `✓clean` | success | Zero changes in the worktree | replaces the dot when clean |
 
 Guardrail economics (line-aligned, as requested):
@@ -55,10 +55,10 @@ Reading examples:
 
 ```
 ⎇ main ✓clean                    in sync with origin, nothing to commit
-⎇ main ↑c:2 f:3 l:+41/−12 ●f:5 l:+156/−89  2 unpushed commits touching 3 files; 5 dirty files
-⎇ fix/heartbeat-race ↓c:1 ●f:1 l:+2/−0  1 behind origin, 1 dirty file
-⎇ main ●f:412 l:>500           412 dirty files produced >500 changed lines — line counts withheld
-⎇ main ●f:613 l:>500           613 dirty files — diff skipped for cost, file count still exact
+⎇ main ↑ c:2 f:3 l:+41/−12 ● f:5 l:+156/−89  2 unpushed commits touching 3 files; 5 dirty files
+⎇ fix/heartbeat-race ↓ c:1 ● f:1 l:+2/−0  1 behind origin, 1 dirty file
+⎇ main ● f:412 l:>500           412 dirty files produced >500 changed lines — line counts withheld
+⎇ main ● f:613 l:>500           613 dirty files — diff skipped for cost, file count still exact
 ```
 
 Reading examples:
