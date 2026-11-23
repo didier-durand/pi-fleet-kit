@@ -41,12 +41,15 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 			pi.exec("git", ["diff", "--cached", "--shortstat"]),
 		]);
 		// worktree + index: sum both shortstats when they differ
-		const a=shortstat(wt.stdout), b=shortstat(ix.stdout);
-		addDel = a && b && a!==b ? sum(a,b) : (a || b);
+		const a = shortstatFull(wt.stdout), b = shortstatFull(ix.stdout);
+		addDel = a.addDel && b.addDel && a.addDel !== b.addDel ? sum(a.addDel, b.addDel) : (a.addDel || b.addDel);
 	}
+	let aheadFiles = "";
 	if (ahead && Number(ahead) > 0 && Number(ahead) <= DIFF_FILE_LIMIT) {
 		const ab2 = await pi.exec("git", ["diff", "--shortstat", "@{u}..HEAD"]);
-		aheadAddDel = shortstat(ab2.stdout);
+		const s = shortstatFull(ab2.stdout);
+		aheadAddDel = s.addDel;
+		aheadFiles = s.files;
 	}
 
 	// branch: "## main..." | "## No commits yet on main" | "## HEAD (no branch)"
@@ -61,7 +64,7 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 	const theme = ctx.ui.theme;
 	const parts: string[] = [];
 	parts.push(theme.fg("accent", `⎇ ${branch || "detached"}`));
-	if (ahead) parts.push(theme.fg("success", aheadAddDel ? `↑${ahead}(${aheadAddDel})` : `↑${ahead}`));
+	if (ahead) parts.push(theme.fg("success", aheadAddDel ? `↑${ahead}·${aheadFiles}f(${aheadAddDel})` : `↑${ahead}`));
 	if (behind) parts.push(theme.fg("warning", `↓${behind}`));
 	if (dirty > DIFF_FILE_LIMIT) parts.push(theme.fg("warning", `●>${DIFF_FILE_LIMIT}`));
 	else if (dirty > 0) parts.push(theme.fg("warning", addDel ? `●${dirty}(${addDel})` : `●${dirty}`));
@@ -70,12 +73,19 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 	ctx.ui.setStatus(ID, parts.join(" "));
 }
 
-// " 3 files changed, 156 insertions(+), 89 deletions(-)" -> "+156/−89"
-function shortstat(out: string): string {
-	const a = /((\d+) insertion[s]?)/.exec(out);
-	const d = /((\d+) deletion[s]?)/.exec(out);
-	if (!a && !d) return "";
-	return `+${a?.[2] ?? 0}/−${d?.[2] ?? 0}`;
+// " 3 files changed, 156 insertions(+), 89 deletions(-)" -> {files:"3", addDel:"+156/−89"}
+function shortstatFull(out: string): { files: string; addDel: string } {
+	const f = /(\d+) files? changed/.exec(out);
+	const a = /(\d+) insertions?/.exec(out);
+	const d = /(\d+) deletions?/.exec(out);
+	if (!a && !d) return { files: "", addDel: "" };
+	return { files: f?.[1] ?? "", addDel: `+${a?.[2] ?? 0}/−${d?.[2] ?? 0}` };
+}
+
+function sum(x: string, y: string): string {
+	const pa = /\+(\d+)\/−(\d+)/.exec(x), pb = /\+(\d+)\/−(\d+)/.exec(y);
+	if (!pa || !pb) return x || y;
+	return `+${Number(pa[1]) + Number(pb[1])}/−${Number(pa[2]) + Number(pb[2])}`;
 }
 
 export default function (pi: ExtensionAPI) {
