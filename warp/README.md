@@ -109,9 +109,16 @@ Windows, and the tab-config directory is chosen per platform (override with
 
 ## Install: `tabs_install.sh`
 
-Warp loads Tab Configs from `~/.warp/tab_configs/` (macOS stable).
-`tabs_install.sh` replicates every `tab_configs/*.toml` from this repo into
-that directory:
+Warp loads Tab Configs from a per-platform directory. `tabs_install.sh`
+detects the platform (same logic as `agents_start.sh`) and installs every
+`tab_configs/*.toml` from this repo into the right one:
+
+| Platform | Default destination |
+|---|---|
+| macOS (stable) | `~/.warp/tab_configs/` |
+| Linux | `${XDG_DATA_HOME:-$HOME/.local/share}/warp-terminal/tab_configs/` |
+| Windows (Git Bash/MSYS) | `%APPDATA%\warp\Warp\data\tab_configs\` |
+| (any) override | `TAB_CONFIGS_DIR=...` |
 
 ```bash
 ~/pi-fleet-kit/warp/tabs_install.sh
@@ -130,18 +137,6 @@ only copies the files that changed. Existing configs in the destination
 that aren't part of this repo are left untouched.
 
 To target a non-default location, set `TAB_CONFIGS_DIR`:
-
-```bash
-TAB_CONFIGS_DIR=~/.warp-preview/tab_configs ~/pi-fleet-kit/warp/tabs_install.sh
-```
-
-Other locations:
-
-- **Warp Preview (macOS):** `~/.warp-preview/tab_configs/`
-- **Windows:** `%APPDATA%\warp\Warp\data\tab_configs\`
-- **Linux:** `${XDG_DATA_HOME:-$HOME/.local/share}/warp-terminal/tab_configs/`
-
-Newly added files appear in the `+` menu automatically — no restart needed.
 
 ## Fleet app: Dock icon with running dot (`build_fleet_app.sh`)
 
@@ -200,6 +195,8 @@ heartbeats. It never modifies anything:
 ```bash
 ~/pi-fleet-kit/warp/fleet_doctor.sh pi-coding
 ```
+
+Newly added files appear in the `+` menu automatically — no restart needed.
 
 ## Editing
 
