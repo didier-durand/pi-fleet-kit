@@ -64,7 +64,7 @@ manifest at `./skills`, so any agent can fetch its skills directly from this
 GitHub repository with:
 
 ```bash
-pi install git:github.com/didier-durand/pi-fleet-kit@v1.0.0
+pi install git:github.com/didier-durand/pi-fleet-kit@v0.1.0
 ```
 
 (Git tags and commits are pinned; `pi update --extensions` reconciles the
@@ -74,7 +74,7 @@ Inside the Docker sandboxes, agents can do the same — `GITHUB_TOKEN` is
 already passed through for git-over-HTTPS auth, so no extra login is needed:
 
 ```bash
-pi install git:github.com/didier-durand/pi-fleet-kit@v1.0.0
+pi install git:github.com/didier-durand/pi-fleet-kit@v0.1.0
 ```
 
 Only the resources declared in the manifest (`skills/`) are loaded; the rest
