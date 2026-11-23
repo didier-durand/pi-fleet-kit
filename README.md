@@ -90,6 +90,16 @@ docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-personal
 docker compose -f ~/pi-fleet-kit/compose.yml down -v
 ```
 
+### Agent workspaces must be git clones
+
+Each agent works in its own independently cloned repository
+(`~/pi-agents/<agent>`, mounted as `/workspace`) — the `git-status`
+footer extension is inactive otherwise. `warp/agent_run.sh` bootstraps this
+at launch: `pi-fleet-kit`'s workspace (a clone of this repo, its natural
+domain) is cloned automatically from the origin if missing; other agents'
+workspaces are per-project clones only you know, so the launcher warns and
+prints the exact `git clone` command when a workspace is not a repo.
+
 ### Environment variables passed to agents
 
 | Variable | Sourced from | Used for |

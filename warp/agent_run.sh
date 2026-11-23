@@ -203,6 +203,34 @@ if agent_up; then
   exit 0
 fi
 
+# Workspace bootstrap: git-status (and sane git hygiene) require each agent
+# workspace (~/pi-agents/<agent>, mounted as /workspace) to be a git clone —
+# the git-status extension clears its footer entry entirely when the
+# workspace is not a repo. pi-fleet-kit's workspace is the fleet-kit repo
+# itself (same origin as this checkout), so it can be cloned automatically.
+# Other agents' workspaces are per-project clones only the operator knows —
+# warn instead of guessing.
+ws="$HOME/pi-agents/$agent"
+if [[ ! -d "$ws/.git" ]]; then
+  if [[ "$agent" == "pi-fleet-kit" ]]; then
+    url="$(git -C "$WARP_DIR/.." remote get-url origin 2>/dev/null || echo https://github.com/didier-durand/pi-fleet-kit)"
+    if [[ -d "$ws" ]] && [[ -n "$(ls -A "$ws" 2>/dev/null)" ]]; then
+      echo "warning: '$agent': $ws exists and is not empty but is not a git repo — not cloning;" >&2
+      echo "warning: '$agent': git-status stays inactive until it is a git clone of the fleet-kit repo" >&2
+    else
+      echo "note: '$agent': workspace $ws is not a git clone — cloning from $url" >&2
+      rm -rf "$ws"
+      mkdir -p "$HOME/pi-agents"
+      if ! git clone "$url" "$ws" >&2; then
+        echo "warning: '$agent': clone failed — launching anyway, git-status stays inactive" >&2
+      fi
+    fi
+  else
+    echo "warning: '$agent': workspace $ws is not a git repo — git-status stays inactive" >&2
+    echo "warning: '$agent': clone the project repo there, e.g.: git clone <url> $ws" >&2
+  fi
+fi
+
 # Heartbeat: record this tab's docker client PID (the PID survives the exec
 # below), then watch it from a background loop. When the tab closes (or the
 # container exits), the client dies; the loop then removes the heartbeat —
