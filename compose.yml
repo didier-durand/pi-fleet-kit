@@ -34,7 +34,6 @@ services:
       - pi-fleet-kit-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-fleet-kit:/workspace
-      # Watched dir for file-triggered prompts (extension prompt-trigger):
       # Skills for THIS agent only (/skill:build-skill, /skill:github-best-practices):
       - ${HOME}/pi-fleet-kit/skills/build-skill:/repo-skills/build-skill:ro
       - ${HOME}/pi-fleet-kit/skills/github-best-practices:/repo-skills/github-best-practices:ro
