@@ -11,7 +11,7 @@ One Tab Config per agent defined in `../compose.yml`:
 
 | File | Tab name | Color | Launches |
 |---|---|---|---|
-| `tab_configs/pi_configs.toml` | pi-configs | yellow | `agent_run.sh pi-configs` |
+| `tab_configs/pi_fleet_kit.toml` | pi-fleet-kit | yellow | `agent_run.sh pi-fleet-kit` |
 | `tab_configs/pi_coding.toml` | pi-coding | blue | `agent_run.sh pi-coding` |
 | `tab_configs/pi_research.toml` | pi-research | green | `agent_run.sh pi-research` |
 | `tab_configs/pi_personal.toml` | pi-personal | magenta | `agent_run.sh pi-personal` |
@@ -94,7 +94,7 @@ are skipped rather than duplicated.
 **Tab order:** Warp appends newly opened tabs at the end of the tab bar and
 provides no way to reposition them (there is no position parameter in the
 URI scheme). Tabs opened one at a time therefore accumulate in "reopened
-last = far right" order. To restore the canonical order (pi-configs,
+last = far right" order. To restore the canonical order (pi-fleet-kit,
 pi-coding, pi-research, pi-personal), run `agents_start.sh -R`: it stops all
 agent containers (sessions are kept on disk and resumed via `--continue`),
 then reopens every tab in compose order — close the leftover old tabs

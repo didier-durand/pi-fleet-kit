@@ -13,7 +13,7 @@
 # GITHUB_USER_NAME / GITHUB_USER_EMAIL provide the git commit identity.
 #
 # Usage:
-#   docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-configs
+#   docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-fleet-kit
 #   docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-coding
 #   docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-research
 #   docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-personal
@@ -27,13 +27,13 @@ services:
   # pi-fleet-kit: configuration-management agent. Identical image and credential
   # passthrough, with fully independent state (own Pi home volume, own
   # workspace) so sessions, auth and files never mix with the other agents.
-  pi-configs:
+  pi-fleet-kit:
     image: pi-sandbox
     volumes:
       # Private Pi home (config, auth, sessions, extensions):
-      - pi-configs-home:/home/pi/.pi/agent
+      - pi-fleet-kit-home:/home/pi/.pi/agent
       # The agent's working folder:
-      - ${HOME}/pi-agents/pi-configs:/workspace
+      - ${HOME}/pi-agents/pi-fleet-kit:/workspace
       # Watched dir for file-triggered prompts (extension prompt-trigger):
       # Skills for THIS agent only (/skill:build-skill, /skill:github-best-practices):
       - ${HOME}/pi-fleet-kit/skills/build-skill:/repo-skills/build-skill:ro
@@ -230,7 +230,7 @@ services:
     #   - "host.docker.internal:host-gateway"
 
 volumes:
-  pi-configs-home:
+  pi-fleet-kit-home:
   pi-coding-home:
   pi-research-home:
   pi-personal-home:

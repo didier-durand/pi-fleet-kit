@@ -13,7 +13,7 @@ this repo). Tabs may be closed individually and reopened later.
 
 When one agent's tab is closed and reopened later, it lands at the far
 right, breaking an intentional left-to-right order (our compose.yml order:
-pi-configs, pi-coding, pi-research, pi-personal). We currently work around
+pi-fleet-kit, pi-coding, pi-review, pi-research, pi-personal). We currently work around
 this by stopping the whole fleet and reopening all tabs in order
 (`agents_start.sh -R`) — heavy-handed for what should be a one-tab reopen.
 
