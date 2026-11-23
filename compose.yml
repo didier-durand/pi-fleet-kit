@@ -36,11 +36,11 @@ services:
       - ${HOME}/pi-agents/pi-configs:/workspace
       # Watched dir for file-triggered prompts (extension prompt-trigger):
       # Skills for THIS agent only (/skill:build-skill, /skill:github-best-practices):
-      - ${HOME}/pi-configs/skills/build-skill:/repo-skills/build-skill:ro
-      - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
+      - ${HOME}/pi-fleet-kit/skills/build-skill:/repo-skills/build-skill:ro
+      - ${HOME}/pi-fleet-kit/skills/github-best-practices:/repo-skills/github-best-practices:ro
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
-      - ${HOME}/pi-configs/extensions:/repo-extensions:ro
+      - ${HOME}/pi-fleet-kit/extensions:/repo-extensions:ro
       # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
       # key registered on GitHub as "Signing key" -> Verified badges.
       - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
@@ -78,10 +78,10 @@ services:
       # Watched dir for file-triggered prompts (extension prompt-trigger):
       - ${HOME}/pi-exchange/pi-coding:/exchange
       # Skills for THIS agent only (/skill:github-best-practices):
-      - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
+      - ${HOME}/pi-fleet-kit/skills/github-best-practices:/repo-skills/github-best-practices:ro
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
-      - ${HOME}/pi-configs/extensions:/repo-extensions:ro
+      - ${HOME}/pi-fleet-kit/extensions:/repo-extensions:ro
       # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
       # key registered on GitHub as "Signing key" -> Verified badges.
       - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
@@ -116,10 +116,10 @@ services:
       # Watched dir for file-triggered prompts (extension prompt-trigger):
       - ${HOME}/pi-exchange/pi-review:/exchange
       # Skills for THIS agent only (/skill:github-best-practices):
-      - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
+      - ${HOME}/pi-fleet-kit/skills/github-best-practices:/repo-skills/github-best-practices:ro
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
-      - ${HOME}/pi-configs/extensions:/repo-extensions:ro
+      - ${HOME}/pi-fleet-kit/extensions:/repo-extensions:ro
       # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
       # key registered on GitHub as "Signing key" -> Verified badges.
       - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
@@ -157,11 +157,11 @@ services:
       - ${HOME}/pi-agents/pi-research:/workspace
       # Watched dir for file-triggered prompts (extension prompt-trigger):
       # Skills for THIS agent only (/skill:publishing-best-practices, /skill:github-best-practices):
-      - ${HOME}/pi-configs/skills/publishing-best-practices:/repo-skills/publishing-best-practices:ro
-      - ${HOME}/pi-configs/skills/web-research:/repo-skills/web-research:ro
+      - ${HOME}/pi-fleet-kit/skills/publishing-best-practices:/repo-skills/publishing-best-practices:ro
+      - ${HOME}/pi-fleet-kit/skills/web-research:/repo-skills/web-research:ro
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
-      - ${HOME}/pi-configs/extensions:/repo-extensions:ro
+      - ${HOME}/pi-fleet-kit/extensions:/repo-extensions:ro
       # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
       # key registered on GitHub as "Signing key" -> Verified badges.
       - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
@@ -198,12 +198,12 @@ services:
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-personal:/workspace
       # Skills for THIS agent only (/skill:publishing-best-practices, /skill:hello-world, /skill:github-best-practices):
-      - ${HOME}/pi-configs/skills/publishing-best-practices:/repo-skills/publishing-best-practices:ro
-      - ${HOME}/pi-configs/skills/hello-world:/repo-skills/hello-world:ro
-      - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
+      - ${HOME}/pi-fleet-kit/skills/publishing-best-practices:/repo-skills/publishing-best-practices:ro
+      - ${HOME}/pi-fleet-kit/skills/hello-world:/repo-skills/hello-world:ro
+      - ${HOME}/pi-fleet-kit/skills/github-best-practices:/repo-skills/github-best-practices:ro
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
-      - ${HOME}/pi-configs/extensions:/repo-extensions:ro
+      - ${HOME}/pi-fleet-kit/extensions:/repo-extensions:ro
       # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
       # key registered on GitHub as "Signing key" -> Verified badges.
       - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro

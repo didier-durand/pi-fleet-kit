@@ -29,14 +29,14 @@ else
 fi
 echo
 echo "2) agent_run.sh --check result:"
-"$HOME/pi-configs/warp/agent_run.sh" --check "$AGENT" 2>&1
+"$HOME/pi-fleet-kit/warp/agent_run.sh" --check "$AGENT" 2>&1
 echo "   exit code: $?"
 echo
 echo "3) containers for this agent (docker ps):"
 "$DOCKER" ps --filter "label=com.docker.compose.service=$AGENT" --format '   {{.ID}}  {{.Names}}  {{.Status}}' 2>&1
 echo
 echo "4) docker reachable: $("$DOCKER" ps >/dev/null 2>&1 && echo yes || echo NO)"
-echo "5) compose file: $(ls "$HOME/pi-configs/compose.yml" 2>/dev/null || echo 'NOT FOUND')"
+echo "5) compose file: $(ls "$HOME/pi-fleet-kit/compose.yml" 2>/dev/null || echo 'NOT FOUND')"
 echo "6) all heartbeats in $HB_DIR:"
 ls -la "$HB_DIR" 2>/dev/null | grep -v '^total' | grep -v '^d' || echo "   (directory missing or empty)"
 echo
