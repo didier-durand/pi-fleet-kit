@@ -74,7 +74,7 @@ if [[ -n "$SWIFTC" ]]; then
   mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
   cat > "$WORK/main.swift" <<'EOF'
-// Pi Agent Fleet — Dock app for ~/pi-configs/warp (built by build_fleet_app.sh)
+// Pi Agent Fleet — Dock app for ~/pi-fleet-kit/warp (built by build_fleet_app.sh)
 // Launch and every Dock click run agents_start.sh (idempotent: adds missing
 // agents, skips running ones, heals orphans). Stays running while any agent
 // container is up (Dock black dot); terminates ~60s after the fleet stops.
@@ -98,7 +98,7 @@ final class FleetDelegate: NSObject, NSApplicationDelegate {
 
     func startFleet() {
         lastSeenUp = Date()
-        _ = shell("nohup \"$HOME/pi-configs/warp/agents_start.sh\" > /tmp/pi-agent-fleet.log 2>&1 & exit 0")
+        _ = shell("nohup \"$HOME/pi-fleet-kit/warp/agents_start.sh\" > /tmp/pi-agent-fleet.log 2>&1 & exit 0")
     }
 
     func poll() {
@@ -111,7 +111,7 @@ final class FleetDelegate: NSObject, NSApplicationDelegate {
 
     func fleetUp() -> Bool {
         for a in agents {
-            if shell("\"$HOME/pi-configs/warp/agent_run.sh\" --check " + a) == 0 { return true }
+            if shell("\"$HOME/pi-fleet-kit/warp/agent_run.sh\" --check " + a) == 0 { return true }
         }
         return false
     }
@@ -145,7 +145,7 @@ EOF
 	<key>CFBundleDevelopmentRegion</key><string>en</string>
 	<key>CFBundleExecutable</key><string>PiAgentFleet</string>
 	<key>CFBundleIconFile</key><string>AppIcon.icns</string>
-	<key>CFBundleIdentifier</key><string>com.pi-configs.agent-fleet</string>
+	<key>CFBundleIdentifier</key><string>com.pi-fleet-kit.agent-fleet</string>
 	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
 	<key>CFBundleName</key><string>Pi Agent Fleet</string>
 	<key>CFBundlePackageType</key><string>APPL</string>
@@ -168,13 +168,13 @@ property LastSeenUp : missing value
 
 on run
 	try
-		do shell script "nohup $HOME/pi-configs/warp/agents_start.sh > /tmp/pi-agent-fleet.log 2>&1 & exit 0"
+		do shell script "nohup $HOME/pi-fleet-kit/warp/agents_start.sh > /tmp/pi-agent-fleet.log 2>&1 & exit 0"
 	end try
 end run
 
 on reopen
 	try
-		do shell script "nohup $HOME/pi-configs/warp/agents_start.sh > /tmp/pi-agent-fleet.log 2>&1 & exit 0"
+		do shell script "nohup $HOME/pi-fleet-kit/warp/agents_start.sh > /tmp/pi-agent-fleet.log 2>&1 & exit 0"
 	end try
 end reopen
 
@@ -186,7 +186,7 @@ EOF
   osacompile -o "$APP" "$WORK/fleet.applescript"
   gen_icns "$APP"
   plist_set "$APP/Contents/Info.plist" CFBundleIconFile AppIcon.icns
-  plist_set "$APP/Contents/Info.plist" CFBundleIdentifier com.pi-configs.agent-fleet
+  plist_set "$APP/Contents/Info.plist" CFBundleIdentifier com.pi-fleet-kit.agent-fleet
   plist_set "$APP/Contents/Info.plist" CFBundleName "Pi Agent Fleet"
   /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons" "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
   /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$APP/Contents/Info.plist" >/dev/null 2>&1 || true

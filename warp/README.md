@@ -16,7 +16,7 @@ One Tab Config per agent defined in `../compose.yml`:
 | `tab_configs/pi_research.toml` | pi-research | green | `agent_run.sh pi-research` |
 | `tab_configs/pi_personal.toml` | pi-personal | magenta | `agent_run.sh pi-personal` |
 
-Each config opens a terminal in `~/pi-configs` and runs `agent_run.sh` for
+Each config opens a terminal in `~/pi-fleet-kit` and runs `agent_run.sh` for
 that agent, so selecting it from the `+` menu drops you directly into the
 agent's sandbox. The compose service `command` includes `--continue`, so
 each launch resumes that agent's most recent session (fresh start: `/new`
@@ -61,7 +61,7 @@ Starts every agent in its own Warp tab (installing the tab configs first if
 needed):
 
 ```bash
-~/pi-configs/warp/agents_start.sh
+~/pi-fleet-kit/warp/agents_start.sh
 ```
 
 The script opens each config via the `warp://tab_config/<name>` URI scheme,
@@ -112,7 +112,7 @@ Warp loads Tab Configs from `~/.warp/tab_configs/` (macOS stable).
 that directory:
 
 ```bash
-~/pi-configs/warp/tabs_install.sh
+~/pi-fleet-kit/warp/tabs_install.sh
 ```
 
 Usage:
@@ -130,7 +130,7 @@ that aren't part of this repo are left untouched.
 To target a non-default location, set `TAB_CONFIGS_DIR`:
 
 ```bash
-TAB_CONFIGS_DIR=~/.warp-preview/tab_configs ~/pi-configs/warp/tabs_install.sh
+TAB_CONFIGS_DIR=~/.warp-preview/tab_configs ~/pi-fleet-kit/warp/tabs_install.sh
 ```
 
 Other locations:
@@ -151,8 +151,8 @@ soon as the run handler returns. The builder therefore compiles a tiny
 **native Swift app** (using `swiftc` from the Xcode Command Line Tools):
 
 ```bash
-~/pi-configs/warp/build_fleet_app.sh            # builds into ~/Applications
-~/pi-configs/warp/build_fleet_app.sh /Applications
+~/pi-fleet-kit/warp/build_fleet_app.sh            # builds into ~/Applications
+~/pi-fleet-kit/warp/build_fleet_app.sh /Applications
 ```
 
 Behavior:

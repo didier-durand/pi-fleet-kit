@@ -1,4 +1,4 @@
-# pi-configs
+# pi-fleet-kit
 
 See the dedicated READMEs: [extensions/intro](extensions/README.md),
 [extensions/git-status](extensions/git-status/README.md),
@@ -10,13 +10,11 @@ See the dedicated READMEs: [extensions/intro](extensions/README.md),
 No path in this repo is user-specific: all runtime paths are `${HOME}`- or
 tilde-relative (compose mounts, tab configs, scripts, the Swift app), and
 scripts locate themselves relative to their own directory. The one
-**convention** other files depend on: clone this repo to **`~/pi-configs`**
+**convention** other files depend on: clone this repo to **`~/pi-fleet-kit`**
 (exactly that name/location) and keep agent workspaces under
 `~/pi-agents/`. Everything else adapts per machine; tool lookup covers the
 standard install locations on macOS (`/usr/local/bin`, `/opt/homebrew/bin`,
 `~/.docker/bin`) and Linux.
-
-# pi-configs
 
 ## Per-agent skills
 
@@ -63,7 +61,7 @@ manifest at `./skills`, so any agent can fetch its skills directly from this
 GitHub repository with:
 
 ```bash
-pi install git:github.com/didier-durand/pi-configs@v1.0.0
+pi install git:github.com/didier-durand/pi-fleet-kit@v1.0.0
 ```
 
 (Git tags and commits are pinned; `pi update --extensions` reconciles the
@@ -73,7 +71,7 @@ Inside the Docker sandboxes, agents can do the same — `GITHUB_TOKEN` is
 already passed through for git-over-HTTPS auth, so no extra login is needed:
 
 ```bash
-pi install git:github.com/didier-durand/pi-configs@v1.0.0
+pi install git:github.com/didier-durand/pi-fleet-kit@v1.0.0
 ```
 
 Only the resources declared in the manifest (`skills/`) are loaded; the rest
@@ -86,10 +84,10 @@ of the repo (compose, Dockerfile, warp configs) is ignored by Pi.
 docker build -t pi-sandbox -f Dockerfile.pi .
 
 # Run the agent:
-docker compose -f ~/pi-configs/compose.yml run --rm pi-personal
+docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-personal
 
 # Teardown (deletes volumes and ALL agent state):
-docker compose -f ~/pi-configs/compose.yml down -v
+docker compose -f ~/pi-fleet-kit/compose.yml down -v
 ```
 
 ### Environment variables passed to agents

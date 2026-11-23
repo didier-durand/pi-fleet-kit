@@ -1,5 +1,5 @@
 {
-  "name": "pi-configs",
+  "name": "pi-fleet-kit",
   "version": "1.0.0",
   "description": "Pi agent infrastructure: Docker sandboxes (compose.yml), Warp tab configs, and installable Pi skills",
   "keywords": [

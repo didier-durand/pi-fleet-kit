@@ -13,18 +13,18 @@
 # GITHUB_USER_NAME / GITHUB_USER_EMAIL provide the git commit identity.
 #
 # Usage:
-#   docker compose -f ~/pi-configs/compose.yml run --rm pi-configs
-#   docker compose -f ~/pi-configs/compose.yml run --rm pi-coding
-#   docker compose -f ~/pi-configs/compose.yml run --rm pi-research
-#   docker compose -f ~/pi-configs/compose.yml run --rm pi-personal
+#   docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-configs
+#   docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-coding
+#   docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-research
+#   docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-personal
 #
 # Teardown (also deletes volumes / ALL agent state):
-#   docker compose -f ~/pi-configs/compose.yml down -v
+#   docker compose -f ~/pi-fleet-kit/compose.yml down -v
 
 name: pi-agents
 
 services:
-  # pi-configs: configuration-management agent. Identical image and credential
+  # pi-fleet-kit: configuration-management agent. Identical image and credential
   # passthrough, with fully independent state (own Pi home volume, own
   # workspace) so sessions, auth and files never mix with the other agents.
   pi-configs:

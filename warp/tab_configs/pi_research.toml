@@ -12,6 +12,6 @@ color = "green"
 [[panes]]
 id = "main"
 type = "terminal"
-directory = "~/pi-configs"
-commands = ["~/pi-configs/warp/agent_run.sh pi-research"]
+directory = "~/pi-fleet-kit"
+commands = ["~/pi-fleet-kit/warp/agent_run.sh pi-research"]
 is_focused = true

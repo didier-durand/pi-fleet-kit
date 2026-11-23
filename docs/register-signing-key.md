@@ -49,7 +49,7 @@ After rebuilding the image and relaunching the agents (see README), the
 quickest test is any commit made in the container:
 
 ```bash
-docker compose -f ~/pi-configs/compose.yml run --rm pi-coding bash -c \
+docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-coding bash -c \
   'cd /workspace && git commit --allow-empty -m "test: signing from container" 2>&1 | tail -2'
 ```
 
