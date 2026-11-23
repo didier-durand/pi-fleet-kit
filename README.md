@@ -117,8 +117,8 @@ flowchart TB
   LLM["LLM providers (OpenRouter)<br/>model set per agent in compose.yml"]
   GH["GitHub<br/>clone / pull / push over HTTPS (GITHUB_TOKEN)<br/>SSH-signed commits → Verified badge"]
   NPM["npm registry · pi.dev/packages<br/>PI_PACKAGES=npm:pi-web-access<br/>pi-git-status · pi-prompt-trigger"]
-  WARP -->|"docker compose run"| DOCKER
-  FILES -->|"bind mounts · named volumes · env passthrough"| DOCKER
+  HOST -->|"docker compose run"| DOCKER
+  HOST -->|"bind mounts · named volumes · env passthrough"| DOCKER
   DOCKER -->|"LLM API calls"| LLM
   DOCKER -->|"git over HTTPS · SSH signing"| GH
   DOCKER -->|"pi install"| NPM
