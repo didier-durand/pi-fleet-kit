@@ -35,7 +35,9 @@ services:
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-configs:/workspace
       # Watched dir for file-triggered prompts (extension prompt-trigger):
-      - ${HOME}/pi-agents/pi-configs/triggers:/triggers
+      # Exchange dir: watchdog drops prompt files here; per-agent so no
+      # agent sees another agent's exchanges
+      - ${HOME}/pi-exchange/pi-configs:/triggers
       # Skills for THIS agent only (/skill:build-skill, /skill:github-best-practices):
       - ${HOME}/pi-configs/skills/build-skill:/repo-skills/build-skill:ro
       - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
@@ -78,7 +80,9 @@ services:
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-coding:/workspace
       # Watched dir for file-triggered prompts (extension prompt-trigger):
-      - ${HOME}/pi-agents/pi-coding/triggers:/triggers
+      # Exchange dir: watchdog drops prompt files here; per-agent so no
+      # agent sees another agent's exchanges
+      - ${HOME}/pi-exchange/pi-coding:/triggers
       # Skills for THIS agent only (/skill:github-best-practices):
       - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
       # Read-only repo mount: extensions stay one git pull away from all
@@ -116,7 +120,9 @@ services:
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-review:/workspace
       # Watched dir for file-triggered prompts (extension prompt-trigger):
-      - ${HOME}/pi-agents/pi-review/triggers:/triggers
+      # Exchange dir: watchdog drops prompt files here; per-agent so no
+      # agent sees another agent's exchanges
+      - ${HOME}/pi-exchange/pi-review:/triggers
       # Skills for THIS agent only (/skill:github-best-practices):
       - ${HOME}/pi-configs/skills/github-best-practices:/repo-skills/github-best-practices:ro
       # Read-only repo mount: extensions stay one git pull away from all
@@ -158,7 +164,9 @@ services:
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-research:/workspace
       # Watched dir for file-triggered prompts (extension prompt-trigger):
-      - ${HOME}/pi-agents/pi-research/triggers:/triggers
+      # Exchange dir: watchdog drops prompt files here; per-agent so no
+      # agent sees another agent's exchanges
+      - ${HOME}/pi-exchange/pi-research:/triggers
       # Skills for THIS agent only (/skill:publishing-best-practices, /skill:github-best-practices):
       - ${HOME}/pi-configs/skills/publishing-best-practices:/repo-skills/publishing-best-practices:ro
       - ${HOME}/pi-configs/skills/web-research:/repo-skills/web-research:ro
@@ -202,7 +210,9 @@ services:
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-personal:/workspace
       # Watched dir for file-triggered prompts (extension prompt-trigger):
-      - ${HOME}/pi-agents/pi-personal/triggers:/triggers
+      # Exchange dir: watchdog drops prompt files here; per-agent so no
+      # agent sees another agent's exchanges
+      - ${HOME}/pi-exchange/pi-personal:/triggers
       # Skills for THIS agent only (/skill:publishing-best-practices, /skill:hello-world, /skill:github-best-practices):
       - ${HOME}/pi-configs/skills/publishing-best-practices:/repo-skills/publishing-best-practices:ro
       - ${HOME}/pi-configs/skills/hello-world:/repo-skills/hello-world:ro
