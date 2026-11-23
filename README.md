@@ -156,3 +156,49 @@ git config core.hooksPath .githooks
 ```
 
 Emergency bypass (avoid): `git commit --no-verify`.
+
+## Prerequisites
+
+### Universal (the sandbox itself — no host-side Node/pi needed)
+
+- **Docker + Compose v2**: Docker Desktop (macOS/Windows) or Docker Engine
+  with the compose plugin (Linux). The `warp/` scripts also probe the usual
+  Docker Desktop install locations (`/usr/local/bin`, `/opt/homebrew/bin`,
+  `~/.docker/bin`, `/usr/bin`), so launcher contexts with a minimal `PATH`
+  work too.
+- **The repo at `~/pi-fleet-kit`** — the one path convention other files
+  depend on (see [Machine requirements](#machine-requirements-portability)).
+- **Credentials in the host shell** (the tracked `.env` holds only
+  `${VAR}` references — the real values must be exported):
+  `OPENROUTER_API_KEY`, `GITHUB_TOKEN`, `GITHUB_USER_NAME`,
+  `GITHUB_USER_EMAIL`.
+- **The sandbox image built once**:
+  `docker build -t pi-sandbox -f Dockerfile.pi .`
+- **Git hooks configured once per clone**:
+  `git config core.hooksPath .githooks`
+- **Network access** at first launch: npm registry (the `PI_PACKAGES`
+  auto-install of `pi-web-access`) and the model API.
+- **Agent workspaces as git clones** under `~/pi-agents/` (`git-status` is
+  inactive otherwise) — see [Agent workspaces must be git
+  clones](#agent-workspaces-must-be-git-clones).
+
+### Warp terminal (the intended operating layer)
+
+- [Warp](https://www.warp.dev) — available for macOS, Windows, and Linux
+  (x64/ARM64).
+- `warp/tabs_install.sh` then puts one tab config per agent into Warp's
+  per-platform config directory (auto-detected on all three platforms).
+- Every tab launches the agent through `warp/agent_run.sh`, which enforces
+  **one instance per agent** (heartbeat claim, orphan healing, fixed
+  container names) — plain `docker compose run` bypasses that discipline
+  and is the headless fallback, not the primary interface.
+
+### macOS capstone — the "Pi Agent Fleet" Dock app (optional)
+
+- Built by `warp/build_fleet_app.sh` into `~/Applications`: one Dock icon
+  for the whole fleet (running-dot while agents are up, click-while-running
+  convergence via `agents_start.sh`).
+- Requires the Xcode Command Line Tools (`xcode-select --install`) for
+  `swiftc`; without them it degrades to a basic osacompile launcher without
+  the dot or click-while-running behavior.
+- Linux/Windows: use the Warp tabs directly; the app is macOS-only.
