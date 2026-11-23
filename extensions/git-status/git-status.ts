@@ -35,6 +35,10 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 	const DIFF_FILE_LIMIT = 500;
 	let addDel = "";      // e.g. "+156/−89" for the worktree
 	let aheadAddDel = ""; // e.g. "+41/−12" for the ahead commit range
+	// Guardrails are LINE-based (display: >500L) whenever the diff is
+	// computable; the file-count cap only decides whether diffing at all is
+	// worth it (cost scales with change surface).
+	const LINE_LIMIT = 500;
 	if (dirty > 0 && dirty <= DIFF_FILE_LIMIT) {
 		const [wt, ix] = await Promise.all([
 			pi.exec("git", ["diff", "--shortstat"]),
@@ -43,6 +47,7 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 		// worktree + index: sum both shortstats when they differ
 		const a = shortstatFull(wt.stdout), b = shortstatFull(ix.stdout);
 		addDel = a.addDel && b.addDel && a.addDel !== b.addDel ? sum(a.addDel, b.addDel) : (a.addDel || b.addDel);
+		if (overLines(addDel, LINE_LIMIT)) addDel = `>${LINE_LIMIT}L`; // align guard with lines
 	}
 	let aheadFiles = "";
 	if (ahead && Number(ahead) > 0 && Number(ahead) <= DIFF_FILE_LIMIT) {
@@ -50,6 +55,7 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 		const s = shortstatFull(ab2.stdout);
 		aheadAddDel = s.addDel;
 		aheadFiles = s.files;
+		if (overLines(aheadAddDel, LINE_LIMIT)) aheadAddDel = `>${LINE_LIMIT}L`;
 	}
 
 	// branch: "## main..." | "## No commits yet on main" | "## HEAD (no branch)"
@@ -66,7 +72,9 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 	parts.push(theme.fg("accent", `⎇ ${branch || "detached"}`));
 	if (ahead) parts.push(theme.fg("success", aheadAddDel ? `↑${ahead}·${aheadFiles}f(${aheadAddDel})` : `↑${ahead}`));
 	if (behind) parts.push(theme.fg("warning", `↓${behind}`));
-	if (dirty > DIFF_FILE_LIMIT) parts.push(theme.fg("warning", `●>${DIFF_FILE_LIMIT}`));
+	// Guard display: exact file count is always known (from porcelain); lines
+	// beyond the limit are shown as >500L — aligned with the line metric.
+	if (dirty > DIFF_FILE_LIMIT) parts.push(theme.fg("warning", `●${dirty}f>${DIFF_FILE_LIMIT}L`));
 	else if (dirty > 0) parts.push(theme.fg("warning", addDel ? `●${dirty}f(${addDel})` : `●${dirty}f`));
 	else parts.push(theme.fg("success", "✓clean"));
 
@@ -80,6 +88,13 @@ function shortstatFull(out: string): { files: string; addDel: string } {
 	const d = /(\d+) deletions?/.exec(out);
 	if (!a && !d) return { files: "", addDel: "" };
 	return { files: f?.[1] ?? "", addDel: `+${a?.[2] ?? 0}/−${d?.[2] ?? 0}` };
+}
+
+// "+156/−89" -> true when added+deleted exceed the guard limit
+function overLines(addDel: string, limit: number): boolean {
+	const m = /\+(\d+)\/−(\d+)/.exec(addDel);
+	if (!m) return false;
+	return Number(m[1]) + Number(m[2]) > limit;
 }
 
 function sum(x: string, y: string): string {

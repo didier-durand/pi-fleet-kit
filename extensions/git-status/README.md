@@ -35,17 +35,21 @@ five parts, left to right:
 | `⎇ <branch>` | accent | Current branch name (`⎇ detached` if detached HEAD) | Always, inside a git repo |
 | `↑<n>·<m>f(+a/−d)` | success | **n commits ahead** of upstream, touching **m files**, `+a/−d` changed lines | only when ahead > 0 |
 | `↓<n>` | warning | **n commits behind** the upstream remote | only when behind > 0 |
-| `●<n>f(+a/−d)` | warning | **n impacted files** uncommitted (staged + unstaged + untracked together; `f` marks the file count, consistent with `↑`), `+a/−d` changed lines across worktree and index | only when n > 0, ≤ 500 |
-| `●>500` | warning | Change surface too large — line counts skipped (diff cost would dominate) | when n > 500 |
+| `●<n>f(+a/−d)` | warning | **n impacted files** uncommitted (staged + unstaged + untracked together; `f` marks the file count, consistent with `↑`), `+a/−d` changed lines across worktree and index | only when 0 < n ≤ 500 and lines ≤ 500 |
+| `●<n>f>500L` | warning | Guard aligned with **lines**: more than 500 changed lines — exact line counts withheld, file count still shown | when computed lines > 500, or n > 500 files (diff skipped for cost) |
 | `✓clean` | success | Zero changes in the worktree | replaces the dot when clean |
 
-Line-count economics: computed only when the corresponding count is
-non-zero and ≤ 500 files — two `git diff --shortstat` calls (worktree,
-index) plus one `@{u}..HEAD` diff for the ahead range, each a few
-milliseconds on healthy repos. Above the 500-file guard the footer shows
-`●>500`: exactly the case where diffing would be slow and a line count
-meaningless. Display as requested: no bare `●n` fallback — oversized
-change surfaces are shown as `●>500`.
+Guardrail economics (line-aligned, as requested):
+
+- **Lines are the guard metric**: whenever the diff is computable and the
+  total of added+deleted lines exceeds 500, the footer shows `●<n>f>500L`
+  — the exact number of impacted files is always known (free, from
+  `git status`), the line counts are withheld (`>500L`).
+- **File count as cost gate only**: when n exceeds 500 files, diffing is
+  skipped entirely (cost scales with change surface); the footer then shows
+  `●<n>f>500L` with the exact file count and the same lines-withheld form —
+  no bare `●n` is ever displayed.
+- Exact counts appear only in the sweet spot: ≤ 500 files AND ≤ 500 lines.
 
 Reading examples:
 
@@ -53,7 +57,8 @@ Reading examples:
 ⎇ main ✓clean                    in sync with origin, nothing to commit
 ⎇ main ↑2·3f(+41/−12) ●5f(+156/−89)  2 unpushed commits touching 3 files (+41/−12); 5 dirty files (+156/−89)
 ⎇ fix/heartbeat-race ↓1 ●1f(+2/−0) 1 behind origin, 1 dirty file
-⎇ main ●>500                     massive change surface — line counts withheld
+⎇ main ●412f>500L              412 dirty files produced >500 changed lines — counts withheld
+⎇ main ●613f>500L              613 dirty files — diff skipped for cost, files still exact
 ```
 
 Reading examples:
