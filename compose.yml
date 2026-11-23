@@ -164,9 +164,6 @@ services:
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-research:/workspace
       # Watched dir for file-triggered prompts (extension prompt-trigger):
-      # Exchange dir: watchdog drops prompt files here; per-agent so no
-      # agent sees another agent's exchanges
-      - ${HOME}/pi-exchange/pi-research:/exchange
       # Skills for THIS agent only (/skill:publishing-best-practices, /skill:github-best-practices):
       - ${HOME}/pi-configs/skills/publishing-best-practices:/repo-skills/publishing-best-practices:ro
       - ${HOME}/pi-configs/skills/web-research:/repo-skills/web-research:ro
@@ -185,7 +182,6 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
-      - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
@@ -210,9 +206,6 @@ services:
       # The agent's working folder:
       - ${HOME}/pi-agents/pi-personal:/workspace
       # Watched dir for file-triggered prompts (extension prompt-trigger):
-      # Exchange dir: watchdog drops prompt files here; per-agent so no
-      # agent sees another agent's exchanges
-      - ${HOME}/pi-exchange/pi-personal:/exchange
       # Skills for THIS agent only (/skill:publishing-best-practices, /skill:hello-world, /skill:github-best-practices):
       - ${HOME}/pi-configs/skills/publishing-best-practices:/repo-skills/publishing-best-practices:ro
       - ${HOME}/pi-configs/skills/hello-world:/repo-skills/hello-world:ro
@@ -232,7 +225,6 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
-      - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
