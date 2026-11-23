@@ -104,12 +104,19 @@ text it supports.
 
 Concrete evidence that the change works. **Always a before and an after.**
 
-- **Screenshots are S-tier** — when the change is visual and the
-  environment can take one.
-- **Execution-based evidence is A-tier** — test results, console output.
-  Show the exact test that failed before and passes now, written as
-  pseudocode, or the console output that changed.
-- "Tests are green" on its own is a **claim**, not a before and after.
+Evidence is ranked in two grades — **S** (strongest) and **A** (strong);
+pick the highest grade the change and environment allow:
+
+- **S-tier: screenshots** — the strongest evidence, because the reviewer
+  sees the actual result with their own eyes. Use when the change is visual
+  (UI, layout, rendering) AND the environment can take a screenshot. A
+  terminal-based agent that cannot screenshot falls back to A-tier.
+- **A-tier: execution evidence** — test results and console output. Show
+  the exact test that failed before and passes now, written as pseudocode,
+  or the console output that changed. This is the default for non-visual
+  changes: migrations, background jobs, refactors, library code.
+- "Tests are green" on its own is a **claim**, not a before and after — it
+  ranks below both: no reviewer can see *what* was verified.
 - No UI? Use the non-screenshot evidence: the failing→passing test, the
   changed output, the migration log.
 
