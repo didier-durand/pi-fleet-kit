@@ -99,3 +99,26 @@ is either scope creep or a missing spec entry.
 - **Cheap to change**: plans are revised as reality lands — a superseded
   plan is updated or replaced and re-shared, never silently abandoned.
   The spec stays authoritative; the plan serves it.
+
+## Versioning: tag every committed revision
+
+Every commit that changes the implementation plan MUST be tagged in the
+repo, so any agent or reader can pin the plan state a given execution
+round followed:
+
+- **Tag name**: `impl-plan-<x.y.z>` — independent of the specification's
+  tags and of the repo's release tags.
+- **Version bump**: find the latest existing tag
+  (`git tag -l 'impl-plan-*' | sort -V | tail -1`) and increment the patch
+  number; start at `impl-plan-0.1.0` when none exists. Bump the **minor**
+  version instead when the revision changes the work substantively
+  (tasks added/removed/reordered, wave structure changed) — patch is for
+  editorial fixes only.
+- **Annotated tag**, one-line message summarizing the revision, placed on
+  the exact commit that updates the document.
+- **Push the tag with the commit** (`git push origin <tag>`): a tag that
+  exists only locally is invisible to the rest of the fleet and does not
+  count. If the push is rejected because the tag already exists, do not
+  force-push — increment and retry.
+- **Never retag or delete** an existing `impl-plan-*` tag: the version
+  history of the plan is history.

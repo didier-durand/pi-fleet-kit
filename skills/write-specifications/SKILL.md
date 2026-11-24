@@ -93,3 +93,25 @@ to the requester:
 - **Precision over volume**: a one-page spec with ten sharp requirements
   beats a ten-page spec of hedges. Every sentence either constrains the
   solution or helps verify it — otherwise cut it.
+
+## Versioning: tag every committed revision
+
+Every commit that changes the specification document MUST be tagged in
+the repo, so any agent or reader can pin a requirements baseline:
+
+- **Tag name**: `specs-<x.y.z>` — independent of the implementation
+  plan's tags and of the repo's release tags.
+- **Version bump**: find the latest existing tag
+  (`git tag -l 'specs-*' | sort -V | tail -1`) and increment the patch
+  number; start at `specs-0.1.0` when none exists. Bump the **minor**
+  version instead when the revision changes requirements substantively
+  (added/removed `REQ-n`, changed acceptance criteria) — patch is for
+  editorial fixes only.
+- **Annotated tag**, one-line message summarizing the revision, placed on
+  the exact commit that updates the document.
+- **Push the tag with the commit** (`git push origin <tag>`): a tag that
+  exists only locally is invisible to the rest of the fleet and does not
+  count. If the push is rejected because the tag already exists, do not
+  force-push — increment and retry.
+- **Never retag or delete** an existing `specs-*` tag: the version history
+  of the requirements is history.
