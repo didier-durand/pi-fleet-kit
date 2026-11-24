@@ -9,7 +9,7 @@ description: >
   (French over Canadian French, US over UK English, etc.). Use when the task
   involves researching the web, collecting facts from multiple sites,
   compiling a fact base, or preparing verified content — alone or as the
-  research stage before publishing-best-practices.
+  research stage of a larger publication workflow.
 ---
 
 # Web Research

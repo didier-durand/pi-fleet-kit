@@ -51,8 +51,8 @@ preamble before `## Summary`, brief prose (the reviewer has the diff open):
 3. **`## Merge Danger`** — a **Door** call (one-way vs two-way) plus a
    one-word **Blast Radius**, with optional short ramifications.
 
-If the PR was not written with the `write-pull-request` skill, judge it
-against this embedded standard above — do not require anything beyond it
+If the PR body does not already follow the standard embedded above, judge
+it against exactly that standard — do not require anything beyond it
 (no test-coverage lectures, no style preferences the standard doesn't set).
 
 ## Review procedure
