@@ -1,7 +1,13 @@
 # Pi agents in Docker, each with an independent configuration.
 #
-# Prerequisite (build once, from the directory containing this file):
-#   docker build -t pi-sandbox -f Dockerfile.pi .
+# Image: by default the agents run the multi-arch image published by CI on
+# every push (github packages): ghcr.io/didier-durand/pi-sandbox:latest —
+# built from Dockerfile.pi, verified downloadable and runnable on both
+# amd64 and arm64 before publication. Override in your environment (or .env)
+# to use a locally built image instead:
+#   export PI_SANDBOX_IMAGE=pi-sandbox      # then: docker build -t pi-sandbox -f Dockerfile.pi .
+# First use requires GHCR auth on the host: docker login ghcr.io
+# (or make the package public in its GitHub settings).
 #
 # Credentials: .env passes the host's OPENROUTER_API_KEY through to the agent
 # (Pi's built-in "openrouter" provider reads it). No /login needed inside the
@@ -28,7 +34,7 @@ services:
   # passthrough, with fully independent state (own Pi home volume, own
   # workspace) so sessions, auth and files never mix with the other agents.
   pi-fleet-kit:
-    image: pi-sandbox
+    image: ${PI_SANDBOX_IMAGE:-ghcr.io/didier-durand/pi-sandbox:latest}
     volumes:
       # Private Pi home (config, auth, sessions, extensions):
       - pi-fleet-kit-home:/home/pi/.pi/agent
@@ -74,7 +80,7 @@ services:
   # (write-pull-request), with fully independent state (own Pi home volume,
   # own workspace, own exchange dir) so sessions, auth and files never mix.
   pi-developer:
-    image: pi-sandbox
+    image: ${PI_SANDBOX_IMAGE:-ghcr.io/didier-durand/pi-sandbox:latest}
     volumes:
       # Private Pi home (config, auth, sessions, extensions):
       - pi-developer-home:/home/pi/.pi/agent
@@ -116,7 +122,7 @@ services:
     #   - "host.docker.internal:host-gateway"
 
   pi-coding-1:
-    image: pi-sandbox
+    image: ${PI_SANDBOX_IMAGE:-ghcr.io/didier-durand/pi-sandbox:latest}
     volumes:
       # Private Pi home (config, auth, sessions, extensions):
       - pi-coding-1-home:/home/pi/.pi/agent
@@ -163,7 +169,7 @@ services:
   # pi-coding-1, with fully independent state (own Pi home volume, own
   # workspace, own exchange dir) so sessions, auth and files never mix.
   pi-coding-2:
-    image: pi-sandbox
+    image: ${PI_SANDBOX_IMAGE:-ghcr.io/didier-durand/pi-sandbox:latest}
     volumes:
       # Private Pi home (config, auth, sessions, extensions):
       - pi-coding-2-home:/home/pi/.pi/agent
@@ -207,7 +213,7 @@ services:
     #   - "host.docker.internal:host-gateway"
 
   pi-review-1:
-    image: pi-sandbox
+    image: ${PI_SANDBOX_IMAGE:-ghcr.io/didier-durand/pi-sandbox:latest}
     volumes:
       # Private Pi home (config, auth, sessions, extensions):
       - pi-review-1-home:/home/pi/.pi/agent
@@ -249,7 +255,7 @@ services:
     #   - "host.docker.internal:host-gateway"
 
   pi-review-2:
-    image: pi-sandbox
+    image: ${PI_SANDBOX_IMAGE:-ghcr.io/didier-durand/pi-sandbox:latest}
     volumes:
       # Private Pi home (config, auth, sessions, extensions):
       - pi-review-2-home:/home/pi/.pi/agent
@@ -295,7 +301,7 @@ services:
   # with fully independent state (own Pi home volume, own workspace) so
   # sessions, auth and files never mix with the other agents.
   pi-research:
-    image: pi-sandbox
+    image: ${PI_SANDBOX_IMAGE:-ghcr.io/didier-durand/pi-sandbox:latest}
     volumes:
       # Private Pi home (config, auth, sessions, extensions):
       - pi-research-home:/home/pi/.pi/agent
@@ -339,7 +345,7 @@ services:
   # with fully independent state (own Pi home volume, own workspace) so
   # sessions, auth and files never mix with the other agents.
   pi-personal:
-    image: pi-sandbox
+    image: ${PI_SANDBOX_IMAGE:-ghcr.io/didier-durand/pi-sandbox:latest}
     volumes:
       # Private Pi home (config, auth, sessions, extensions):
       - pi-personal-home:/home/pi/.pi/agent
