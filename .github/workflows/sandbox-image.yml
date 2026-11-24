@@ -35,8 +35,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Tags: branch name (main), semver from v* tags, and the commit SHA
-      # — every build is addressable, and latest tracks main.
+      # Tags: branch name (main), semver from v* tags, the commit SHA
+      # (every build addressable), and latest on the default branch.
       - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -46,6 +46,7 @@ jobs:
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push (amd64 + arm64)
         uses: docker/build-push-action@v6
