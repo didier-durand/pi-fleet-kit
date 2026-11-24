@@ -1,5 +1,5 @@
 ---
-name: pull-request
+name: write-pull-request
 description: >
   Defines the shape of a pull request body: a Summary that shows the change
   with the smallest clear visual, Evidence with a concrete before/after, and

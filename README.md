@@ -55,7 +55,7 @@ mirroring the host's setup.
 | `.gitignore` | Excludes `.DS_Store` and the legacy agent workspace (`finance-agent/`); agent workspaces now live outside this repo in `~/pi-agents/`. |
 | `.githooks/pre-commit` | Secret-leak guard (see below). |
 | `package.json` | Pi package manifest (see below). |
-| `skills/` | Installable Pi skills; each subdirectory holds a `SKILL.md` (Agent Skills spec). Currently `build-skill`, `github-best-practices`, `hello-world`, `publishing-best-practices`, `pull-request`, `web-research`. |
+| `skills/` | Installable Pi skills; each subdirectory holds a `SKILL.md` (Agent Skills spec). Currently `build-skill`, `github-best-practices`, `hello-world`, `publishing-best-practices`, `write-pull-request`, `web-research`. |
 | `extensions/` | Shared Pi extensions (`git-status`, `prompt-trigger`), also published as standalone npm Pi Packages (`pi-git-status`, `pi-prompt-trigger`) — see [extensions/README.md](extensions/README.md). |
 | `docs/` | Supplementary docs (e.g. registering the agents' SSH signing key on GitHub). |
 | `LICENSE` | MIT license text. |
