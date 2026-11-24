@@ -5,3 +5,7 @@
 # lives here, agent output stays local:
 finance-agent/
 # Note: agent workspaces now live outside this repo, in ~/pi-agents/
+
+# npm installs from CI-style checks (never committed):
+node_modules/
+package-lock.json

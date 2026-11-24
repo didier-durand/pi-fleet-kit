@@ -13,3 +13,4 @@ First public release.
   older than the stability window are consumed (atomic-write friendly).
 - Zero token cost while idle; caps consumption at 5 files per tick.
 - Unset `PI_TRIGGER_DIR` leaves the extension dormant.
+- `/new` directive: session-control typing aligned with the host `ExtensionCommandContext` (runtime behavior unchanged).

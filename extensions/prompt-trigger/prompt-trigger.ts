@@ -28,7 +28,11 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type {
+	ExtensionAPI,
+	ExtensionCommandContext,
+	ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
 
 const POLL_MS = 1500;          // poll interval (token-free idle)
 const STABILITY_MS = 500;      // file must be this old + unchanged to be consumed
@@ -69,7 +73,11 @@ export default function (pi: ExtensionAPI) {
 			const kickoff = content === "/new" ? "" : content.slice("/new ".length).trim();
 			void (async () => {
 				try {
-					await ctx.newSession({});
+					// newSession is declared on ExtensionCommandContext (session
+					// control "only safe in user-initiated commands") — the runtime
+					// context in this callback carries it; if a future pi drops it,
+					// the catch below notifies and /new simply does not fire.
+					await (ctx as ExtensionCommandContext).newSession({});
 					if (ctx.hasUI) ctx.ui.notify(`[prompt-trigger] fresh session started`, "info");
 					if (kickoff) queueOrSend(pi, kickoff);
 				} catch (err) {

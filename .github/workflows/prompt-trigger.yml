@@ -1,0 +1,31 @@
+name: prompt-trigger extension sanity
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "extensions/prompt-trigger/**"
+      - "utils/check-extension.sh"
+      - ".github/workflows/prompt-trigger.yml"
+  pull_request:
+    paths:
+      - "extensions/prompt-trigger/**"
+      - "utils/check-extension.sh"
+      - ".github/workflows/prompt-trigger.yml"
+
+jobs:
+  sanity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # The live-load smoke test runs only if the secret is configured;
+      # without it the script skips step 5 and the static checks still gate.
+      - name: Sanity checks
+        run: utils/check-extension.sh prompt-trigger
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}

@@ -1,0 +1,31 @@
+name: git-status extension sanity
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "extensions/git-status/**"
+      - "utils/check-extension.sh"
+      - ".github/workflows/git-status.yml"
+  pull_request:
+    paths:
+      - "extensions/git-status/**"
+      - "utils/check-extension.sh"
+      - ".github/workflows/git-status.yml"
+
+jobs:
+  sanity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # The live-load smoke test runs only if the secret is configured;
+      # without it the script skips step 5 and the static checks still gate.
+      - name: Sanity checks
+        run: utils/check-extension.sh git-status
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
