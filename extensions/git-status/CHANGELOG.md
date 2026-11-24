@@ -10,9 +10,10 @@ git repository.
   found by a bounded scan (maxdepth 3, node_modules excluded).
 - Discovery is retried while unresolved — a workspace cloned after the
   agent starts is picked up within one poll interval.
-- Footer is prefixed with the repo name: `my-repo: ⎇ main …` — always
-  identifies which repo the line describes, even with several clones in
-  the workspace.
+- Footer is prefixed with the repo name taken from the origin remote
+  (`remote.origin.url` → `my-repo`; directory basename as fallback):
+  `my-repo: ⎇ main …` — always identifies which repo the line describes,
+  even with several clones in the workspace.
 - **Multiple repos**: when more than one repo is cloned in /workspace,
   the footer renders one compact segment per repo (name, branch,
   ahead/behind counts, dirty file count), separated by `│` — e.g.

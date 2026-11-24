@@ -32,7 +32,7 @@ six parts, left to right:
 
 | Part | Color | Meaning | When shown |
 |---|---|---|---|
-| `<repo-name>:` | accent | Basename of the discovered repo — always identifies which repo the line describes | Always, inside a git repo |
+| `<repo-name>:` | accent | Repo name from the origin remote (`remote.origin.url`; directory basename as fallback) — always identifies which repo the line describes | Always, inside a git repo |
 | `⎇ <branch>` | accent | Current branch name (`⎇ detached` if detached HEAD) | Always, inside a git repo |
 | `↑ c:<n> f:<m> l:+a/−d` | success | **n commits ahead** of upstream (`c:`), touching **m files** (`f:`), `+a/−d` changed lines (`l:`) | only when ahead > 0 |
 | `↓ c:<n>` | warning | **n commits behind** the upstream remote (`c:`) | only when behind > 0 |

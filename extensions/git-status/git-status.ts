@@ -25,6 +25,7 @@ const MAX_REPOS = 5;         // compact segments shown when several repos exist
 let repos: string[] = [];
 
 async function resolveRepos(pi: ExtensionAPI): Promise<string[]> {
+	nameCache.clear(); // full rediscovery: repo identities may have changed
 	const found: string[] = [];
 	// (a) cwd (= /workspace) already inside a repo? `rev-parse` also works
 	// from a subdirectory and resolves to the containing toplevel.
@@ -44,6 +45,29 @@ async function resolveRepos(pi: ExtensionAPI): Promise<string[]> {
 	return [...new Set(found
 		.filter((p) => !/(^|\/)node_modules(\/|$)/.test(p)))]
 		.sort((a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b));
+}
+
+// Display name for a repo: derived from the origin remote URL when one
+// exists (…/my-repo.git → "my-repo"), falling back to the directory
+// basename. Cached per root — the origin rarely changes mid-session, and
+// the cache is cleared on every full rediscovery.
+const nameCache = new Map<string, string>();
+async function repoDisplayName(pi: ExtensionAPI, root: string): Promise<string> {
+	const hit = nameCache.get(root);
+	if (hit) return hit;
+	let name = root.split("/").filter(Boolean).pop() ?? root;
+	const url = await pi.exec("git", ["-C", root, "config", "--get", "remote.origin.url"]);
+	if (url.code === 0) {
+		const u = url.stdout.trim();
+		if (u) {
+			// both https://host/user/repo.git and git@host:user/repo.git end
+			// with the repo name after the last '/' or ':'
+			const last = u.split(/[/:]/).filter(Boolean).pop() ?? "";
+			name = last.replace(/\.git$/, "") || name;
+		}
+	}
+	nameCache.set(root, name);
+	return name;
 }
 
 async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
@@ -127,9 +151,9 @@ async function refreshSingle(pi: ExtensionAPI, ctx: ExtensionContext, repoRoot: 
 	branch = branch.split("...")[0].replace("No commits yet on ", "").trim();
 
 	const theme = ctx.ui.theme;
-	// Repo-name prefix: always identifies which repo the line describes —
-	// unambiguous when the workspace holds several clones.
-	const repoName = repoRoot.split("/").filter(Boolean).pop() ?? "";
+	// Repo-name prefix: derived from the origin remote URL (fallback: dir
+	// basename) — always identifies which repo the line describes.
+	const repoName = await repoDisplayName(pi, repoRoot);
 	const parts: string[] = [];
 	parts.push(theme.fg("accent", `${repoName}: ⎇ ${branch || "detached"}`));
 	if (ahead) parts.push(theme.fg("success", aheadAddDel ? `↑ c:${ahead} f:${aheadFiles} l:${aheadAddDel}` : `↑ c:${ahead}`));
@@ -166,7 +190,7 @@ async function refreshMulti(pi: ExtensionAPI, ctx: ExtensionContext, list: strin
 		const ab = /\[ahead (\d+)(?:, behind (\d+))?|behind (\d+)\]/.exec(head);
 		const ahead = ab?.[1] ?? "";
 		const behind = ab?.[2] ?? ab?.[3] ?? "";
-		const name = repoRoot.split("/").filter(Boolean).pop() ?? repoRoot;
+		const name = await repoDisplayName(pi, repoRoot);
 		let seg = `${name}: ⎇ ${branch || "detached"}`;
 		if (ahead) seg += ` ↑${ahead}`;
 		if (behind) seg += ` ↓${behind}`;
