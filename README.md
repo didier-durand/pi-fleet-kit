@@ -161,10 +161,8 @@ flowchart TB
   class FLEET yellow
   class DEV white
   class CODING blue
-  class CODING2 blue
-  class REVIEW cyan
-  class REVIEW2 cyan
-  class RESEARCH green
+  class CODING2 blue  class REVIEW cyan
+  class REVIEW2 cyan  class RESEARCH green
   class PERSONAL magenta
   class LLM llm
   class GH gh
