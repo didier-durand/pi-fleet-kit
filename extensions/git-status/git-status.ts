@@ -24,7 +24,15 @@ const MAX_REPOS = 5;         // compact segments shown when several repos exist
 // and re-discovered whenever one disappears.
 let repos: string[] = [];
 
-async function resolveRepos(pi: ExtensionAPI): Promise<string[]> {
+// Test support: module-level state (tracked repos + display-name cache) is
+// global; the unit tests reset it between cases. Not part of the extension's
+// public contract — the default export is.
+export function _resetState(): void {
+	repos = [];
+	nameCache.clear();
+}
+
+export async function resolveRepos(pi: ExtensionAPI): Promise<string[]> {
 	nameCache.clear(); // full rediscovery: repo identities may have changed
 	const found: string[] = [];
 	// (a) cwd (= /workspace) already inside a repo? `rev-parse` also works
@@ -52,7 +60,7 @@ async function resolveRepos(pi: ExtensionAPI): Promise<string[]> {
 // basename. Cached per root — the origin rarely changes mid-session, and
 // the cache is cleared on every full rediscovery.
 const nameCache = new Map<string, string>();
-async function repoDisplayName(pi: ExtensionAPI, root: string): Promise<string> {
+export async function repoDisplayName(pi: ExtensionAPI, root: string): Promise<string> {
 	const hit = nameCache.get(root);
 	if (hit) return hit;
 	let name = root.split("/").filter(Boolean).pop() ?? root;
@@ -70,7 +78,7 @@ async function repoDisplayName(pi: ExtensionAPI, root: string): Promise<string> 
 	return name;
 }
 
-async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
+export async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 	if (!ctx.hasUI) return; // print/JSON mode: no UI to update
 
 	// Verify known repos; any disappearance triggers a full rediscovery so
@@ -95,7 +103,7 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 }
 
 // One repo: the full, rich footer (ahead/behind + line stats).
-async function refreshSingle(pi: ExtensionAPI, ctx: ExtensionContext, repoRoot: string): Promise<void> {
+export async function refreshSingle(pi: ExtensionAPI, ctx: ExtensionContext, repoRoot: string): Promise<void> {
 	const g = (...args: string[]) => pi.exec("git", ["-C", repoRoot, ...args]);
 
 	// -b: include branch + upstream divergence; --porcelain v1: stable format
@@ -171,7 +179,7 @@ async function refreshSingle(pi: ExtensionAPI, ctx: ExtensionContext, repoRoot: 
 // ahead/behind counts and dirty file count. Line stats are skipped in this
 // mode: N repos × 3 diffs per tick would scale the refresh cost with the
 // workspace's repo count, and the compact line must stay readable.
-async function refreshMulti(pi: ExtensionAPI, ctx: ExtensionContext, list: string[]): Promise<void> {
+export async function refreshMulti(pi: ExtensionAPI, ctx: ExtensionContext, list: string[]): Promise<void> {
 	const theme = ctx.ui.theme;
 	const shown = list.slice(0, MAX_REPOS);
 	const segs: string[] = [];
@@ -213,7 +221,7 @@ async function refreshMulti(pi: ExtensionAPI, ctx: ExtensionContext, list: strin
 }
 
 // " 3 files changed, 156 insertions(+), 89 deletions(-)" -> {files:"3", addDel:"+156/−89"}
-function shortstatFull(out: string): { files: string; addDel: string } {
+export function shortstatFull(out: string): { files: string; addDel: string } {
 	const f = /(\d+) files? changed/.exec(out);
 	const a = /(\d+) insertions?/.exec(out);
 	const d = /(\d+) deletions?/.exec(out);

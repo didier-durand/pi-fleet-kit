@@ -9,6 +9,7 @@
     "status"
   ],
   "license": "MIT",
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/didier-durand/pi-fleet-kit.git",
@@ -26,5 +27,8 @@
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*"
+  },
+  "scripts": {
+    "test": "node --test"
   }
 }

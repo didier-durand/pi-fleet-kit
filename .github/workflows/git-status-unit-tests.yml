@@ -1,0 +1,34 @@
+name: git-status-unit-tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "extensions/git-status/**"
+      - "utils/run-tests.sh"
+      - ".github/workflows/git-status-unit-tests.yml"
+  pull_request:
+    paths:
+      - "extensions/git-status/**"
+      - "utils/run-tests.sh"
+      - ".github/workflows/git-status-unit-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # Runs node --test under c8 and writes the coverage report to the
+      # job summary ($GITHUB_STEP_SUMMARY). No API key needed: the tests
+      # are hermetic (scriptable git/exec fakes, no live calls).
+      - name: Unit tests + coverage
+        run: utils/run-tests.sh git-status

@@ -14,6 +14,13 @@ git repository.
   (`remote.origin.url` → `my-repo`; directory basename as fallback):
   `my-repo: ⎇ main …` — always identifies which repo the line describes,
   even with several clones in the workspace.
+- **Unit tests + coverage CI**: 40 hermetic unit tests (Node built-in test
+  runner, scriptable `pi.exec` fakes — no live git/LLM) covering parsing,
+  caching, guards and rediscovery; `git-status-unit-tests` workflow runs
+  them under c8 and reports coverage in the job summary (100% statements /
+  functions, 96.9% branches). Internal functions are now exported for
+  testability, plus a `_resetState()` test helper; package metadata gains
+  `"type": "module"` and a `test` script.
 - **Multiple repos**: when more than one repo is cloned in /workspace,
   the footer renders one compact segment per repo (name, branch,
   ahead/behind counts, dirty file count), separated by `│` — e.g.
