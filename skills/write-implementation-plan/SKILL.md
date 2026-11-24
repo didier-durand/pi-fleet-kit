@@ -12,6 +12,11 @@ description: >
 
 # Implementation Plans
 
+Skill version: 1.0.0 (semver — matches tag skill-write-implementation-plan-1.0.0)
+Author: Didier Durand
+Date: 2026-11-24
+
+
 An implementation plan answers **how and in what order** the work will be
 done, so that execution can be delegated, verified, and resumed. It turns
 a specification into verifiable units of work without inventing new

@@ -15,6 +15,11 @@ description: >
 
 # Pull Request Review
 
+Skill version: 1.0.0 (semver — matches tag skill-review-pull-request-1.0.0)
+Author: Didier Durand
+Date: 2026-11-24
+
+
 Review a pull request in a strict **read-only reviewer** role: the only
 things you produce are observations, comments, and suggestions. The creator
 of the PR applies them; you re-review their next revision. The dialog loops

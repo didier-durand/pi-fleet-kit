@@ -12,6 +12,11 @@ description: >
 
 # Writing Code
 
+Skill version: 1.0.0 (semver — matches tag skill-write-code-1.0.0)
+Author: Didier Durand
+Date: 2026-11-24
+
+
 The rules below are language-independent: they apply whether the file is
 TypeScript, Python, Go, shell, or anything else. Where a language has an
 official formatter or style guide, it wins over taste — but never over the

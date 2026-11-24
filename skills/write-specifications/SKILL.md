@@ -11,6 +11,11 @@ description: >
 
 # Specifications
 
+Skill version: 1.0.0 (semver — matches tag skill-write-specifications-1.0.0)
+Author: Didier Durand
+Date: 2026-11-24
+
+
 A specification answers **what must be built and why** — not how. It is
 the contract that requirements, plans, and reviews are all measured
 against; ambiguity here multiplies into rework everywhere else.

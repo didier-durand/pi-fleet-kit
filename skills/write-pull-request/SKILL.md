@@ -11,6 +11,11 @@ description: >
 
 # Pull Request Body
 
+Skill version: 1.0.0 (semver — matches tag skill-write-pull-request-1.0.0)
+Author: Didier Durand
+Date: 2026-11-24
+
+
 Write the PR body in exactly three sections, in this order: **Summary**,
 **Evidence**, **Merge Danger**. Skip all preambles — the body starts at the
 `## Summary` heading. Keep prose brief: the reviewer already has the diff

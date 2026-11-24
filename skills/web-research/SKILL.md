@@ -14,6 +14,11 @@ description: >
 
 # Web Research
 
+Skill version: 1.0.0 (semver — matches tag skill-web-research-1.0.0)
+Author: Didier Durand
+Date: 2026-11-24
+
+
 Pipeline: Trace → Cross-check → Reconcile → Spell-check. Every extracted
 fact must be traceable, corroborated where possible, contradiction-checked,
 and typo-free — in that order.

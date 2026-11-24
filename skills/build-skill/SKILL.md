@@ -11,6 +11,11 @@ description: >
 
 # Build a Skill
 
+Skill version: 1.0.0 (semver — matches tag skill-build-skill-1.0.0)
+Author: Didier Durand
+Date: 2026-11-24
+
+
 **STRICT REQUIREMENT — SKILL.md standard conformance:** every skill produced
 under this guide MUST conform to the [Agent Skills specification](https://agentskills.io/specification)
 (a directory whose `SKILL.md` starts with valid frontmatter — `name:`,

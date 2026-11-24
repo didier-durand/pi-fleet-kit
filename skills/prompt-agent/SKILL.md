@@ -13,6 +13,11 @@ description: >
 
 # Prompting Another Agent
 
+Skill version: 1.0.0 (semver — matches tag skill-prompt-agent-1.0.0)
+Author: Didier Durand
+Date: 2026-11-24
+
+
 A work order between agents is a plain-text prompt file (dropped through a
 prompt channel, or pasted into a session). It must be **self-sufficient**:
 the worker has no access to your session, your workspace, or your memory.

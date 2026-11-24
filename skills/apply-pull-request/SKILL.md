@@ -16,6 +16,11 @@ description: >
 
 # Applying a Pull Request Review
 
+Skill version: 1.0.0 (semver — matches tag skill-apply-pull-request-1.0.0)
+Author: Didier Durand
+Date: 2026-11-24
+
+
 The creator half of the PR review dialog (the reviewer half issues the
 verdicts described below — this skill is self-contained: the finding
 format it consumes is embedded here). One rule governs everything: **no

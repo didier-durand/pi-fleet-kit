@@ -11,6 +11,11 @@ description: >
 
 # GitHub Best Practices for Agents
 
+Skill version: 1.0.0 (semver — matches tag skill-github-best-practices-1.0.0)
+Author: Didier Durand
+Date: 2026-11-24
+
+
 Work through the sections in order: verify the environment FIRST (sections 1–2),
 then follow the workflow guidance. Never skip the pre-flight checks — most
 "silent" agent failures on GitHub are auth or identity problems.
@@ -168,6 +173,11 @@ version:
    version in a `<prefix>-X.Y.Z` convention (e.g. `specs-1.2.0`,
    `impl-plan-0.3.0`) gets its header version bumped.
    → tag `<prefix>-<new-version>` (e.g. `specs-1.2.0`), annotated.
+3. **Skill document**: a `skills/<name>/SKILL.md` whose header version
+   (`Skill version: x.y.z`) changes.
+   → tag `skill-<name>-<new-version>` (e.g. `skill-write-code-1.1.0`),
+   annotated. The tag name is part of the header line, so the two can
+   never disagree.
 
 Rules:
 

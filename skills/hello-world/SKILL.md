@@ -5,6 +5,11 @@ description: Prints a friendly greeting, optionally personalized with a name or 
 
 # Hello World!
 
+Skill version: 1.0.0 (semver — matches tag skill-hello-world-1.0.0)
+Author: Didier Durand
+Date: 2026-11-24
+
+
 Greet the user warmly. Follow these rules:
 
 1. If the user supplied a **name**, greet them by it; otherwise use "World".

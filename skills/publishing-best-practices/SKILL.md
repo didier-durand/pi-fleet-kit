@@ -11,6 +11,11 @@ description: >
 
 # Publishing Best Practices
 
+Skill version: 1.0.0 (semver — matches tag skill-publishing-best-practices-1.0.0)
+Author: Didier Durand
+Date: 2026-11-24
+
+
 Follow the pipeline in order: Research → Extract → Draft → Attribute →
 Sources → Review. The non-negotiables: nothing factual without a source,
 no source without a URL, every claim traceable.
