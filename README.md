@@ -28,6 +28,7 @@ Each agent loads **only the skills assigned to it** — defined in
 |---|---|
 | `pi-fleet-kit` | `build-skill`, `github-best-practices` |
 | `pi-coding-1` | `github-best-practices` |
+| `pi-coding-2` | `github-best-practices` |
 | `pi-review-1` | `github-best-practices` |
 | `pi-research` | `publishing-best-practices`, `github-best-practices`, `web-research` |
 | `pi-personal` | `publishing-best-practices`, `hello-world`, `github-best-practices`, `web-research` |
@@ -45,7 +46,7 @@ mirroring the host's setup.
 
 | File | Purpose |
 |---|---|
-| `compose.yml` | Defines the agent services. Currently five agents — `pi-fleet-kit`, `pi-coding-1`, `pi-review-1`, `pi-research`, `pi-personal` — all running the `pi-sandbox` image, each with its own persistent Pi-home volume and a bind-mounted workspace under `~/pi-agents/`. |
+| `compose.yml` | Defines the agent services. Currently six agents — `pi-fleet-kit`, `pi-coding-1`, `pi-coding-2`, `pi-review-1`, `pi-research`, `pi-personal` — all running the `pi-sandbox` image, each with its own persistent Pi-home volume and a bind-mounted workspace under `~/pi-agents/`. |
 | `Dockerfile.pi` | Builds the `pi-sandbox` image: Node 24 base, git + ripgrep, `pi` installed globally, the entrypoint wrapper below, and a non-root `pi` user (least privilege — the agent runs unprivileged). |
 | `utils/entrypoint.sh` | Container entrypoint. Before handing off to `pi`, it configures the agent's git environment from env vars passed by Compose: commit identity (`GITHUB_USER_NAME`/`GITHUB_USER_EMAIL`) and a token-based git credential helper (`GITHUB_TOKEN`) — the container has no keyring, so auth must come from the environment. |
 | `.env` | Credentials bridge for Compose. Holds **`${VAR}` references only** (e.g. `GITHUB_TOKEN=${GITHUB_TOKEN}`), resolved from the host shell when `docker compose` runs. |
@@ -111,6 +112,7 @@ flowchart TB
     direction LR
     FLEET["pi-fleet-kit<br/>pi-fleet-kit-home → ~/.pi/agent"]
     CODING["pi-coding-1<br/>pi-coding-1-home → ~/.pi/agent<br/>+ /exchange"]
+    CODING2["pi-coding-2<br/>pi-coding-2-home → ~/.pi/agent<br/>+ /exchange"]
     REVIEW["pi-review-1<br/>pi-review-1-home → ~/.pi/agent<br/>+ /exchange"]
     RESEARCH["pi-research<br/>pi-research-home → ~/.pi/agent"]
     PERSONAL["pi-personal<br/>pi-personal-home → ~/.pi/agent"]
@@ -138,6 +140,7 @@ flowchart TB
   class FILES files
   class FLEET yellow
   class CODING blue
+  class CODING2 blue
   class REVIEW cyan
   class RESEARCH green
   class PERSONAL magenta

@@ -13,6 +13,7 @@ One Tab Config per agent defined in `../compose.yml`:
 |---|---|---|---|
 | `tab_configs/pi_fleet_kit.toml` | pi-fleet-kit | yellow | `agent_run.sh pi-fleet-kit` |
 | `tab_configs/pi_coding_1.toml` | pi-coding-1 | blue | `agent_run.sh pi-coding-1` |
+| `tab_configs/pi_coding_2.toml` | pi-coding-2 | orange | `agent_run.sh pi-coding-2` |
 | `tab_configs/pi_review_1.toml` | pi-review-1 | cyan | `agent_run.sh pi-review-1` |
 | `tab_configs/pi_research.toml` | pi-research | green | `agent_run.sh pi-research` |
 | `tab_configs/pi_personal.toml` | pi-personal | magenta | `agent_run.sh pi-personal` |
@@ -85,9 +86,10 @@ are skipped rather than duplicated.
 
 | Invocation | Behavior |
 |---|---|
-| `agents_start.sh` | All five agents, as tabs in the focused Warp window |
-| `agents_start.sh -w` | All five agents, in a new Warp window |
-| `agents_start.sh pi-coding-1 pi-personal` | Only the named agents |
+| `agents_start.sh` | All six agents, as tabs in the focused Warp window |
+| `agents_start.sh -w` | All six agents, in a new Warp window |
+| `agents_start.sh| `tab_configs/pi_coding_1.toml` | pi-coding-1 | blue | `agent_run.sh pi-coding-1` |
+| `tab_configs/pi_coding_2.toml` | pi-coding-2 | orange | `agent_run.sh pi-coding-2` |pi-personal` | Only the named agents |
 | `agents_start.sh -n` | Skip the install step (configs already installed) |
 | `agents_start.sh -R` | Reorder: stop the fleet, reopen all tabs in `compose.yml` order |
 | (any invocation) | Missing agents are (re)opened, running ones skipped, orphans healed — converges to one tab per agent |
@@ -96,7 +98,7 @@ are skipped rather than duplicated.
 provides no way to reposition them (there is no position parameter in the
 URI scheme). Tabs opened one at a time therefore accumulate in "reopened
 last = far right" order. To restore the canonical order (pi-fleet-kit,
-pi-coding-1, pi-research, pi-personal), run `agents_start.sh -R`: it stops all
+pi-coding-1, pi-coding-2, pi-review-1, pi-research, pi-personal), run `agents_start.sh -R`: it stops all
 agent containers (sessions are kept on disk and resumed via `--continue`),
 then reopens every tab in compose order (pi-fleet-kit, pi-coding-1,
 pi-review-1, pi-research, pi-personal) — close the leftover old tabs
