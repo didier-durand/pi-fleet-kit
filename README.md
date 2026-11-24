@@ -228,7 +228,9 @@ Emergency bypass (avoid): `git commit --no-verify`.
   with the compose plugin (Linux). The `warp/` scripts also probe the usual
   Docker Desktop install locations (`/usr/local/bin`, `/opt/homebrew/bin`,
   `~/.docker/bin`, `/usr/bin`), so launcher contexts with a minimal `PATH`
-  work too.
+  work too. Where available, **Docker Desktop is a nice addition** beyond
+  the engine itself: its GUI makes it efficient to inspect, start/stop and
+  read logs of the agent containers without leaving the desktop.
 - **The repo at `~/pi-fleet-kit`** — the one path convention other files
   depend on (see [Machine requirements](#machine-requirements-portability)).
 - **Credentials in the host shell** (the tracked `.env` holds only
