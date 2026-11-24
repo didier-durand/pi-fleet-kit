@@ -87,6 +87,33 @@ test and comment requirements.
   report without a run is unverified. If the environment truly cannot run
   them, say so explicitly and treat the claim as open.
 
+## Specs and plans are read-only contracts
+
+A specification and its implementation plan are **owned artifacts of the
+planning process** — the coding agent executes them, it never rewrites
+them:
+
+- **NEVER modify** a specification (requirements, acceptance criteria) or
+  an implementation plan (tasks, waves, decisions) — not to fix a typo,
+  not to "reflect reality", not because the plan turns out to be wrong.
+  Editing the contract and then conforming to it is self-approval.
+- **Conform strictly.** Implement exactly what the assigned task states:
+  its requirement IDs, its touched surface, its verification. Anything the
+  task does not ask for — however tempting — is a deviation, not an
+  improvement.
+- **When conformity is impossible**, do not silently diverge: implement
+  the part that is possible, and **document each deviation in the PR** —
+  which requirement/task it concerns, why it is impossible as specified,
+  and what was done instead. A reviewer must be able to find every
+  deviation without hunting for it.
+- **Discovered defects in the spec or plan** (wrong requirement, missing
+  case, infeasible task) are reported, not repaired: propose the corrected
+  wording in the PR description or in the report back to the requester,
+  and let the spec/plan owner decide. The next update to those artifacts
+  is made by their owner, not by the agent implementing them.
+- Deviations are debt, stated in full: the smaller and fewer, the better
+  a plan the author wrote — that signal is how plans improve.
+
 ## Working with existing code
 
 - **Match the neighborhood**: in an existing file, its conventions win
