@@ -48,8 +48,8 @@ mirroring the host's setup.
 
 | File | Purpose |
 |---|---|
-| `compose.yml` | Defines the agent services. Currently eight agents — `pi-fleet-kit`, `pi-developer`, `pi-coding-1`, `pi-coding-2`, `pi-review-1`, `pi-review-2`, `pi-research`, `pi-personal` — all running the sandbox image (default: the CI-published `ghcr.io/didier-durand/pi-sandbox:latest`, override with `PI_SANDBOX_IMAGE`), each with its own persistent Pi-home volume and a bind-mounted workspace under `~/pi-agents/`. |
-| `Dockerfile.pi` | Builds the sandbox image (published as `ghcr.io/didier-durand/pi-sandbox` by the `pi-sandbox image` workflow, multi-arch + verified): Node 24 base, git + ripgrep + GitHub CLI (`gh`, from the official cli.github.com apt repo), `pi` installed globally, the entrypoint wrapper below, and a non-root `pi` user (least privilege — the agent runs unprivileged). |
+| `compose.yml` | Defines the agent services. Currently eight agents — `pi-fleet-kit`, `pi-developer`, `pi-coding-1`, `pi-coding-2`, `pi-review-1`, `pi-review-2`, `pi-research`, `pi-personal` — all running the `pi-sandbox` image, each with its own persistent Pi-home volume and a bind-mounted workspace under `~/pi-agents/`. |
+| `Dockerfile.pi` | Builds the `pi-sandbox` image: Node 24 base, git + ripgrep + GitHub CLI (`gh`, from the official cli.github.com apt repo), `pi` installed globally, the entrypoint wrapper below, and a non-root `pi` user (least privilege — the agent runs unprivileged). CI also publishes it (private package) as `ghcr.io/didier-durand/pi-sandbox`. |
 | `utils/gen-fleet-registry.sh` | Generates `fleet/agent-registry.md` (the fleet "who does what" table) from `compose.yml`; the `fleet/` directory is mounted read-only into every agent at `/fleet`. |
 | `utils/entrypoint.sh` | Container entrypoint. Before handing off to `pi`, it configures the agent's git environment from env vars passed by Compose: commit identity (`GITHUB_USER_NAME`/`GITHUB_USER_EMAIL`) and a token-based git credential helper (`GITHUB_TOKEN`) — the container has no keyring, so auth must come from the environment. |
 | `.env` | Credentials bridge for Compose. Holds **`${VAR}` references only** (e.g. `GITHUB_TOKEN=${GITHUB_TOKEN}`), resolved from the host shell when `docker compose` runs. |
@@ -126,7 +126,7 @@ flowchart TB
     WARP["Warp terminal — one tab per agent · agent_run.sh → docker compose run --rm · one instance per agent (heartbeat + fixed name)<br/>agents_start.sh · tabs_install.sh · fleet_doctor.sh · fleet app (macOS)"]
     FILES["Host files & shell env · ~/pi-fleet-kit — repo: compose · skills · extensions · ~/pi-agents/[agent] — workspace clones<br/>~/pi-exchange/[agent] — watchdog dirs · ~/.ssh — signing key · env: model key · GitHub token · git identity · .env = dollar-brace refs"]
   end
-  subgraph DOCKER["Docker — compose project: pi-agents · image: ghcr.io/didier-durand/pi-sandbox"]
+  subgraph DOCKER["Docker — compose project: pi-agents · image: pi-sandbox"]
     direction LR
     FLEET["pi-fleet-kit<br/>pi-fleet-kit-home → ~/.pi/agent"]
     DEV["pi-developer<br/>pi-developer-home → ~/.pi/agent<br/>+ /exchange"]
@@ -177,8 +177,8 @@ flowchart TB
 
 The whole system in one picture: the host runs **Warp** (one tab per agent,
 launching through `agent_run.sh`) and, on macOS, the **Pi Agent Fleet** Dock
-app; Docker runs eight sandbox containers from the `pi-agents` compose
-project (image `ghcr.io/didier-durand/pi-sandbox`), each with its own
+app; Docker runs eight `pi-sandbox` containers from the `pi-agents` compose
+project, each with its own
 persistent Pi-home volume, its own workspace git
 clone, and read-only mounts of this repo's skills/extensions; outside, the
 agents talk to the model API (OpenRouter), GitHub (HTTPS auth + SSH commit
@@ -187,13 +187,10 @@ signing), and npm (Pi Packages, including this repo's published extensions).
 ## Usage
 
 ```bash
-# Run the agent (pulls ghcr.io/didier-durand/pi-sandbox:latest on first use).
-# One-time setup, pick ONE:
-#   - make the package public (GitHub web UI only — no API exists):
-#     github.com/didier-durand?tab=packages -> pi-sandbox ->
-#     Package settings -> Danger Zone -> Change visibility -> Public
-#   - or keep it private and authenticate the host once:
-#     docker login ghcr.io   # PAT with read:packages
+# Build the image (once, from this directory):
+docker build -t pi-sandbox -f Dockerfile.pi .
+
+# Run the agent:
 docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-personal
 
 # Teardown (deletes volumes and ALL agent state):
@@ -267,10 +264,11 @@ Emergency bypass (avoid): `git commit --no-verify`.
   `${VAR}` references — the real values must be exported):
   `OPENROUTER_API_KEY`, `GITHUB_TOKEN`, `GITHUB_USER_NAME`,
   `GITHUB_USER_EMAIL`.
-- **The sandbox image**: pulled from GHCR by default
-  (`ghcr.io/didier-durand/pi-sandbox:latest` — CI-built and verified on
-  every push). To build and run a local image instead:
-  `export PI_SANDBOX_IMAGE=pi-sandbox && docker build -t pi-sandbox -f Dockerfile.pi .`
+- **The sandbox image built once**:
+  `docker build -t pi-sandbox -f Dockerfile.pi .`
+  (CI also publishes it as `ghcr.io/didier-durand/pi-sandbox`, multi-arch
+  and verified on every push — private package for now; switching the
+  fleet to it later is a one-line change per service.)
 - **Git hooks configured once per clone**:
   `git config core.hooksPath .githooks`
 - **Network access** at first launch: npm registry (the `PI_PACKAGES`
