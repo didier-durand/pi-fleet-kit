@@ -12,7 +12,7 @@ description: >
 
 # Writing Code
 
-Skill version: 1.0.0 (semver — matches tag skill-write-code-1.0.0)
+Skill version: 1.1.0 (semver — matches tag skill-write-code-1.1.0)
 Author: Didier Durand
 Date: 2026-11-24
 
@@ -118,6 +118,41 @@ them:
   is made by their owner, not by the agent implementing them.
 - Deviations are debt, stated in full: the smaller and fewer, the better
   a plan the author wrote — that signal is how plans improve.
+
+- **Leave tests green and stronger than found**: every change ships with
+  the tests that pin its behavior.
+
+## Build and CI: version consistency across artifacts
+
+A version bump is never a one-file edit. Every artifact of the build
+workflow that names the version must move together, in the same commit,
+and each must be edited in **full respect of that build tool's own
+standard** — never hand-faked to merely look right:
+
+- **Inventory before bumping**: enumerate every artifact referencing the
+  version — package manifest (`package.json`, `Cargo.toml`,
+  `pyproject.toml`, `go.mod`, …), lockfile, `CHANGELOG.md`, Dockerfiles
+  (labels, base-image pins, tags), compose files (image tags), CI
+  workflows (`.github/workflows/*` — version pins, env vars, action
+  refs), install/bootstrap scripts, README badges and version mentions.
+- **One version, one commit**: update all of them atomically. Afterwards,
+  `grep` for the old version string across the repo — any remaining hit
+  outside of history/CHANGELOG is a missed artifact.
+- **Respect each tool's format, exactly**: strict semver in
+  `package.json`; PEP 440 in Python packaging; valid tag strings in
+  image references; Keep-a-Changelog structure in CHANGELOG entries; the
+  repo's CI pinning convention (e.g. actions pinned by SHA) — a version
+  that parses as free text but not per its tool's grammar is a defect,
+  not a shortcut.
+- **Derive, don't duplicate, where the tool allows**: lockfiles are
+  regenerated with the official command (`npm install`, `cargo`), not
+  hand-edited; derived artifacts are refreshed by the tool that owns
+  them. Where duplication is unavoidable, the package manifest stays the
+  single source of truth and the rest reference or mirror it.
+- **Verify with the owning tool**: validate the result with the tools'
+  own checks before committing (`docker compose config`, workflow lint,
+  the package manager's install/dry-run) — a bump that the build can't
+  consume was never consistent.
 
 ## Working with existing code
 
