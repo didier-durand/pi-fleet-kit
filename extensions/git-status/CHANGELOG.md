@@ -10,8 +10,9 @@ git repository.
   found by a bounded scan (maxdepth 3, node_modules excluded).
 - Discovery is retried while unresolved — a workspace cloned after the
   agent starts is picked up within one poll interval.
-- A nested (non-workspace-root) repo is marked in the footer:
-  `⎇ main · my-repo`.
+- Footer is prefixed with the repo name: `my-repo: ⎇ main …` — always
+  identifies which repo the line describes, even with several clones in
+  the workspace.
 - All git plumbing runs against the discovered root (`git -C`), so the
   footer tracks the right repo regardless of the session cwd.
 - Repo disappearing (workspace reset, .git removed) clears the footer and

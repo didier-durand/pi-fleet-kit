@@ -28,10 +28,11 @@ in the pi footer.
 ## The information it delivers
 
 One footer status line (status entry ID `git-status`), composed of up to
-five parts, left to right:
+six parts, left to right:
 
 | Part | Color | Meaning | When shown |
 |---|---|---|---|
+| `<repo-name>:` | accent | Basename of the discovered repo — always identifies which repo the line describes | Always, inside a git repo |
 | `⎇ <branch>` | accent | Current branch name (`⎇ detached` if detached HEAD) | Always, inside a git repo |
 | `↑ c:<n> f:<m> l:+a/−d` | success | **n commits ahead** of upstream (`c:`), touching **m files** (`f:`), `+a/−d` changed lines (`l:`) | only when ahead > 0 |
 | `↓ c:<n>` | warning | **n commits behind** the upstream remote (`c:`) | only when behind > 0 |
@@ -54,11 +55,11 @@ Guardrail economics (line-aligned, as requested):
 Reading examples:
 
 ```
-⎇ main ✓clean                    in sync with origin, nothing to commit
-⎇ main ↑ c:2 f:3 l:+41/−12 ● f:5 l:+156/−89  2 unpushed commits touching 3 files; 5 dirty files
-⎇ fix/heartbeat-race ↓ c:1 ● f:1 l:+2/−0  1 behind origin, 1 dirty file
-⎇ main ● f:412 l:>500           412 dirty files produced >500 changed lines — line counts withheld
-⎇ main ● f:613 l:>500           613 dirty files — diff skipped for cost, file count still exact
+my-repo: ⎇ main ✓clean                    in sync with origin, nothing to commit
+my-repo: ⎇ main ↑ c:2 f:3 l:+41/−12 ● f:5 l:+156/−89  2 unpushed commits touching 3 files; 5 dirty files
+my-repo: ⎇ fix/heartbeat-race ↓ c:1 ● f:1 l:+2/−0  1 behind origin, 1 dirty file
+my-repo: ⎇ main ● f:412 l:>500           412 dirty files produced >500 changed lines — line counts withheld
+my-repo: ⎇ main ● f:613 l:>500           613 dirty files — diff skipped for cost, file count still exact
 ```
 
 What each part tells the operator, decision-wise:

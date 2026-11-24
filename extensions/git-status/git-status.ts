@@ -117,15 +117,11 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 	branch = branch.split("...")[0].replace("No commits yet on ", "").trim();
 
 	const theme = ctx.ui.theme;
-	// Suffix when the tracked repo is nested inside the workspace (i.e. not
-	// the workspace root itself): "⎇ main · my-repo" — tells the operator
-	// which of several possible clones the footer is reading.
-	const cwd = process.cwd().replace(/\/+$/, "");
-	const rel = repoRoot && cwd && repoRoot !== cwd && repoRoot.startsWith(cwd + "/")
-		? repoRoot.slice(cwd.length + 1)
-		: "";
+	// Repo-name prefix: always identifies which repo the line describes —
+	// unambiguous when the workspace holds several clones.
+	const repoName = (repoRoot as string).split("/").filter(Boolean).pop() ?? "";
 	const parts: string[] = [];
-	parts.push(theme.fg("accent", `⎇ ${branch || "detached"}${rel ? ` · ${rel}` : ""}`));
+	parts.push(theme.fg("accent", `${repoName}: ⎇ ${branch || "detached"}`));
 	if (ahead) parts.push(theme.fg("success", aheadAddDel ? `↑ c:${ahead} f:${aheadFiles} l:${aheadAddDel}` : `↑ c:${ahead}`));
 	if (behind) parts.push(theme.fg("warning", `↓ c:${behind}`));
 	// Guard display: exact file count is always known (from porcelain); lines
