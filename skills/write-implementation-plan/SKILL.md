@@ -39,18 +39,48 @@ is either scope creep or a missing spec entry.
      method (test command, review check, demo), and dependencies on
      earlier tasks;
    - each task's verification is written *before* the task is executed.
-5. **Test strategy per phase** — what is proven at each phase boundary
+5. **Execution graph — parallel vs. sequential** — after the task list is
+   written, make the dependency structure explicit so independent tasks
+   can actually run in parallel:
+   - **Nodes and edges**: nodes are tasks; an edge T1 → T2 means T2 needs
+     T1's verified output. If T2 merely *benefits* from T1 but does not
+     depend on it, there is no edge — do not invent sequential order.
+   - **Waves**: group tasks into waves by topological level — wave 1 is
+     every task with no dependencies; wave k is every task whose
+     dependencies all sit in earlier waves. Tasks within one wave are
+     independent **by construction** and can be executed concurrently —
+     delegated to different agents (via `prompt-agent` work orders) or
+     run in parallel sessions by the operator.
+   - **Wave discipline**: a wave is executed only when every task of the
+     previous wave is verified — parallelism never crosses a wave
+     boundary. This is what keeps unverified work from accumulating.
+   - **Critical path**: the longest dependency chain across waves sets
+     the minimum duration of the plan. Name it; parallelize anything
+     *off* the critical path first, since that is where concurrency
+     actually buys time. If the critical path is long and thin, look for
+     a task split that shortens it rather than adding parallelism that
+     cannot help.
+   - **Write the graph down** — as a wave table and, when helpful, a
+     diagram:
+     ```text
+     Wave 1 (parallel):  T1  T2  T3
+     Wave 2 (parallel):  T4 (needs T1)  T5 (needs T2, T3)
+     Wave 3:             T6 (needs T4, T5)
+     ```
+     A task that appears in no wave is either unscheduled scope or a
+     missing edge — resolve it before execution starts.
+6. **Test strategy per phase** — what is proven at each phase boundary
    and how (unit, integration, manual scenario), mapped to the house test
    bar (≥95% of functional code, meaningful assertions). If a phase
    cannot name its proof, it is not a phase — it is a wish.
-6. **Risks, mitigations, rollback** — for each material risk: the
+7. **Risks, mitigations, rollback** — for each material risk: the
    mitigation taken during execution and the way back if it fires
    (revert point, feature flag, migration undo). One-way-door decisions
    are flagged and deferred to explicit operator sign-off.
-7. **Definition of done per milestone** — the checkable state that ends
+8. **Definition of done per milestone** — the checkable state that ends
    each milestone, aligned with the spec's acceptance criteria. The final
    milestone's done-state is exactly the spec's, nothing less.
-8. **Out of scope** — restated from the spec, so the plan is not judged
+9. **Out of scope** — restated from the spec, so the plan is not judged
    against work it deliberately excludes.
 
 ## What makes a plan good
