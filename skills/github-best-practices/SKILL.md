@@ -3,9 +3,10 @@ name: github-best-practices
 description: >
   Inventory of best practices for working with GitHub (and git) as an agent:
   environment checks, authentication, branch/commit/PR workflow, issues and
-  reviews, secret hygiene, and CI awareness. Use when creating commits, push
-  or PR workflows, reviewing code, managing issues, or before any GitHub
-  operation that might fail silently (auth, identity, remote access).
+  reviews, secret hygiene, and CI awareness. Use when creating commits,
+  push or PR workflows, version tagging, reviewing code, managing issues,
+  or before any GitHub operation that might fail silently (auth, identity,
+  remote access).
 ---
 
 # GitHub Best Practices for Agents
@@ -153,7 +154,37 @@ EOF
   a fork's copy of the upstream default branch.
 - Large assets → Git LFS or external storage, never plain git.
 
-## 8. CI awareness
+## 8. Automatic repo tagging (version-triggered)
+
+The repo is tagged automatically — as part of the same commit-and-push
+operation, without asking — whenever a versioned artifact gets a new
+version:
+
+1. **Component version bump**: `package.json`'s `version` field changes
+   (root repo or a packaged component like an extension), normally
+   accompanied by a `CHANGELOG.md` entry.
+   → tag `v<new-version>` (e.g. `0.2.0` → `v0.2.0`), annotated.
+2. **Versioned document**: an `.md` file whose header carries a semantic
+   version in a `<prefix>-X.Y.Z` convention (e.g. `specs-1.2.0`,
+   `impl-plan-0.3.0`) gets its header version bumped.
+   → tag `<prefix>-<new-version>` (e.g. `specs-1.2.0`), annotated.
+
+Rules:
+
+- **Annotated tags only** (`git tag -a <name> -m "..."`), never lightweight.
+- **Push the tag together with the commit it belongs to**
+  (`git push origin main <tag>`), so history and tags never diverge.
+- **Never move or delete an existing tag.** Before creating, verify it
+  doesn't exist: `git rev-parse -q --verify refs/tags/<name>`. If it does,
+  STOP and report — version reuse means something is wrong; re-tagging is
+  only allowed with explicit user instruction.
+- One tag per version event. If a commit bumps several artifacts, create
+  all matching tags in the same push.
+- If the bump was committed but the tag forgotten, tag the commit that
+  introduced the version (find it with `git log -1 --format=%H -- <file>`),
+  not HEAD.
+
+## 9. CI awareness
 
 - After pushing a PR, **check CI before declaring success**:
   `gh pr checks` (or `gh run list --branch <branch>`). If red, fetch the log
@@ -165,11 +196,13 @@ EOF
 - Don't retrigger CI repeatedly hoping for a different result; investigate
   flakiness instead.
 
-## 9. Quick reference — the non-negotiables
+## 10. Quick reference — the non-negotiables
 
 1. Identity + auth verified BEFORE first operation (§1).
 2. Never commit to the default branch without explicit instruction (§3).
 3. Explicit paths over `git add -A`; no secrets in commits, ever (§4).
 4. PRs small, single-purpose, with What/Why/How-tested (§5).
-5. CI checked before claiming success (§8).
-6. No force-pushes to shared branches, ever (§7).
+5. Version bumps and versioned-doc headers get their annotated tag in the
+   same push — and an existing tag is never moved (§8).
+6. CI checked before claiming success (§9).
+7. No force-pushes to shared branches, ever (§7).
