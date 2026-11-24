@@ -231,6 +231,6 @@ services:
 volumes:
   pi-fleet-kit-home:
   pi-coding-1-home:
+  pi-review-1-home:
   pi-research-home:
   pi-personal-home:
-  pi-review-1-home:
