@@ -103,3 +103,58 @@ if git diff --cached --name-only --diff-filter=ACM | grep -q '^compose\.yml$'; t
   fi
   rm -f "$staged_compose" "$staged_registry" "$regen"
 fi
+
+# --- Layer 5: README per-agent skills table freshness -----------------------
+# If compose.yml or README.md is staged, the "Per-agent skills" table in the
+# README must match the --skill assignments in the STAGED compose.yml
+# (compared as sets, so column order in the table is free).
+if git diff --cached --name-only --diff-filter=ACM | grep -qE '^(compose\.yml|README\.md)$'; then
+  REPO_DIR="$(git rev-parse --show-toplevel)"
+  tmp1="$(mktemp)"; tmp2="$(mktemp)"
+  git show :compose.yml > "$tmp1"
+  git show :README.md > "$tmp2"
+
+  # From staged compose: "<agent> <skill>" lines (per --skill flag)
+  compose_map="$(awk '
+    /^volumes:/ { sec = "volumes" }
+    sec != "volumes" && /^  [a-z0-9-]+:$/ {
+      if (svc != "") svc = ""
+      svc = $1; sub(/:$/, "", svc)
+    }
+    svc != "" && /--skill", "\/repo-skills\// {
+      line = $0
+      while (match(line, /--skill", "\/repo-skills\/[a-z0-9-]+"/)) {
+        s = substr(line, RSTART, RLENGTH)
+        sub(/^.*repo-skills\//, "", s); sub(/"$/, "", s)
+        print svc, s
+        line = substr(line, RSTART + RLENGTH)
+      }
+    }
+  ' "$tmp1" | sort)"
+
+  # From staged README: skills listed in each "| `pi-...` | ... |" row
+  readme_map="$(awk -v agents="$compose_map" '
+    BEGIN { n = split(agents, a, "\n"); for (i = 1; i <= n; i++) known[a[i]] = 1 }
+    /^\| `[a-z0-9-]+` \|/ {
+      line = $0
+      if (match(line, /`[a-z0-9-]+`/)) {
+        agent = substr(line, RSTART + 1, RLENGTH - 2)
+        line = substr(line, RSTART + RLENGTH)
+      }
+      # collect remaining backticked tokens = skills of that row
+      while (match(line, /`[a-z0-9-]+`/)) {
+        s = substr(line, RSTART + 1, RLENGTH - 2)
+        if (known[agent " " s]) print agent, s
+        line = substr(line, RSTART + RLENGTH)
+      }
+    }
+  ' "$tmp2" | sort)"
+
+  if [[ "$compose_map" != "$readme_map" ]]; then
+    echo "ERROR: README 'Per-agent skills' table does not match the staged compose.yml." >&2
+    diff <(echo "$compose_map") <(echo "$readme_map") | sed 's/^/  /' >&2
+    echo "Update the table in README.md (agent -> skills rows) and restage." >&2
+    fail=1
+  fi
+  rm -f "$tmp1" "$tmp2"
+fi
