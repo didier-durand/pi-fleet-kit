@@ -38,6 +38,16 @@ against; ambiguity here multiplies into rework everywhere else.
    unknowns is a plan.
 7. **Glossary** — domain terms used with a precise meaning. One definition
    per term; terms are then used *only* with that meaning.
+8. **External references** — every requirement or constraint that derives
+   from an external document (an RFC, an API contract, a product spec, a
+   standard, an issue thread) MUST cite that document: title and stable
+   link, plus the section/version the requirement comes from. The spec
+   then references the source instead of restating it — the source stays
+   authoritative, the citation keeps the derivation checkable, and later
+   readers (implementers, reviewers, auditors) can trace each requirement
+   back to its origin without asking. If the source is versioned or may
+   change, pin the exact version or anchor; a link that will silently
+   point elsewhere is not a reference, it is a future bug.
 
 ## What makes a requirement good
 
