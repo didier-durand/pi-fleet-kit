@@ -90,7 +90,14 @@ end_group
 if [[ -n "${OPENROUTER_API_KEY:-}" ]]; then
   step "live load smoke test (pi -e)"
   if command -v pi >/dev/null 2>&1; then
-    OUT="$(cd "$DIR/../.." && timeout 120 pi -e "extensions/$NAME" --print "Reply with exactly: OK" 2>&1 | tail -1)"
+    # Pin the smoke-test model when OPENROUTER_MODEL is set (CI repo
+    # variable); otherwise pi's automatic default for the provider applies.
+    MODEL_ARGS=()
+    if [[ -n "${OPENROUTER_MODEL:-}" ]]; then
+      echo "  model: $OPENROUTER_MODEL (pinned)"
+      MODEL_ARGS=(--provider openrouter --model "$OPENROUTER_MODEL")
+    fi
+    OUT="$(cd "$DIR/../.." && timeout 120 pi -e "extensions/$NAME" "${MODEL_ARGS[@]}" --print "Reply with exactly: OK" 2>&1 | tail -1)"
     # Models may pad the reply with whitespace/newlines — compare on the
     # trimmed value, still strict on the exact token.
     TRIMMED="${OUT//[[:space:]]/}"
