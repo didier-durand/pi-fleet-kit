@@ -81,8 +81,9 @@ What each part tells the operator, decision-wise:
 | Refresh throttle | ~2 runs/second maximum, with burst coalescing |
 | External actors | **detected**: the periodic tick re-reads git every ~3s, so changes from other terminals, sibling agents, or the watchdog appear within seconds — no tool call needed |
 | Idle cost | a `git status` (+ shortstat diffs when counts changed) every ~3s — **zero tokens**; CPU a few ms per tick |
-| Data source | `git status --porcelain=v1 -b` (stable plumbing format, portable) |
-| Outside a repo | the status entry clears itself entirely |
+| Data source | `git status --porcelain=v1 -b` (stable plumbing format, portable), run with `git -C` against the discovered repo root |
+| Repo discovery | at session start: /workspace if it is (or is inside) a repo; otherwise the shallowest nested clone (bounded scan, maxdepth 3, node_modules excluded), retried while unresolved — a workspace cloned after launch is picked up within one poll interval. Nested repos are marked `⎇ branch · <dir>` in the footer |
+| No repo found | the status entry clears itself entirely — and re-discovery keeps retrying, so the footer appears as soon as a repo shows up |
 | Non-TUI modes | inert in `--print`/JSON mode (`ctx.hasUI` guard) |
 | Sits alongside | Pi's built-in footer info (model, context usage) — it adds an entry, does not replace the footer |
 

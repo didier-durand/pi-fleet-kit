@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.0] - 2026-11-24
+
+Repo discovery: the footer no longer requires /workspace itself to be a
+git repository.
+
+- At session start the extension resolves which repo to track: /workspace
+  if it is (or is inside) a repo, otherwise the shallowest nested clone
+  found by a bounded scan (maxdepth 3, node_modules excluded).
+- Discovery is retried while unresolved — a workspace cloned after the
+  agent starts is picked up within one poll interval.
+- A nested (non-workspace-root) repo is marked in the footer:
+  `⎇ main · my-repo`.
+- All git plumbing runs against the discovered root (`git -C`), so the
+  footer tracks the right repo regardless of the session cwd.
+- Repo disappearing (workspace reset, .git removed) clears the footer and
+  triggers re-discovery instead of leaving stale state.
+
 ## [0.1.0] - 2026-11-23
 
 First public release.

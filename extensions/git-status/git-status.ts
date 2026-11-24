@@ -4,7 +4,10 @@
  * Shows a footer status line: branch, ahead/behind vs upstream, and the
  * number of uncommitted changes. Refreshes after every tool call (bash /
  * edit / write all mutate git state), on agent turns ending, and at session
- * start. Hidden entirely when the workspace is not a git repo.
+ * start. Discovers which repo to track: /workspace itself, or — when the
+ * workspace root is not a repo — the shallowest nested clone found by a
+ * bounded scan (retried until one appears). Hidden entirely when no repo
+ * is found; a nested repo is marked with a ` · <dir>` suffix.
  *
  * Linux/macOS/Windows(Git Bash) compatible: plain `git` plumbing only.
  */
@@ -14,14 +17,57 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 const ID = "git-status";
 const MIN_INTERVAL_MS = 500; // throttle: git runs at most ~2x/second
 
+// The repo the footer currently tracks (absolute path), discovered at
+// session start and re-discovered whenever it disappears.
+let repoRoot: string | undefined;
+
+async function resolveRepo(pi: ExtensionAPI): Promise<string | undefined> {
+	// (a) cwd (= /workspace) already inside a repo? `rev-parse` also works
+	// from a subdirectory and resolves to the containing toplevel.
+	const top = await pi.exec("git", ["rev-parse", "--show-toplevel"]);
+	if (top.code === 0) {
+		const t = top.stdout.trim();
+		if (t) return t;
+	}
+	// (b) nested clones: bounded scan for .git dirs; shallowest wins,
+	// alphabetical tiebreak, node_modules excluded (dependency trees may
+	// contain vendored .git dirs at shallow depth).
+	const found = await pi.exec("find", ["/workspace", "-maxdepth", "3", "-name", ".git", "-type", "d"]);
+	if (found.code !== 0) return undefined;
+	const cands = found.stdout
+		.split("\n")
+		.filter(Boolean)
+		.map((p) => p.replace(/\/\.git$/, ""))
+		.filter((p) => !/(^|\/)node_modules(\/|$)/.test(p))
+		.sort((a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b));
+	return cands[0];
+}
+
 async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 	if (!ctx.hasUI) return; // print/JSON mode: no UI to update
 
+	// Verify the tracked repo still exists; rediscover when it vanished
+	// (workspace reset, .git removed) or when nothing was found yet — the
+	// scan is cheap and only runs while unresolved, so a late clone is
+	// picked up within one poll interval.
+	if (repoRoot) {
+		const alive = await pi.exec("git", ["-C", repoRoot, "rev-parse", "--is-inside-work-tree"]);
+		if (alive.code !== 0) repoRoot = undefined;
+	}
+	if (!repoRoot) repoRoot = await resolveRepo(pi);
+	if (!repoRoot) {
+		// No repo anywhere in /workspace: clear any stale status
+		ctx.ui.setStatus(ID, undefined);
+		return;
+	}
+	const g = (...args: string[]) => pi.exec("git", ["-C", repoRoot as string, ...args]);
+
 	// -b: include branch + upstream divergence; --porcelain v1: stable format
-	const { code, stdout, stderr } = await pi.exec("git", ["status", "--porcelain=v1", "-b"]);
+	const { code, stdout, stderr } = await g("status", "--porcelain=v1", "-b");
 
 	if (code !== 0) {
-		// Not a repo (or git broken): clear any stale status
+		// Repo broke underneath us (deleted .git etc.): forget and rediscover
+		repoRoot = undefined;
 		ctx.ui.setStatus(ID, undefined);
 		return;
 	}
@@ -41,8 +87,8 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 	const LINE_LIMIT = 500;
 	if (dirty > 0 && dirty <= DIFF_FILE_LIMIT) {
 		const [wt, ix] = await Promise.all([
-			pi.exec("git", ["diff", "--shortstat"]),
-			pi.exec("git", ["diff", "--cached", "--shortstat"]),
+			g("diff", "--shortstat"),
+			g("diff", "--cached", "--shortstat"),
 		]);
 		// worktree + index: sum both shortstats when they differ
 		const a = shortstatFull(wt.stdout), b = shortstatFull(ix.stdout);
@@ -59,7 +105,7 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 
 	let aheadFiles = "";
 	if (ahead && Number(ahead) > 0 && Number(ahead) <= DIFF_FILE_LIMIT) {
-		const ab2 = await pi.exec("git", ["diff", "--shortstat", "@{u}..HEAD"]);
+		const ab2 = await g("diff", "--shortstat", "@{u}..HEAD");
 		const s = shortstatFull(ab2.stdout);
 		aheadAddDel = s.addDel;
 		aheadFiles = s.files;
@@ -71,8 +117,15 @@ async function refresh(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 	branch = branch.split("...")[0].replace("No commits yet on ", "").trim();
 
 	const theme = ctx.ui.theme;
+	// Suffix when the tracked repo is nested inside the workspace (i.e. not
+	// the workspace root itself): "⎇ main · my-repo" — tells the operator
+	// which of several possible clones the footer is reading.
+	const cwd = process.cwd().replace(/\/+$/, "");
+	const rel = repoRoot && cwd && repoRoot !== cwd && repoRoot.startsWith(cwd + "/")
+		? repoRoot.slice(cwd.length + 1)
+		: "";
 	const parts: string[] = [];
-	parts.push(theme.fg("accent", `⎇ ${branch || "detached"}`));
+	parts.push(theme.fg("accent", `⎇ ${branch || "detached"}${rel ? ` · ${rel}` : ""}`));
 	if (ahead) parts.push(theme.fg("success", aheadAddDel ? `↑ c:${ahead} f:${aheadFiles} l:${aheadAddDel}` : `↑ c:${ahead}`));
 	if (behind) parts.push(theme.fg("warning", `↓ c:${behind}`));
 	// Guard display: exact file count is always known (from porcelain); lines
