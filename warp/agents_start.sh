@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start all Pi agents in Warp, each in its own tab.
 #
-# For every agent defined in ../compose.yml (pi-fleet-kit, pi-coding,
+# For every agent defined in ../compose.yml (pi-fleet-kit, pi-coding-1,
 # pi-review, pi-research, pi-personal), this script:
 #   1. (optionally) installs its Tab Config into Warp's config directory,
 #      reusing tabs_install.sh (idempotent — only changed files are copied);
@@ -25,7 +25,7 @@
 # Usage:
 #   ./agents_start.sh                 # all agents, as tabs
 #   ./agents_start.sh -w              # all agents, in a new Warp window
-#   ./agents_start.sh pi-coding       # only the named agents
+#   ./agents_start.sh pi-coding-1       # only the named agents
 #   ./agents_start.sh -n pi-research pi-personal   # skip install, then open
 #   ./agents_start.sh -R              # REORDER: stop the fleet, reopen ALL
 #                                     # tabs in compose.yml order
@@ -41,13 +41,13 @@
 #         Sessions are preserved on disk: --continue resumes them.
 #   -h    print usage
 #
-# Agent names may use hyphens (pi-coding) or underscores (pi_coding) —
+# Agent names may use hyphens (pi-coding-1) or underscores (pi_coding_1) —
 # both map to the tab config of the same name.
 
 set -euo pipefail
 
 WARP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ALL_AGENTS=(pi-fleet-kit pi-coding pi-review pi-research pi-personal)
+ALL_AGENTS=(pi-fleet-kit pi-coding-1 pi-review pi-research pi-personal)
 
 NEW_WINDOW=0
 NO_INSTALL=0

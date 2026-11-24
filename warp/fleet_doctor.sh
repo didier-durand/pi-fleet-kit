@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fleet doctor: diagnose why a closed agent's tab does not reopen.
-# Usage: fleet_doctor.sh <agent>     (e.g. fleet_doctor.sh pi-coding)
+# Usage: fleet_doctor.sh <agent>     (e.g. fleet_doctor.sh pi-coding-1)
 # Safe to run anytime; it only READS state (no docker calls that modify).
 
 set -u

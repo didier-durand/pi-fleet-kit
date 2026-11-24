@@ -51,7 +51,7 @@ FRESH_SECS=20   # claim needs a heartbeat touched within this window
                 # survive brief system stalls/sleep, tight enough to kill
                 # PID-reuse false positives in seconds)
 FLEET_LABEL="pi.agent.fleet=1"
-ALL_AGENTS=(pi-fleet-kit pi-coding pi-research pi-personal pi-review)
+ALL_AGENTS=(pi-fleet-kit pi-coding-1 pi-research pi-personal pi-review)
 
 # --- Parse arguments ----------------------------------------------------------
 

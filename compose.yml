@@ -14,7 +14,7 @@
 #
 # Usage:
 #   docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-fleet-kit
-#   docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-coding
+#   docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-coding-1
 #   docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-research
 #   docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-personal
 #
@@ -64,18 +64,18 @@ services:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
 
-  # pi-coding: general-purpose coding agent. Same image and credential
+  # pi-coding-1: general-purpose coding agent. Same image and credential
   # passthrough as the other agents, but fully independent state (own Pi home
   # volume, own workspace) so sessions, auth and files never mix.
-  pi-coding:
+  pi-coding-1:
     image: pi-sandbox
     volumes:
       # Private Pi home (config, auth, sessions, extensions):
-      - pi-coding-home:/home/pi/.pi/agent
+      - pi-coding-1-home:/home/pi/.pi/agent
       # The agent's working folder:
-      - ${HOME}/pi-agents/pi-coding:/workspace
+      - ${HOME}/pi-agents/pi-coding-1:/workspace
       # Watched dir for file-triggered prompts (extension prompt-trigger):
-      - ${HOME}/pi-exchange/pi-coding:/exchange
+      - ${HOME}/pi-exchange/pi-coding-1:/exchange
       # Skills for THIS agent only (/skill:github-best-practices):
       - ${HOME}/pi-fleet-kit/skills/github-best-practices:/repo-skills/github-best-practices:ro
       # Read-only repo mount: extensions stay one git pull away from all
@@ -230,7 +230,7 @@ services:
 
 volumes:
   pi-fleet-kit-home:
-  pi-coding-home:
+  pi-coding-1-home:
   pi-research-home:
   pi-personal-home:
   pi-review-home:

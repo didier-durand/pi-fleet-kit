@@ -82,7 +82,7 @@ if [[ -n "$SWIFTC" ]]; then
 import Cocoa
 
 final class FleetDelegate: NSObject, NSApplicationDelegate {
-    let agents = ["pi-fleet-kit", "pi-coding", "pi-research", "pi-personal"]
+    let agents = ["pi-fleet-kit", "pi-coding-1", "pi-research", "pi-personal"]
     let grace: TimeInterval = 60
     var lastSeenUp = Date()
 
