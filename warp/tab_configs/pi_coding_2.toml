@@ -7,7 +7,7 @@
 
 name = "pi-coding-2"
 title = "pi-coding-2"
-color = "orange"
+color = "yellow"
 
 [[panes]]
 id = "main"
