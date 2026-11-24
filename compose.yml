@@ -171,6 +171,7 @@ services:
       - ${HOME}/pi-exchange/pi-review-1:/exchange
       # Skills for THIS agent only (/skill:github-best-practices):
       - ${HOME}/pi-fleet-kit/skills/github-best-practices:/repo-skills/github-best-practices:ro
+      - ${HOME}/pi-fleet-kit/skills/review-pull-request:/repo-skills/review-pull-request:ro
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-fleet-kit/extensions:/repo-extensions:ro
@@ -195,7 +196,8 @@ services:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/git-status/git-status.ts",
        "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
-       "--skill", "/repo-skills/github-best-practices"]
+       "--skill", "/repo-skills/github-best-practices",
+       "--skill", "/repo-skills/review-pull-request"]
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
@@ -211,6 +213,7 @@ services:
       - ${HOME}/pi-exchange/pi-review-2:/exchange
       # Skills for THIS agent only (/skill:github-best-practices):
       - ${HOME}/pi-fleet-kit/skills/github-best-practices:/repo-skills/github-best-practices:ro
+      - ${HOME}/pi-fleet-kit/skills/review-pull-request:/repo-skills/review-pull-request:ro
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-fleet-kit/extensions:/repo-extensions:ro
@@ -235,7 +238,8 @@ services:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/git-status/git-status.ts",
        "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
-       "--skill", "/repo-skills/github-best-practices"]
+       "--skill", "/repo-skills/github-best-practices",
+       "--skill", "/repo-skills/review-pull-request"]
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"

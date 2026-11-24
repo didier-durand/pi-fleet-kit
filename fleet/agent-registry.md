@@ -8,7 +8,7 @@
 | pi-fleet-kit | pi-fleet-kit-home | build-skill, github-best-practices | git-status, prompt-trigger | dormant | ~/pi-agents/pi-fleet-kit |
 | pi-coding-1 | pi-coding-1-home | github-best-practices, write-code, write-pull-request | git-status, prompt-trigger | active — ~/pi-exchange/pi-coding-1 | ~/pi-agents/pi-coding-1 |
 | pi-coding-2 | pi-coding-2-home | github-best-practices, write-code, write-pull-request | git-status, prompt-trigger | active — ~/pi-exchange/pi-coding-2 | ~/pi-agents/pi-coding-2 |
-| pi-review-1 | pi-review-1-home | github-best-practices | git-status, prompt-trigger | active — ~/pi-exchange/pi-review-1 | ~/pi-agents/pi-review-1 |
-| pi-review-2 | pi-review-2-home | github-best-practices | git-status, prompt-trigger | active — ~/pi-exchange/pi-review-2 | ~/pi-agents/pi-review-2 |
+| pi-review-1 | pi-review-1-home | github-best-practices, review-pull-request | git-status, prompt-trigger | active — ~/pi-exchange/pi-review-1 | ~/pi-agents/pi-review-1 |
+| pi-review-2 | pi-review-2-home | github-best-practices, review-pull-request | git-status, prompt-trigger | active — ~/pi-exchange/pi-review-2 | ~/pi-agents/pi-review-2 |
 | pi-research | pi-research-home | publishing-best-practices, github-best-practices, web-research | git-status, prompt-trigger | dormant | ~/pi-agents/pi-research |
 | pi-personal | pi-personal-home | publishing-best-practices, hello-world, github-best-practices | git-status, prompt-trigger | dormant | ~/pi-agents/pi-personal |
