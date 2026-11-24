@@ -82,6 +82,24 @@ is either scope creep or a missing spec entry.
    milestone's done-state is exactly the spec's, nothing less.
 9. **Out of scope** — restated from the spec, so the plan is not judged
    against work it deliberately excludes.
+10. **Document header — version, author, date** — every implementation
+   plan carries, immediately under the title, a revision block:
+
+   ```markdown
+   # <Implementation plan title>
+
+   Plan version: <x.y.z> (semver — matches the latest `impl-plan-*` tag)
+   Author: <name — the agent or operator responsible for this revision>
+   Date: <YYYY-MM-DD of the revision>
+   ```
+
+   The version is semver and MUST equal the `impl-plan-*` tag applied to
+   the same commit (see *Versioning* below) — the header and the tag are
+   two views of one fact, and they must never disagree. Each substantive
+   revision updates the version, the author and the date in the same
+   commit that changes the content; a history table of revisions
+   (version / date / author / one-line change) at the bottom of the
+   document turns those point-in-time facts into an audit trail.
 
 ## What makes a plan good
 
