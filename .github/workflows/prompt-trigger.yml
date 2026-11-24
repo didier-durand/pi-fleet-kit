@@ -17,6 +17,8 @@ on:
 jobs:
   sanity:
     runs-on: ubuntu-latest
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -24,9 +26,13 @@ jobs:
         with:
           node-version: 24
 
+      # The smoke test needs the pi binary; install it only when the key is
+      # configured — key-less forks skip it (the script gates on both).
+      - name: Install pi for the smoke test
+        if: env.OPENROUTER_API_KEY != ''
+        run: npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+
       # The live-load smoke test runs only if the secret is configured;
       # without it the script skips step 5 and the static checks still gate.
       - name: Sanity checks
         run: utils/check-extension.sh prompt-trigger
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
