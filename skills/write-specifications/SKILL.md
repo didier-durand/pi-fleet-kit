@@ -63,6 +63,24 @@ against; ambiguity here multiplies into rework everywhere else.
 - **Necessary**: if removing the requirement changes nothing observable,
   it does not belong in the spec.
 
+## The specification process is iterative
+
+Writing the spec is not one pass: draft, then self-review, then repeat
+until the draft actually satisfies the process. Before returning anything
+to the requester:
+
+- **Self-review against the process** — check the draft against every
+  requirement of this skill: are all required sections present, every
+  `REQ-n` verifiable and atomic, every acceptance criterion actually
+  writable, every non-goal stated, every external source cited, every
+  glossary term used consistently? Whatever fails, fix the draft — then
+  re-review. Iterate until the draft passes its own standard.
+- **Unstated gaps are failures** — if something cannot be nailed down
+  (a decision not yet made, a constraint unknown, a requirement not
+  verifiable today), the spec MUST surface it as an explicit gap with its
+  impact and owner. A gap that is documented is manageable; a gap that is
+  omitted is a bug planted in the process downstream.
+
 ## Rules of engagement
 
 - **Single source of truth**: the spec is where requirements live. When
