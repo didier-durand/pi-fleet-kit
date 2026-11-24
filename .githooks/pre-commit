@@ -79,7 +79,7 @@ fi
 exit 0
 
 # --- Layer 4: fleet registry freshness -------------------------------------
-# If compose.yml is staged, the fleet registry (docs/agent-registry.md) must
+# If compose.yml is staged, the fleet registry (fleet/agent-registry.md) must
 # be regenerated from the STAGED compose.yml and staged too. Prevents the
 # registry from silently drifting from the actual fleet config.
 if git diff --cached --name-only --diff-filter=ACM | grep -q '^compose\.yml$'; then
@@ -90,15 +90,15 @@ if git diff --cached --name-only --diff-filter=ACM | grep -q '^compose\.yml$'; t
   git show :compose.yml > "$staged_compose"
   "$REPO_DIR/utils/gen-fleet-registry.sh" "$staged_compose" - > "$regen" 2>/dev/null \
     || { echo "ERROR: could not regenerate the fleet registry." >&2; fail=1; }
-  if git diff --cached --quiet -- docs/agent-registry.md; then
+  if git diff --cached --quiet -- fleet/agent-registry.md; then
     # registry not staged in this commit: compare against HEAD version
-    git show HEAD:docs/agent-registry.md > "$staged_registry" 2>/dev/null || : > "$staged_registry"
+    git show HEAD:fleet/agent-registry.md > "$staged_registry" 2>/dev/null || : > "$staged_registry"
   else
-    git show :docs/agent-registry.md > "$staged_registry"
+    git show :fleet/agent-registry.md > "$staged_registry"
   fi
   if ! cmp -s "$regen" "$staged_registry"; then
-    echo "ERROR: docs/agent-registry.md is out of date with the staged compose.yml." >&2
-    echo "Run:  utils/gen-fleet-registry.sh && git add docs/agent-registry.md" >&2
+    echo "ERROR: fleet/agent-registry.md is out of date with the staged compose.yml." >&2
+    echo "Run:  utils/gen-fleet-registry.sh && git add fleet/agent-registry.md" >&2
     fail=1
   fi
   rm -f "$staged_compose" "$staged_registry" "$regen"

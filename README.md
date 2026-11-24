@@ -49,7 +49,7 @@ mirroring the host's setup.
 |---|---|
 | `compose.yml` | Defines the agent services. Currently seven agents — `pi-fleet-kit`, `pi-coding-1`, `pi-coding-2`, `pi-review-1`, `pi-review-2`, `pi-research`, `pi-personal` — all running the `pi-sandbox` image, each with its own persistent Pi-home volume and a bind-mounted workspace under `~/pi-agents/`. |
 | `Dockerfile.pi` | Builds the `pi-sandbox` image: Node 24 base, git + ripgrep, `pi` installed globally, the entrypoint wrapper below, and a non-root `pi` user (least privilege — the agent runs unprivileged). |
-| `utils/gen-fleet-registry.sh` | Generates `docs/agent-registry.md` (the fleet "who does what" table) from `compose.yml`; mounted read-only into every agent at `/fleet/agent-registry.md`. |
+| `utils/gen-fleet-registry.sh` | Generates `fleet/agent-registry.md` (the fleet "who does what" table) from `compose.yml`; the `fleet/` directory is mounted read-only into every agent at `/fleet`. |
 | `utils/entrypoint.sh` | Container entrypoint. Before handing off to `pi`, it configures the agent's git environment from env vars passed by Compose: commit identity (`GITHUB_USER_NAME`/`GITHUB_USER_EMAIL`) and a token-based git credential helper (`GITHUB_TOKEN`) — the container has no keyring, so auth must come from the environment. |
 | `.env` | Credentials bridge for Compose. Holds **`${VAR}` references only** (e.g. `GITHUB_TOKEN=${GITHUB_TOKEN}`), resolved from the host shell when `docker compose` runs. |
 | `.gitignore` | Excludes `.DS_Store` and the legacy agent workspace (`finance-agent/`); agent workspaces now live outside this repo in `~/pi-agents/`. |
@@ -63,14 +63,15 @@ mirroring the host's setup.
 
 ## Fleet registry
 
-`docs/agent-registry.md` is the fleet's "who does what" table — generated
+`fleet/agent-registry.md` is the fleet's "who does what" table — generated
 from `compose.yml` by `utils/gen-fleet-registry.sh` (compose stays the
 single source of truth; never edit the registry by hand). It lists every
 agent's Pi home volume, skills, extensions, prompt-trigger state and
-workspace. Each container mounts it read-only at
-`/fleet/agent-registry.md`, so **agents can discover the rest of the
-fleet** (compose.yml itself is not visible inside containers) — e.g. the
-`pi-fleet-kit` agent reads it when reconfiguring the fleet. A pre-commit
+workspace. Every container mounts the whole `fleet/` directory read-only at
+`/fleet` (room for future fleet-level files), so **agents can discover the
+rest of the fleet** (compose.yml itself is not visible inside containers) —
+e.g. the `pi-fleet-kit` agent reads `/fleet/agent-registry.md` when
+reconfiguring the fleet. A pre-commit
 hook regenerates the registry from any staged `compose.yml` change and
 rejects commits that would let the two drift apart.
 

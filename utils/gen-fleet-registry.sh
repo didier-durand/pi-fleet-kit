@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Generate docs/agent-registry.md from compose.yml — the fleet's "who does
+# Generate fleet/agent-registry.md from compose.yml — the fleet's "who does
 # what" table. compose.yml is the single source of truth; this file is
 # ALWAYS generated, never hand-edited.
 #
 # Usage:
-#   utils/gen-fleet-registry.sh                  # ./compose.yml -> docs/agent-registry.md
+#   utils/gen-fleet-registry.sh                  # ./compose.yml -> fleet/agent-registry.md
 #   utils/gen-fleet-registry.sh <compose-file>   # read another compose file
 #   utils/gen-fleet-registry.sh <compose> -      # write to stdout instead
 #
@@ -15,7 +15,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE="${1:-$REPO_DIR/compose.yml}"
-OUT="${2:-$REPO_DIR/docs/agent-registry.md}"
+OUT="${2:-$REPO_DIR/fleet/agent-registry.md}"
 
 [[ -f "$COMPOSE" ]] || { echo "error: compose file not found: $COMPOSE" >&2; exit 1; }
 

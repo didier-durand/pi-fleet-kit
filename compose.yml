@@ -40,8 +40,8 @@ services:
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-fleet-kit/extensions:/repo-extensions:ro
-      # Fleet registry (generated from this compose file — who does what):
-      - ${HOME}/pi-fleet-kit/docs/agent-registry.md:/fleet/agent-registry.md:ro
+      # Fleet registry + shared fleet-level files (read-only):
+      - ${HOME}/pi-fleet-kit/fleet:/fleet:ro
       # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
       # key registered on GitHub as "Signing key" -> Verified badges.
       - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
@@ -83,8 +83,8 @@ services:
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-fleet-kit/extensions:/repo-extensions:ro
-      # Fleet registry (generated from this compose file — who does what):
-      - ${HOME}/pi-fleet-kit/docs/agent-registry.md:/fleet/agent-registry.md:ro
+      # Fleet registry + shared fleet-level files (read-only):
+      - ${HOME}/pi-fleet-kit/fleet:/fleet:ro
       # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
       # key registered on GitHub as "Signing key" -> Verified badges.
       - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
@@ -126,8 +126,8 @@ services:
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-fleet-kit/extensions:/repo-extensions:ro
-      # Fleet registry (generated from this compose file — who does what):
-      - ${HOME}/pi-fleet-kit/docs/agent-registry.md:/fleet/agent-registry.md:ro
+      # Fleet registry + shared fleet-level files (read-only):
+      - ${HOME}/pi-fleet-kit/fleet:/fleet:ro
       # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
       # key registered on GitHub as "Signing key" -> Verified badges.
       - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
@@ -166,8 +166,8 @@ services:
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-fleet-kit/extensions:/repo-extensions:ro
-      # Fleet registry (generated from this compose file — who does what):
-      - ${HOME}/pi-fleet-kit/docs/agent-registry.md:/fleet/agent-registry.md:ro
+      # Fleet registry + shared fleet-level files (read-only):
+      - ${HOME}/pi-fleet-kit/fleet:/fleet:ro
       # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
       # key registered on GitHub as "Signing key" -> Verified badges.
       - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
@@ -206,8 +206,8 @@ services:
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-fleet-kit/extensions:/repo-extensions:ro
-      # Fleet registry (generated from this compose file — who does what):
-      - ${HOME}/pi-fleet-kit/docs/agent-registry.md:/fleet/agent-registry.md:ro
+      # Fleet registry + shared fleet-level files (read-only):
+      - ${HOME}/pi-fleet-kit/fleet:/fleet:ro
       # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
       # key registered on GitHub as "Signing key" -> Verified badges.
       - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
@@ -250,8 +250,8 @@ services:
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-fleet-kit/extensions:/repo-extensions:ro
-      # Fleet registry (generated from this compose file — who does what):
-      - ${HOME}/pi-fleet-kit/docs/agent-registry.md:/fleet/agent-registry.md:ro
+      # Fleet registry + shared fleet-level files (read-only):
+      - ${HOME}/pi-fleet-kit/fleet:/fleet:ro
       # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
       # key registered on GitHub as "Signing key" -> Verified badges.
       - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
@@ -294,8 +294,8 @@ services:
       # Read-only repo mount: extensions stay one git pull away from all
       # agents (git-status is loaded via --extension below):
       - ${HOME}/pi-fleet-kit/extensions:/repo-extensions:ro
-      # Fleet registry (generated from this compose file — who does what):
-      - ${HOME}/pi-fleet-kit/docs/agent-registry.md:/fleet/agent-registry.md:ro
+      # Fleet registry + shared fleet-level files (read-only):
+      - ${HOME}/pi-fleet-kit/fleet:/fleet:ro
       # Dedicated SSH signing key (host: ~/.ssh/pi-agent-signing). Signing-only
       # key registered on GitHub as "Signing key" -> Verified badges.
       - ${HOME}/.ssh/pi-agent-signing:/home/pi/.ssh/signing_key:ro
