@@ -4,6 +4,13 @@
 
 First public release.
 
+- **Unit tests + coverage CI**: 22 tests (real temp dirs, mocked poll
+  interval, fs-race scenarios in a child process with mocked node:fs)
+  covering dormancy, stability windows, rewrites, directives, followUp
+  queuing and shutdown; `prompt-trigger-unit-tests` workflow reports
+  coverage in the job summary (100% statements/branches/functions).
+  Package metadata gains `"type": "module"` and a `test` script.
+
 - Watches `PI_TRIGGER_DIR`; any regular file appearing there is injected
   into the session as if typed by the user, then deleted (one file = one
   prompt).

@@ -20,8 +20,8 @@ npm install --no-save --no-package-lock --ignore-scripts --no-audit --no-fund c8
 # Human output to the console; TAP to a file for counting; JSON coverage for
 # the summary table.
 rm -rf .coverage .tap.out
-npx c8 --reporter=json --reports-dir=.coverage \
-	node --test \
+npx c8 --reporter=json --reports-dir=.coverage --exclude 'scripts/**' \
+	node --test --experimental-test-module-mocks \
 	--test-reporter=spec --test-reporter-destination=stdout \
 	--test-reporter=tap --test-reporter-destination=.tap.out
 

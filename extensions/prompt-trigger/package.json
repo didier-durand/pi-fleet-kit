@@ -26,5 +26,9 @@
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*"
-  }
+  },
+  "scripts": {
+    "test": "node --test --experimental-test-module-mocks"
+  },
+  "type": "module"
 }
