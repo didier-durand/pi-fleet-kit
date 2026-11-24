@@ -1,18 +1,18 @@
-name: prompt-trigger extension sanity
+name: git-status-check-sanity
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - "extensions/prompt-trigger/**"
+      - "extensions/git-status/**"
       - "utils/check-extension.sh"
-      - ".github/workflows/prompt-trigger.yml"
+      - ".github/workflows/git-status-check-sanity.yml"
   pull_request:
     paths:
-      - "extensions/prompt-trigger/**"
+      - "extensions/git-status/**"
       - "utils/check-extension.sh"
-      - ".github/workflows/prompt-trigger.yml"
+      - ".github/workflows/git-status-check-sanity.yml"
 
 jobs:
   sanity:
@@ -35,4 +35,4 @@ jobs:
       # The live-load smoke test runs only if the secret is configured;
       # without it the script skips step 5 and the static checks still gate.
       - name: Sanity checks
-        run: utils/check-extension.sh prompt-trigger
+        run: utils/check-extension.sh git-status
