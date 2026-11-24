@@ -13,6 +13,11 @@ git repository.
 - Footer is prefixed with the repo name: `my-repo: ⎇ main …` — always
   identifies which repo the line describes, even with several clones in
   the workspace.
+- **Multiple repos**: when more than one repo is cloned in /workspace,
+  the footer renders one compact segment per repo (name, branch,
+  ahead/behind counts, dirty file count), separated by `│` — e.g.
+  `api: ⎇ main ↑2 ●3 │ web: ⎇ feat/ui ✓`. Line stats are shown only in
+  the single-repo mode; up to 5 repos are shown, with `+N more` beyond.
 - All git plumbing runs against the discovered root (`git -C`), so the
   footer tracks the right repo regardless of the session cwd.
 - Repo disappearing (workspace reset, .git removed) clears the footer and
