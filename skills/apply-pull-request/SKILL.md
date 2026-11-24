@@ -16,10 +16,10 @@ description: >
 
 # Applying a Pull Request Review
 
-This is the creator half of the review dialog (`review-pull-request` is
-the reviewer half — but this skill is self-contained: the finding format
-it consumes is embedded below). One rule governs everything: **no finding
-from the last round still disappears into the next one.**
+The creator half of the PR review dialog (the reviewer half issues the
+verdicts described below — this skill is self-contained: the finding
+format it consumes is embedded here). One rule governs everything: **no
+finding from the last round still disappears into the next one.**
 
 ## Finding format (what a review round delivers)
 
