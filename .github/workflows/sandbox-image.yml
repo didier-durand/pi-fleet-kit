@@ -94,6 +94,8 @@ jobs:
           docker pull --platform linux/arm64 ghcr.io/${{ github.repository_owner }}/pi-sandbox@${{ steps.build.outputs.digest }}
           echo "| ✅ | Downloaded from GHCR | linux/arm64 | digest pull (--platform) |" >> /tmp/job-summary.md
 
+      # Identical checks on both platforms: entrypoint + pi version, and
+      # the toolchain agents depend on (git / gh / node).
       - name: Smoke-run the pulled image (amd64)
         run: |
           IMG=ghcr.io/${{ github.repository_owner }}/pi-sandbox@${{ steps.build.outputs.digest }}
@@ -105,7 +107,7 @@ jobs:
           echo "$TOOLS" | grep -q "git version"
           {
             echo "| ✅ | Entrypoint smoke run (\`pi --version\`) | linux/amd64 | $PI_OUT |"
-            echo "| ✅ | Toolchain present | linux/amd64 | $(echo "$TOOLS" | tr '\n' ' · ') |"
+            echo "| ✅ | Toolchain present (git/gh/node) | linux/amd64 | $(echo "$TOOLS" | tr '\n' ' · ') |"
           } >> /tmp/job-summary.md
 
       - name: Smoke-run the pulled image (arm64, emulated)
@@ -114,7 +116,13 @@ jobs:
           PI_OUT=$(docker run --rm --platform linux/arm64 "$IMG" --version)
           echo "pi --version (arm64) -> $PI_OUT"
           test -n "$PI_OUT"
-          echo "| ✅ | Entrypoint smoke run (\`pi --version\`) | linux/arm64 (QEMU) | $PI_OUT |" >> /tmp/job-summary.md
+          TOOLS=$(docker run --rm --platform linux/arm64 --entrypoint bash "$IMG" -c 'git --version && gh --version && node --version')
+          echo "$TOOLS"
+          echo "$TOOLS" | grep -q "git version"
+          {
+            echo "| ✅ | Entrypoint smoke run (\`pi --version\`) | linux/arm64 (QEMU) | $PI_OUT |"
+            echo "| ✅ | Toolchain present (git/gh/node) | linux/arm64 (QEMU) | $(echo "$TOOLS" | tr '\n' ' · ') |"
+          } >> /tmp/job-summary.md
 
       - name: Write the verification report to the job summary
         if: always()
