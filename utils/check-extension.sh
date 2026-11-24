@@ -91,7 +91,10 @@ if [[ -n "${OPENROUTER_API_KEY:-}" ]]; then
   step "live load smoke test (pi -e)"
   if command -v pi >/dev/null 2>&1; then
     OUT="$(cd "$DIR/../.." && timeout 120 pi -e "extensions/$NAME" --print "Reply with exactly: OK" 2>&1 | tail -1)"
-    [[ "$OUT" == "OK" ]] \
+    # Models may pad the reply with whitespace/newlines — compare on the
+    # trimmed value, still strict on the exact token.
+    TRIMMED="${OUT//[[:space:]]/}"
+    [[ "$TRIMMED" == "OK" ]] \
       && echo "  OK: extension loads and agent answers" \
       || { echo "  WARN: smoke test did not answer OK — output: $OUT" >&2; }
   else
