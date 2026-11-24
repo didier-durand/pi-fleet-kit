@@ -187,8 +187,13 @@ signing), and npm (Pi Packages, including this repo's published extensions).
 ## Usage
 
 ```bash
-# Run the agent (pulls ghcr.io/didier-durand/pi-sandbox:latest on first use;
-# docker login ghcr.io once if the package is private):
+# Run the agent (pulls ghcr.io/didier-durand/pi-sandbox:latest on first use).
+# One-time setup, pick ONE:
+#   - make the package public (GitHub web UI only — no API exists):
+#     github.com/didier-durand?tab=packages -> pi-sandbox ->
+#     Package settings -> Danger Zone -> Change visibility -> Public
+#   - or keep it private and authenticate the host once:
+#     docker login ghcr.io   # PAT with read:packages
 docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-personal
 
 # Teardown (deletes volumes and ALL agent state):
