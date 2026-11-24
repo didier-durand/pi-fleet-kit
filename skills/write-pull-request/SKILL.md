@@ -11,7 +11,7 @@ description: >
 
 # Pull Request Body
 
-Skill version: 1.0.0 (semver — matches tag skill-write-pull-request-1.0.0)
+Skill version: 1.1.0 (semver — matches tag skill-write-pull-request-1.1.0)
 Author: Didier Durand
 Date: 2026-11-24
 
@@ -145,6 +145,42 @@ grading its danger — be most suspicious of "two-way, small blast radius".
 Base the call on the ticket/spec in front of you, not just the diff; the
 diff often hides reversibility.
 
+## Consistency with the commit series
+
+The PR is the union of its commits — the body must describe exactly that
+union. Derive it from the commit set, never from memory or from the last
+commit alone:
+
+```bash
+git fetch origin && git log --oneline origin/main..HEAD   # the PR's commit set
+git diff origin/main...HEAD --stat                        # the PR's real surface
+```
+
+Then check both directions:
+
+- **Every commit is accounted for**: each commit subject in the set maps
+  to something in the body — the Summary visual, Evidence, or Merge
+  Danger. A commit the body doesn't mention is a red flag: either it
+  doesn't belong in this PR (remove or split it) or the body is
+  incomplete (rewrite). Nothing ships "between the lines".
+- **Every body claim traces to a commit**: each statement in Summary/
+  Evidence/Merge Danger must be backed by at least one commit in the set
+  — no aspirational content ("adds X" with no commit doing X), no
+  leftovers from an earlier draft describing work that was dropped.
+- **Title = the dominant change**, not the last commit. With several
+  logical changes (split by topic per house style), the title names the
+  PR's primary change; the Summary covers the rest explicitly.
+- **Clean the series before writing**: `fixup`/`wip`/typo-retry commits
+  are squashed (only unpushed ones, or per repo policy) so the commit
+  list reads as the change's real history; a body written on top of a
+  noisy series inherits the noise.
+- **Cumulative danger**: Merge Danger grades the PR as a whole — a
+  series of individually two-way commits can sum to a one-way door;
+  grade the union, not the last step. Evidence reflects the final state
+  of the series (last commit's tests), not an intermediate one.
+- **Re-derive after changes**: new commits pushed under review → re-run
+  the checks above and rewrite the body where it drifted.
+
 ## Hard limits (what this skill does NOT do)
 
 - It does **not** push a branch, open the PR, or triage review comments —
@@ -167,10 +203,6 @@ diff often hides reversibility.
 - Evidence shows a before and an after — not a claim that tests pass.
 - Every PR states a door and a blast radius, and one-way doors are the ones
   reviewers slow down on.
-
-- The reviewer can tell what the PR changes from the Summary visual alone,
-  before opening the diff.
-- The body has no preamble: it starts at the Summary heading.
-- Evidence shows a before and an after — not a claim that tests pass.
-- Every PR states a door and a blast radius, and one-way doors are the ones
-  reviewers slow down on.
+- Body and commit series match in both directions: every commit is
+  described, every claim traces to a commit; title names the dominant
+  change.
