@@ -49,6 +49,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push (amd64 + arm64)
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -59,3 +60,32 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # --- post-push verification: pull back from GHCR and run ---------
+      # Pulling by digest proves the image is downloadable from GHCR
+      # (auth, manifest, blob serving) rather than relying on the runner's
+      # local build cache. Running it proves the sandbox actually works:
+      # entrypoint + pi binary + the toolchain agents depend on. arm64 runs
+      # under the QEMU emulation set up above.
+      - name: Pull the pushed image from GHCR (amd64)
+        run: docker pull ghcr.io/${{ github.repository_owner }}/pi-sandbox@${{ steps.build.outputs.digest }}
+
+      - name: Pull the pushed image from GHCR (arm64)
+        run: docker pull --platform linux/arm64 ghcr.io/${{ github.repository_owner }}/pi-sandbox@${{ steps.build.outputs.digest }}
+
+      - name: Smoke-run the pulled image (amd64)
+        run: |
+          IMG=ghcr.io/${{ github.repository_owner }}/pi-sandbox@${{ steps.build.outputs.digest }}
+          OUT=$(docker run --rm --platform linux/amd64 "$IMG" --version)
+          echo "pi --version -> $OUT"
+          test -n "$OUT"
+          docker run --rm --platform linux/amd64 --entrypoint bash "$IMG" \
+            -c 'git --version && gh --version && node --version' \
+            | tee /dev/stderr | grep -q "git version"
+
+      - name: Smoke-run the pulled image (arm64, emulated)
+        run: |
+          IMG=ghcr.io/${{ github.repository_owner }}/pi-sandbox@${{ steps.build.outputs.digest }}
+          OUT=$(docker run --rm --platform linux/arm64 "$IMG" --version)
+          echo "pi --version (arm64) -> $OUT"
+          test -n "$OUT"
