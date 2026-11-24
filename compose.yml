@@ -105,15 +105,15 @@ services:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
 
-  pi-review:
+  pi-review-1:
     image: pi-sandbox
     volumes:
       # Private Pi home (config, auth, sessions, extensions):
-      - pi-review-home:/home/pi/.pi/agent
+      - pi-review-1-home:/home/pi/.pi/agent
       # The agent's working folder:
-      - ${HOME}/pi-agents/pi-review:/workspace
+      - ${HOME}/pi-agents/pi-review-1:/workspace
       # Watched dir for file-triggered prompts (extension prompt-trigger):
-      - ${HOME}/pi-exchange/pi-review:/exchange
+      - ${HOME}/pi-exchange/pi-review-1:/exchange
       # Skills for THIS agent only (/skill:github-best-practices):
       - ${HOME}/pi-fleet-kit/skills/github-best-practices:/repo-skills/github-best-practices:ro
       # Read-only repo mount: extensions stay one git pull away from all
@@ -233,4 +233,4 @@ volumes:
   pi-coding-1-home:
   pi-research-home:
   pi-personal-home:
-  pi-review-home:
+  pi-review-1-home:

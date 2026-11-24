@@ -13,7 +13,7 @@ One Tab Config per agent defined in `../compose.yml`:
 |---|---|---|---|
 | `tab_configs/pi_fleet_kit.toml` | pi-fleet-kit | yellow | `agent_run.sh pi-fleet-kit` |
 | `tab_configs/pi_coding_1.toml` | pi-coding-1 | blue | `agent_run.sh pi-coding-1` |
-| `tab_configs/pi_review.toml` | pi-review | cyan | `agent_run.sh pi-review` |
+| `tab_configs/pi_review_1.toml` | pi-review-1 | cyan | `agent_run.sh pi-review-1` |
 | `tab_configs/pi_research.toml` | pi-research | green | `agent_run.sh pi-research` |
 | `tab_configs/pi_personal.toml` | pi-personal | magenta | `agent_run.sh pi-personal` |
 
@@ -99,7 +99,7 @@ last = far right" order. To restore the canonical order (pi-fleet-kit,
 pi-coding-1, pi-research, pi-personal), run `agents_start.sh -R`: it stops all
 agent containers (sessions are kept on disk and resumed via `--continue`),
 then reopens every tab in compose order (pi-fleet-kit, pi-coding-1,
-pi-review, pi-research, pi-personal) — close the leftover old tabs
+pi-review-1, pi-research, pi-personal) — close the leftover old tabs
 afterwards. A Warp feature request for proper tab-position control is
 drafted in `issues/issue_tab_config_tab_position.md`.
 
