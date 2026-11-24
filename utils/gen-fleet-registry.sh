@@ -25,7 +25,7 @@ table="$(awk '
   sec != "volumes" && /^  [a-z0-9-]+:$/ {
     if (svc != "") flush()
     svc = $1; sub(/:$/, "", svc)
-    home = ""; ws = ""; exch = ""; skills = ""; exts = ""; trig = ""
+    home = ""; ws = ""; exch = ""; skills = ""; exts = ""; trig = ""; pkgs = ""
   }
   svc != "" && /- [a-z0-9-]+:\/home\/pi\/\.pi\/agent$/ {
     line = $0; sub(/^.*- /, "", line); sub(/:.*/, "", line); home = line
@@ -55,6 +55,10 @@ table="$(awk '
     }
   }
   svc != "" && /PI_TRIGGER_DIR/ { trig = "set" }
+  svc != "" && /- PI_PACKAGES=/ {
+    line = $0; sub(/^.*PI_PACKAGES=/, "", line); gsub(/"/, "", line)
+    pkgs = (pkgs == "" ? line : pkgs ", " line)
+  }
   END { if (svc != "") flush() }
   function flush() {
     pt = "dormant"
@@ -62,11 +66,11 @@ table="$(awk '
     else if (trig != "") pt = "active — /exchange (external mount)"
     order[++n] = svc
     rows[svc] = "| " svc " | " home " | " (skills == "" ? "—" : skills) " | " \
-                (exts == "" ? "—" : exts) " | " pt " | ~/pi-agents/" ws " |"
+                (exts == "" ? "—" : exts) " | " (pkgs == "" ? "—" : pkgs) " | " pt " | ~/pi-agents/" ws " |"
   }
   END {
-    print "| Agent | Pi home volume | Skills | Extensions | Prompt trigger | Workspace (host) |"
-    print "|---|---|---|---|---|---|"
+    print "| Agent | Pi home volume | Skills | Extensions | Pi Packages | Prompt trigger | Workspace (host) |"
+    print "|---|---|---|---|---|---|---|"
     for (i = 1; i <= n; i++) print rows[order[i]]
   }
 ' "$COMPOSE")"

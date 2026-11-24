@@ -66,7 +66,7 @@ mirroring the host's setup.
 `fleet/agent-registry.md` is the fleet's "who does what" table — generated
 from `compose.yml` by `utils/gen-fleet-registry.sh` (compose stays the
 single source of truth; never edit the registry by hand). It lists every
-agent's Pi home volume, skills, extensions, prompt-trigger state and
+agent's Pi home volume, skills, extensions, Pi Packages, prompt-trigger state and
 workspace. Every container mounts the whole `fleet/` directory read-only at
 `/fleet` (room for future fleet-level files), so **agents can discover the
 rest of the fleet** (compose.yml itself is not visible inside containers) —
