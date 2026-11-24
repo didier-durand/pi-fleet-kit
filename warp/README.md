@@ -13,7 +13,7 @@ One Tab Config per agent defined in `../compose.yml`:
 |---|---|---|---|
 | `tab_configs/pi_fleet_kit.toml` | pi-fleet-kit | yellow | `agent_run.sh pi-fleet-kit` |
 | `tab_configs/pi_coding_1.toml` | pi-coding-1 | blue | `agent_run.sh pi-coding-1` |
-| `tab_configs/pi_coding_2.toml` | pi-coding-2 | yellow | `agent_run.sh pi-coding-2` |
+| `tab_configs/pi_coding_2.toml` | pi-coding-2 | purple | `agent_run.sh pi-coding-2` |
 | `tab_configs/pi_review_1.toml` | pi-review-1 | cyan | `agent_run.sh pi-review-1` |
 | `tab_configs/pi_research.toml` | pi-research | green | `agent_run.sh pi-research` |
 | `tab_configs/pi_personal.toml` | pi-personal | magenta | `agent_run.sh pi-personal` |
