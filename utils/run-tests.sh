@@ -28,6 +28,39 @@ npx c8 --reporter=json --reports-dir=.coverage \
 PASS="$(grep -c '^ok ' .tap.out || true)"
 FAIL="$(grep -c '^not ok ' .tap.out || true)"
 
+# Per-test rows parsed from the TAP stream: emoticon status, test name and
+# the test's own duration (ms) from the YAML block that follows each result.
+awk '
+	function flush() {
+		if (pending) {
+			gsub(/\|/, "\\|", name);
+			printf "| %s | %s | %s |\n", emoji, name, dur == "" ? "—" : dur " ms";
+			pending = 0;
+		}
+	}
+	/^(ok|not ok) [0-9]+ - / {
+		flush();
+		emoji = (/# SKIP/ ? "⏭️" : ($1 == "ok" ? "✅" : "❌"));
+		name = $0;
+		sub(/^(ok|not ok) [0-9]+ - /, "", name);
+		sub(/ # SKIP.*$/, "", name);
+		dur = "";
+		pending = 1;
+		next;
+	}
+	pending && /^[[:space:]]+duration_ms: [0-9.]+/ {
+		dur = $2;
+		sub(/duration_ms:/, "", dur);
+		dur = sprintf("%.1f", dur);
+		sub(/^[[:space:]]+duration_ms:/, "", $0); # cleanup noop, keep vars consistent
+		pending = 0;
+		gsub(/\|/, "\\|", name);
+		printf "| %s | %s | %s ms |\n", emoji, name, dur;
+		next;
+	}
+	END { flush(); }
+' .tap.out > /tmp/test-rows.txt || true
+
 # Markdown table from c8's istanbul JSON (coverage-final.json)
 node --input-type=module -e '
 import { readFileSync, readdirSync } from "node:fs";
@@ -65,6 +98,14 @@ console.log(rows.join("\n"));
 	cat /tmp/cov-rows.txt
 	echo
 	echo "**Tests:** ${PASS} passed, ${FAIL} failed"
+	if [[ -s /tmp/test-rows.txt ]]; then
+		echo
+		echo "### Per-test results"
+		echo
+		echo "| Result | Test | Duration |"
+		echo "|---|---|---|"
+		cat /tmp/test-rows.txt
+	fi
 } >> "${SUMMARY:-/dev/stdout}"
 
 rm -rf .coverage .tap.out /tmp/cov-rows.txt
