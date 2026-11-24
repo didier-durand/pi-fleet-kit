@@ -11,7 +11,7 @@ description: >
 
 # Build a Skill
 
-Skill version: 1.0.0 (semver — matches tag skill-build-skill-1.0.0)
+Skill version: 1.1.0 (semver — matches tag skill-build-skill-1.1.0)
 Author: Didier Durand
 Date: 2026-11-24
 
@@ -134,10 +134,13 @@ Portable-by-construction rules:
 A complete skill SKILL.md contains, in this order:
 
 1. **Frontmatter** (name, description with triggers)
-2. **Pre-flight** — environment checks with a decision table: check → status → action (never "check and hope")
-3. **The procedure** — numbered steps, each with its exact commands and its expected outcome; failure actions inline (what to do when step N fails)
-4. **Conventions/rules** — the short list of non-negotiables (the agent must not have to guess)
-5. **Quick reference** — the non-negotiables compressed to one glanceable list at the END (mirrors and reinforces §3)
+2. **Version header** — immediately under the title:
+   `Skill version: <x.y.z> (semver — matches tag skill-<name>-<x.y.z>)`,
+   plus `Author:` and `Date:` lines of the last revision (see §6 step 7)
+3. **Pre-flight** — environment checks with a decision table: check → status → action (never "check and hope")
+4. **The procedure** — numbered steps, each with its exact commands and its expected outcome; failure actions inline (what to do when step N fails)
+5. **Conventions/rules** — the short list of non-negotiables (the agent must not have to guess)
+6. **Quick reference** — the non-negotiables compressed to one glanceable list at the END (mirrors and reinforces §3)
 
 Omit a section only by conscious decision — "N/A because ..." — not by oversight.
 
@@ -160,6 +163,18 @@ Skills ship only after a smoke test. Minimum:
    state.
 6. Report to the user: what was tested, on which platform(s), what was NOT
    tested (e.g. Windows untested).
+7. **Delivered versioned — mandatory**: every delivery (new skill or
+   update) carries a version header in SKILL.md and a matching annotated
+   tag on the commit that ships it:
+   - **New skill**: header starts at `1.0.0`; tag `skill-<name>-1.0.0`.
+   - **Update**: bump the header — **patch** for editorial fixes, **minor**
+     for substantive changes (new/changed steps, rules, scope); find the
+     latest tag with `git tag -l 'skill-<name>-*' | sort -V | tail -1`.
+   - Tag name `skill-<name>-<x.y.z>`, annotated, pushed together with the
+     commit (`git push origin main skill-<name>-<x.y.z>`). Never move or
+     delete an existing tag; a push rejected for an existing tag means
+     bump the version and retry, never force-push.
+   - A skill delivered without its version bump + tag is NOT delivered.
 
 ## 7. Review checklist (for new or refactored skills)
 
@@ -174,6 +189,7 @@ Skills ship only after a smoke test. Minimum:
 - [ ] Efficient: fail-fast; no redundant checks; no speculative steps
 - [ ] Fluent: step dependencies named; outputs feed named inputs; re-runnable
 - [ ] Tested: smoke-tested as written, failure path exercised, platform coverage stated
+- [ ] Versioned: header version bumped (patch/minor per change size), annotated tag `skill-<name>-<x.y.z>` created and pushed with the commit (§6 step 7)
 
 ## Quick reference — the non-negotiables
 
@@ -182,4 +198,6 @@ Skills ship only after a smoke test. Minimum:
 3. Portable: POSIX-safe subset, no bash 4+, per-platform quirks handled, Git Bash supported.
 4. Brief but complete: every sentence changes behavior; every inferable step cut, every silent-failure mode covered.
 5. Accuracy / Consistency / Efficiency / Fluency answered for every step.
-6. All five sections present; smoke-tested as written before delivery.
+6. All six sections present; smoke-tested as written before delivery.
+7. Every delivery is versioned: header bumped, `skill-<name>-<x.y.z>`
+   annotated tag pushed with the commit — an untagged update is not delivered.
