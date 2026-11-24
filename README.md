@@ -104,7 +104,7 @@ flowchart TB
   subgraph MACHINE["Developer machine / Server"]
     subgraph HOST["HOST — macOS · Linux · Windows"]
     direction LR
-    WARP["Warp terminal — one tab per agent · agent_run.sh → docker compose run --rm · one instance per agent (heartbeat + fixed name)<br/>agents_start.sh · tabs_install.sh · fleet_doctor.sh · fleet app (macOS)"]
+    WARP["Warp terminal — one tab per agent · agent_run.sh → docker compose run --rm · one instance per agent: heartbeat + fixed name<br/>agents_start.sh · tabs_install.sh · fleet_doctor.sh · fleet app for macOS"]
     FILES["Host files & shell env · ~/pi-fleet-kit — repo: compose · skills · extensions · ~/pi-agents/[agent] — workspace clones<br/>~/pi-exchange/[agent] — watchdog dirs · ~/.ssh — signing key · env: model key · GitHub token · git identity · .env = dollar-brace refs"]
   end
   subgraph DOCKER["Docker — compose project: pi-agents · image: pi-sandbox"]
@@ -116,8 +116,8 @@ flowchart TB
     PERSONAL["pi-personal<br/>pi-personal-home → ~/.pi/agent"]
   end
   end
-  LLM["LLM providers (OpenRouter)<br/>model set per agent in compose.yml"]
-  GH["GitHub<br/>clone / pull / push over HTTPS (GITHUB_TOKEN)<br/>SSH-signed commits → Verified badge"]
+  LLM["LLM providers — OpenRouter<br/>model set per agent in compose.yml"]
+  GH["GitHub<br/>clone / pull / push over HTTPS with GITHUB_TOKEN<br/>SSH-signed commits → Verified badge"]
   NPM["npm registry · pi.dev/packages<br/>PI_PACKAGES=npm:pi-web-access<br/>pi-git-status · pi-prompt-trigger"]
   HOST -->|"docker compose run"| DOCKER
   HOST -->|"bind mounts · named volumes · env passthrough"| DOCKER
