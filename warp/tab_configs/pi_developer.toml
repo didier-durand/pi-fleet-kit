@@ -1,0 +1,17 @@
+# Tab Config: pi-developer agent (Docker sandbox)
+# Install: copy to ~/.warp/tab_configs/  (macOS stable)
+# The compose service command includes --continue, so each launch resumes
+# this agent's most recent session (fresh start: /new inside pi).
+# agent_run.sh enforces one instance per agent: if the agent is already
+# running (its tab already open), the new tab just prints a notice.
+
+name = "pi-developer"
+title = "pi-developer"
+color = "white"
+
+[[panes]]
+id = "main"
+type = "terminal"
+directory = "~/pi-fleet-kit"
+commands = ["~/pi-fleet-kit/warp/agent_run.sh pi-developer"]
+is_focused = true

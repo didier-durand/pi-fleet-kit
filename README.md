@@ -27,6 +27,7 @@ Each agent loads **only the skills assigned to it** — defined in
 | Agent | Skills |
 |---|---|
 | `pi-fleet-kit` | `build-skill`, `github-best-practices` |
+| `pi-developer` | `write-code`, `write-pull-request`, `github-best-practices` |
 | `pi-coding-1` | `github-best-practices` |
 | `pi-coding-2` | `github-best-practices` |
 | `pi-review-1` | `github-best-practices` |
@@ -47,7 +48,7 @@ mirroring the host's setup.
 
 | File | Purpose |
 |---|---|
-| `compose.yml` | Defines the agent services. Currently seven agents — `pi-fleet-kit`, `pi-coding-1`, `pi-coding-2`, `pi-review-1`, `pi-review-2`, `pi-research`, `pi-personal` — all running the `pi-sandbox` image, each with its own persistent Pi-home volume and a bind-mounted workspace under `~/pi-agents/`. |
+| `compose.yml` | Defines the agent services. Currently eight agents — `pi-fleet-kit`, `pi-developer`, `pi-coding-1`, `pi-coding-2`, `pi-review-1`, `pi-review-2`, `pi-research`, `pi-personal` — all running the `pi-sandbox` image, each with its own persistent Pi-home volume and a bind-mounted workspace under `~/pi-agents/`. |
 | `Dockerfile.pi` | Builds the `pi-sandbox` image: Node 24 base, git + ripgrep, `pi` installed globally, the entrypoint wrapper below, and a non-root `pi` user (least privilege — the agent runs unprivileged). |
 | `utils/gen-fleet-registry.sh` | Generates `fleet/agent-registry.md` (the fleet "who does what" table) from `compose.yml`; the `fleet/` directory is mounted read-only into every agent at `/fleet`. |
 | `utils/entrypoint.sh` | Container entrypoint. Before handing off to `pi`, it configures the agent's git environment from env vars passed by Compose: commit identity (`GITHUB_USER_NAME`/`GITHUB_USER_EMAIL`) and a token-based git credential helper (`GITHUB_TOKEN`) — the container has no keyring, so auth must come from the environment. |
@@ -127,6 +128,7 @@ flowchart TB
   subgraph DOCKER["Docker — compose project: pi-agents · image: pi-sandbox"]
     direction LR
     FLEET["pi-fleet-kit<br/>pi-fleet-kit-home → ~/.pi/agent"]
+    DEV["pi-developer<br/>pi-developer-home → ~/.pi/agent<br/>+ /exchange"]
     CODING["pi-coding-1<br/>pi-coding-1-home → ~/.pi/agent<br/>+ /exchange"]
     CODING2["pi-coding-2<br/>pi-coding-2-home → ~/.pi/agent<br/>+ /exchange"]
     REVIEW["pi-review-1<br/>pi-review-1-home → ~/.pi/agent<br/>+ /exchange"]
@@ -150,12 +152,14 @@ flowchart TB
   classDef cyan fill:#CFFAFE,stroke:#0E7490,color:#155E75
   classDef green fill:#DCFCE7,stroke:#15803D,color:#166534
   classDef magenta fill:#FCE7F3,stroke:#BE185D,color:#9D174D
+  classDef white fill:#FFFFFF,stroke:#64748B,color:#334155
   classDef llm fill:#FFF8EC,stroke:#C08A2D,color:#7A5410
   classDef gh fill:#F2FAF2,stroke:#3C8C4E,color:#256B36
   classDef npm fill:#FFF8EC,stroke:#C08A2D,color:#7A5410
   class WARP warp
   class FILES files
   class FLEET yellow
+  class DEV white
   class CODING blue
   class CODING2 blue
   class REVIEW cyan
