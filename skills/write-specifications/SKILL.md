@@ -48,6 +48,24 @@ against; ambiguity here multiplies into rework everywhere else.
    back to its origin without asking. If the source is versioned or may
    change, pin the exact version or anchor; a link that will silently
    point elsewhere is not a reference, it is a future bug.
+9. **Document header — version, author, date** — every specification
+   carries, immediately under the title, a revision block:
+
+   ```markdown
+   # <Specification title>
+
+   Specification version: <x.y.z> (semver — matches the latest `specs-*` tag)
+   Author: <name — the agent or operator responsible for this revision>
+   Date: <YYYY-MM-DD of the revision>
+   ```
+
+   The version is semver and MUST equal the `specs-*` tag applied to the
+   same commit (see *Versioning* below) — the header and the tag are two
+   views of one fact, and they must never disagree. Each substantive
+   revision updates the version, the author and the date in the same
+   commit that changes the content; a history table of revisions
+   (version / date / author / one-line change) at the bottom of the
+   document turns those point-in-time facts into an audit trail.
 
 ## What makes a requirement good
 
