@@ -6,7 +6,7 @@
 | Agent | Pi home volume | Skills | Extensions | Pi Packages | Prompt trigger | Workspace (host) |
 |---|---|---|---|---|---|---|
 | pi-fleet-kit | pi-fleet-kit-home | build-skill, github-best-practices | git-status, prompt-trigger | npm:pi-web-access | dormant | ~/pi-agents/pi-fleet-kit |
-| pi-developer | pi-developer-home | write-code, write-pull-request, github-best-practices | git-status, prompt-trigger | npm:pi-web-access | active — ~/pi-exchange/pi-developer | ~/pi-agents/pi-developer |
+| pi-developer | pi-developer-home | github-best-practices | git-status, prompt-trigger | npm:pi-web-access | active — ~/pi-exchange/pi-developer | ~/pi-agents/pi-developer |
 | pi-coding-1 | pi-coding-1-home | github-best-practices, write-code, write-pull-request | git-status, prompt-trigger | npm:pi-web-access | active — ~/pi-exchange/pi-coding-1 | ~/pi-agents/pi-coding-1 |
 | pi-coding-2 | pi-coding-2-home | github-best-practices, write-code, write-pull-request | git-status, prompt-trigger | npm:pi-web-access | active — ~/pi-exchange/pi-coding-2 | ~/pi-agents/pi-coding-2 |
 | pi-review-1 | pi-review-1-home | github-best-practices, review-pull-request | git-status, prompt-trigger | npm:pi-web-access | active — ~/pi-exchange/pi-review-1 | ~/pi-agents/pi-review-1 |

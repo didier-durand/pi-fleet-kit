@@ -27,7 +27,7 @@ Each agent loads **only the skills assigned to it** — defined in
 | Agent | Skills |
 |---|---|
 | `pi-fleet-kit` | `build-skill`, `github-best-practices` |
-| `pi-developer` | `write-code`, `write-pull-request`, `github-best-practices` |
+| `pi-developer` | `github-best-practices` |
 | `pi-coding-1` | `github-best-practices` |
 | `pi-coding-2` | `github-best-practices` |
 | `pi-review-1` | `github-best-practices` |
