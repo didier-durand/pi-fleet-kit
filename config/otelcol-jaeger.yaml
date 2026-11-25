@@ -12,7 +12,7 @@ extensions:
   jaeger_storage:
     backends:
       mem:
-        type: memory
+        memory: {}
   jaeger_query:
     storage:
       traces: mem
