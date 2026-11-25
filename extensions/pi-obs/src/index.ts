@@ -282,22 +282,23 @@ function statusView(ctx: CtxLike, telemetry: TelemetryState | null): void {
 		emit(ctx, "pi-obs telemetry: inactive (no exporter configured — set PI_OBS_OTLP_ENDPOINT or PI_OBS_FILE=1; the stats commands work regardless)");
 		return;
 	}
+	const fmt = (n: number): string => n.toLocaleString("en-US");
 	const at = (ms: number | null): string => (ms === null ? "—" : new Date(ms).toISOString());
 	const lines = [`pi-obs telemetry: active (${telemetry.exporters.length} exporter(s))`];
 	for (const exporter of telemetry.exporters) {
 		if (exporter instanceof FileExporter) {
 			const c = exporter.counters;
-			lines.push(`  file: ${exporter.targetPath} — written ${c.written} · dropped ${c.dropped} · last export ${at(c.lastExportAt)} · last error ${c.lastError ?? "—"}`);
+			lines.push(`  file: ${exporter.targetPath} — written ${fmt(c.written)} · dropped ${fmt(c.dropped)} · last export ${at(c.lastExportAt)} · last error ${c.lastError ?? "—"}`);
 		} else if (exporter instanceof OtlpExporter) {
 			const c = exporter.counters;
-			lines.push(`  otlp: ${exporter.endpointUrl} — exported ${c.exported} · dropped ${c.dropped} · requests ${c.requests} · retries ${c.retries} · last export ${at(c.lastExportAt)} · last error ${c.lastError ?? "—"}`);
+			lines.push(`  otlp: ${exporter.endpointUrl} — exported ${fmt(c.exported)} · dropped ${fmt(c.dropped)} · requests ${fmt(c.requests)} · retries ${fmt(c.retries)} · last export ${at(c.lastExportAt)} · last error ${c.lastError ?? "—"}`);
 		}
 	}
 	const q = telemetry.queue.counters;
 	const sc = telemetry.signalCounts;
 	const total = sc.span + sc.metric + sc.log;
-	lines.push(`  queue: depth ${telemetry.queue.pending} · enqueued ${q.enqueued} · drained ${q.drained} · dropped ${q.dropped}`);
-	lines.push(`  signals: ${total} total — spans ${sc.span} · metrics ${sc.metric} · logs ${sc.log}`);
+	lines.push(`  queue: depth ${fmt(telemetry.queue.pending)} · enqueued ${fmt(q.enqueued)} · drained ${fmt(q.drained)} · dropped ${fmt(q.dropped)}`);
+	lines.push(`  signals: ${fmt(total)} total — spans ${fmt(sc.span)} · metrics ${fmt(sc.metric)} · logs ${fmt(sc.log)}`);
 	emit(ctx, lines.join("\n"));
 }
 
