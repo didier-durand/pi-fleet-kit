@@ -1,8 +1,9 @@
 # Jaeger v2 configuration — extends the default all-in-one setup with
 # metrics and logs pipelines so pi-obs's OTLP export doesn't 404 on
-# those signals. Jaeger stores traces; metrics and logs are received
-# and logged to stdout (debug exporter) but not persisted — Jaeger is
-# a tracing backend, not a metrics/logs store.
+# those signals. Jaeger stores traces in Badger (embedded key-value
+# store, persisted via a named volume, 24h TTL); metrics and logs are
+# received and logged to stdout (debug exporter) but not persisted —
+# Jaeger is a tracing backend, not a metrics/logs store.
 #
 # Passed to the binary via --config (the Jaeger v2 image has no
 # built-in default config file — it requires an explicit --config
@@ -12,7 +13,9 @@ extensions:
   jaeger_storage:
     backends:
       mem:
-        memory: {}
+        badger:
+          directory: /data/badger
+          spanstore_ttl: 24h
   jaeger_query:
     storage:
       traces: mem
