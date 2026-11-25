@@ -445,9 +445,9 @@ services:
     # Jaeger v2 requires an explicit --config (OTel Collector format).
     # The config adds metrics/logs pipelines (the default only has traces,
     # which 404s pi-obs's /v1/metrics and /v1/logs requests).
-    # Badger storage persists traces across restarts (24h TTL).
+    # In-memory storage: traces are lost on restart (Badger persistence deferred
+    # — the v2.23.0 Badger config keys differ from the documented format).
     volumes:
-      - otlp-jaeger-data:/data
       - ./config/otelcol-jaeger.yaml:/jaeger/config.yaml:ro
     command: ["--config", "/jaeger/config.yaml"]
     ports:
@@ -465,7 +465,6 @@ services:
     # docker compose run --rm otlp-jaeger would be wrong (it is a daemon).
 
 volumes:
-  otlp-jaeger-data:
   pi-fleet-kit-home:
   pi-developer-home:
   pi-coding-1-home:

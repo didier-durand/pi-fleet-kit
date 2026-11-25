@@ -13,9 +13,7 @@ extensions:
   jaeger_storage:
     backends:
       mem:
-        badger:
-          directory: /data/badger
-          spanstore_ttl: 24h
+        memory: {}
   jaeger_query:
     storage:
       traces: mem
