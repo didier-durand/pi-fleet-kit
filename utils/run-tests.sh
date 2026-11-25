@@ -35,6 +35,9 @@ npx c8 --reporter=json --reports-dir=.coverage --exclude 'scripts/**' \
 PASS="$(grep -c '^ok ' .tap.out || true)"
 FAIL="$(grep -c '^not ok ' .tap.out || true)"
 
+# thousand separators for every number the summary displays
+fmt() { node -e 'console.log(Number(process.argv[1]).toLocaleString("en-US"))' "$1"; }
+
 # Per-test rows parsed from the TAP stream: emoticon status, test name and
 # the test's own duration (ms) from the YAML block that follows each result.
 awk '
@@ -76,7 +79,8 @@ const dir = ".coverage";
 const file = readdirSync(dir).find((f) => f.endsWith("coverage-final.json"));
 if (!file) process.exit(0);
 const data = JSON.parse(readFileSync(`${dir}/${file}`, "utf8"));
-const pct = (hit, total) => total ? `${((hit / total) * 100).toFixed(2)}% (${hit}/${total})` : "n/a";
+const f = (n) => n.toLocaleString("en-US");
+const pct = (hit, total) => total ? `${((hit / total) * 100).toFixed(2)}% (${f(hit)}/${f(total)})` : "n/a";
 const totals = { s: [0, 0], b: [0, 0], f: [0, 0] };
 const rows = [];
 for (const [path, cov] of Object.entries(data)) {
@@ -107,7 +111,7 @@ console.log(`| **All files** | **${pct(...totals.s)}** | **${pct(...totals.b)}**
 	echo "|---|---|---|---|"
 	cat /tmp/cov-rows.txt
 	echo
-	echo "**Tests:** ${PASS} passed, ${FAIL} failed"
+	echo "**Tests:** $(fmt "$PASS") passed, $(fmt "$FAIL") failed"
 	if [[ -s /tmp/test-rows.txt ]]; then
 		echo
 		echo "### Per-test results"
@@ -121,4 +125,4 @@ console.log(`| **All files** | **${pct(...totals.s)}** | **${pct(...totals.b)}**
 rm -rf .coverage .tap.out /tmp/cov-rows.txt
 
 # c8/test already exits non-zero on failure; reaching here means green.
-echo "run-tests: ${PASS} passed, ${FAIL} failed for ${NAME}"
+echo "run-tests: $(fmt "$PASS") passed, $(fmt "$FAIL") failed for ${NAME}"
