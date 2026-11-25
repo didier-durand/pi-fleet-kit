@@ -1,6 +1,6 @@
 # pi-obs — Implementation Plan
 
-Plan version: 1.0.0 (semver — matches the tag `impl-plan-1.0.0`)
+Plan version: 1.0.1 (semver — matches the tag `impl-plan-1.0.1`)
 Author: Didier Durand
 Date: 2026-11-25
 
@@ -692,4 +692,5 @@ extension output to stderr; sessions land under `~/.pi/agent/sessions`
 
 | Version | Date | Author | Change |
 |---|---|---|---|
-| 1.0.0 | 2026-11-25 | Didier Durand | imported from pi-tools; versioned per house convention; status updated to executed |
+| 1.0.0 | 2026-11-25 | Didier Durand | versioned per house convention; status updated to executed |
+| 1.0.1 | 2026-11-25 | Didier Durand | editorial: removed provenance references from the revision table |

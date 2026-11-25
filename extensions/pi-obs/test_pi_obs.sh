@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# pi-obs — consolidated black-box suite (SPECS.md v1.0.0 R8,
-# DEV_PLAN.md v1.0.0 Step 9).
+# pi-obs — consolidated black-box suite (SPECS.md v1.0.1 R8,
+# DEV_PLAN.md v1.0.1 Step 9).
 #
 # Proves R1–R8 mechanically, without white-box knowledge of pi internals.
 # POSIX bash 3.2-safe, `set -eu`, cleanup traps (no leftovers: temp dirs,
