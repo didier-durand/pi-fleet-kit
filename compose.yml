@@ -427,6 +427,7 @@ services:
   # UI: http://localhost:16686
   otlp-jaeger:
     image: jaegertracing/jaeger:latest
+    container_name: otlp-jaeger
     ports:
       # Jaeger UI — open http://localhost:16686 in the host browser.
       # Only this port needs host mapping; agents reach the OTLP
