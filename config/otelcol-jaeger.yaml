@@ -37,6 +37,7 @@ exporters:
     verbosity: 0
 
 service:
+  extensions: [jaeger_storage, jaeger_query]
   pipelines:
     traces:
       receivers: [otlp]
