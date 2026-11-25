@@ -3,35 +3,51 @@
 `pi-obs` is a pi extension that answers, live and on demand: *how much
 did this session — this project — actually spend?* It derives token
 usage, cost, model breakdown, and durations from the session's own
-entries. It writes nothing: observation only, no session mutation, no
-extra entries, no side effects.
+entries — and, when an exporter is configured, mirrors the same facts
+out-of-process as OpenTelemetry telemetry. It never mutates the
+session: observation only, no extra entries, no side effects on agent
+output.
 
 ## What you get
 
 | Feature | Detail |
 |---|---|
-| Footer status | `12.4k tok · $0.09` — live, refreshed after every turn, branch navigation, and when a run settles. |
+| Footer status | `12.4k tok · $0.09` — live, refreshed on `session_start`, `session_tree`, `turn_end`, `agent_settled`. TUI only; absent in print/JSON mode. |
 | `/pi-obs` | Report of the current session's active branch: message counts, duration, token breakdown (in / out / cache read / reasoning), cost, and per-model totals with turn counts. |
 | `/pi-obs json` | The same stats as raw JSON (for scripts and RPC consumers). |
 | `/pi-obs all` | Aggregate across every session file of this project's session directory: grand totals plus the 15 most recent sessions (when · tokens · cost · file). |
+| `/pi-obs status` | Telemetry health: active exporters, queue depth, counters, last export times, last error. |
+| `/pi-obs flush` | Drain the telemetry queue now (bounded, with a timeout notice when a backend is dead). |
+| `/pi-obs report <id\|path>` | Post-mortem replay of a finished session → deterministic OTLP/JSON report (stdout, one body per line), options `--otlp`, `--file=<path>`, `--branch=<entry-id>`. |
 | `/pi-obs help` | The in-session usage surface: every subcommand with a one-line description, the telemetry env vars, and a pointer to the standalone `piobs --help`. Static output — identical in every session. |
 
 ## How it works
 
-pi sessions are JSONL files whose entries already carry the telemetry:
-every assistant message records the `provider`/`model` that produced it
-and its `usage` (tokens + cost), and `usage`-type entries record
-model-attributed usage that is not an assistant message (e.g. cache
-warming). `pi-obs` just reads them:
+Two independent layers, both read-only with respect to the session:
+
+**Stats** — pi sessions are JSONL files whose entries already carry the
+telemetry: every assistant message records the `provider`/`model` that
+produced it and its `usage` (tokens + cost), and `usage`-type entries
+record model-attributed usage that is not an assistant message (e.g.
+cache warming). `pi-obs` just reads them:
 
 - the **active branch** (`ctx.sessionManager.getBranch()`) is scanned on
-  `session_start`, `/tree` navigation, every `turn_end`, and on
-  `agent_settled` — so forked branches are accounted for, not double-counted;
+  `session_start`, `/tree` navigation, `turn_end`, and `agent_settled` —
+  so forked branches are accounted for, not double-counted;
 - **`/pi-obs all`** parses every `*.jsonl` file in the project's session
   directory (`ctx.sessionManager.getSessionDir()`), skipping unreadable
   files and malformed lines — one bad file never breaks the report.
 
-All computation lives in `stats.ts` — pure, no pi imports — so
+**Telemetry** — when an exporter is configured (`PI_OBS_OTLP_ENDPOINT`
+or `PI_OBS_FILE=1`), pi's lifecycle events are turned into OTel records
+(`hooks.ts`), queued (`queue.ts`, bounded), and exported as
+OTLP/JSON — to an OTLP/HTTP endpoint (`exporters/otlp.ts`, retries with
+backoff, drop-and-count) and/or a rotating local log file
+(`exporters/file.ts`). Redaction runs before the queue and again at
+serialization (see [Privacy defaults](#privacy-defaults-r2)). Telemetry
+never blocks or alters the agent: failures land in `/pi-obs status`.
+
+All session statistics live in `stats.ts` — pure, no pi imports — so
 pi-serve / picl or ad-hoc scripts can reuse it on session files
 directly.
 
@@ -41,16 +57,16 @@ Copy or symlink this directory into the pi auto-discovery locations:
 
 ```sh
 # global (all projects)
-ln -s "$(pwd)/pi-obs" ~/.pi/agent/extensions/pi-obs
+ln -s ~/pi-fleet-kit/extensions/pi-obs ~/.pi/agent/extensions/pi-obs
 
 # or project-local (after the project is trusted)
-ln -s "$(pwd)/pi-obs" <project>/.pi/extensions/pi-obs
+ln -s ~/pi-fleet-kit/extensions/pi-obs <project>/.pi/extensions/pi-obs
 ```
 
 Or test quickly without installing:
 
 ```sh
-pi -e ./pi-obs/index.ts
+pi -e ~/pi-fleet-kit/extensions/pi-obs/index.ts
 ```
 
 ## Usage
@@ -80,27 +96,35 @@ you> /pi-obs json
 ```
 
 The footer line appears (and stays updated) in TUI mode. In print/JSON
-mode the UI surfaces are absent — but the command still works, with output
-going to stdout, so `pi -p '/pi-obs all'` is scriptable:
+mode the UI surfaces are absent — but the commands still work, with
+output going to stdout, so `pi -p '/pi-obs all'` is scriptable.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `index.ts` | The extension: status line, `/pi-obs [help\|json\|all\|status\|flush\|report]` command (TUI notify, stdout in print mode), session-file scanning. |
-| `stats.ts` | Pure statistics library: `computeStats(entries)`, formatters (`formatTokens`, `formatCost`, `formatDuration`), `reportSession`. No pi imports — reusable standalone (pi-serve, scripts). |
-
-## Future work
-
-- **`/pi-obs report <session-id | path>` (specified, not yet built):**
-  post-mortem analysis — replay a finished session's JSONL entries
-  through the same entity builders and emit an OTel-formatted report
-  (OTLP/JSON per line to stdout, or `--otlp` / `--file=<path>`), with
-  deterministic trace/span IDs so re-runs are byte-stable. See
-  `SPECS.md` R3b for the normative behavior.
-- Per-day/per-project rollups with a `--since` filter on `/pi-obs all`.
-- A `pi-obs` tool the agent can call to budget itself mid-task.
-- picl integration: surface the same stats in `picl sessions show`.
+| `index.ts` | Entry shim: re-exports `src/index.ts` (pi loads `<dir>/index.ts`; everything else can move). |
+| `src/index.ts` | The extension wiring: footer status line, the `/pi-obs [json\|all\|status\|flush\|report\|help]` command (TUI notify, stdout in print mode), session-file scanning, telemetry startup. |
+| `src/stats.ts` | Pure statistics library: `computeStats(entries)`, formatters (`formatTokens`, `formatCost`, `formatDuration`), `reportSession`. No pi imports — reusable standalone (pi-serve, scripts). |
+| `src/hooks.ts` | pi lifecycle events → OTel record builders. |
+| `src/model.ts` | Telemetry data model (records, redaction types). |
+| `src/config.ts` | `PI_OBS_*` env + settings parsing, validation, precedence. |
+| `src/queue.ts` | Bounded telemetry queue with drop counters. |
+| `src/exporters/file.ts` | Rotating OTLP/JSON-per-line log file exporter. |
+| `src/exporters/otlp.ts` · `otlp-json.ts` | OTLP/HTTP exporter (retries, backoff, drop-and-count) and the shared OTLP/JSON record encoding + redaction. |
+| `src/replay.ts` | Post-mortem session replay → deterministic OTLP report (powers `/pi-obs report` and the CLI). |
+| `src/semconv.ts` | `pi.*` semantic-convention attribute names. |
+| `src/cli.ts` | `piobs` CLI implementation (report engine outside the pi process). |
+| `src/version.ts` | Single version source (derives from `package.json` for the OTel resource and CLI). |
+| `bin/piobs` | Sh wrapper over `node src/cli.ts` — installable on PATH (`npm link`). |
+| `utils/bump-pi-obs.sh` | Release tool: bump, changelog entry, package validation, GPG-signed commit+tag `pi-obs-X.Y.Z`, packed tarball, GitHub release upload. |
+| `utils/traces-to-html.ts` | Renders an exported traces file as HTML for inspection. |
+| `stream-to-collector.sh` · `stream-to-receiver.sh` | Pipe the file exporter's output into an OTel collector / receiver for local experiments. |
+| `test_pi_obs.sh` | Consolidated black-box suite (unit + live + standard-tools + isolation levels). |
+| `docs/SPECS.md` · `DEV_PLAN.md` · `piobs.md` | Normative requirements (R1–R8), the build plan, and the `piobs` CLI reference with verified examples. |
+| `tests/unit/` (+ `exporters/`) | The coverage-gated unit suite (every module ≥ 90% lines and branches). |
+| `tests/live/` · `tests/cli/` | Live `pi -e` smoke (model-gated, auto-skip) and standalone CLI end-to-end tests — both run as child processes, deliberately outside coverage runs. |
+| `tests/fixtures/` · `tests/tools/` | Session fixtures and the weaver registry tooling (`npm run gen:registry`). |
 
 ## Configuration (telemetry — SPECS R6)
 
@@ -190,29 +214,31 @@ The distributable payload is an **allowlist** (package.json `files`):
 fixtures, docs, suite, stream helpers, conformance assets, or
 devDependencies.
 
-pi-obs is also a proper **Pi package** (per the pi agent's packages
+pi-obs is a proper **Pi package** (per the pi agent's packages
 conventions): an explicit `pi` manifest points discovery at the root
 extension, the `pi-package` keyword makes it gallery-eligible, the
 host package (`@earendil-works/pi-coding-agent` — a type-only
 import) is declared in `peerDependencies` and never bundled, and
 `CHANGELOG.md` (version-headed, matched against package.json) feeds
-pi's "Extension Updates" display.
+pi's "Extension Updates" display. The manifest is publishable:
+`license: MIT` and a `repository` pointer are declared, there is no
+`private` flag, and it carries zero runtime dependencies.
 
 Install as a Pi package (any documented source):
 
 ```sh
-pi install ./pi-obs                                 # local dir (loaded in place)
-pi install npm:pi-obs@0.1.3                         # once published
-pi install git:github.com/didier-durand/pi-tools    # git source
-pi -e ./pi-obs                                      # try for one invocation
+pi install ~/pi-fleet-kit/extensions/pi-obs           # local dir (loaded in place)
+pi install npm:pi-obs@0.1.9                           # once published
+pi install git:github.com/didier-durand/pi-fleet-kit  # git source (this repo)
+pi -e ~/pi-fleet-kit/extensions/pi-obs                # try for one invocation
 ```
 
 Or from the tarball directly:
 
 ```sh
-npm pack                                # pi-obs-0.1.4.tgz — the tag name IS the tarball name
-tar xzf pi-obs-0.1.4.tgz && pi install ./package
-npm i -g ./pi-obs-0.1.4.tgz             # or: piobs on PATH
+npm pack                                   # pi-obs-0.1.9.tgz — the tag name IS the tarball name
+tar xzf pi-obs-0.1.9.tgz && pi install ./package
+npm i -g ./pi-obs-0.1.9.tgz                # or: piobs on PATH
 ```
 
 `pi list` shows installed packages; the object form in settings
@@ -223,21 +249,24 @@ commit message, the signed tag, and the tarball are all
 `pi-obs-X.Y.Z` (no `v`), with a `## [X.Y.Z] - date` changelog entry
 inserted automatically, the artifact packed in the pi-obs root, and
 the tarball uploaded to the GitHub release for the tag (notes from
-the changelog) — it is never committed to the repo itself.
+the changelog) — it is never committed to the repo itself. The script
+is repo-agnostic: it operates on whatever checkout hosts
+`extensions/pi-obs/`.
 
 The version is defined ONLY in `package.json` (`npm version
 patch|minor|major` to bump — the OTel resource, scopes, and the CLI
 derive it via `src/version.ts`). The packed artifact runs standalone
 with **zero installed dependencies**: node ≥ 23.6 loads the TypeScript directly (the pi
-extension path uses pi's own jiti, which has no such floor). For
-publishing to a registry, add a `license` field and drop
-`"private": true` — everything else is already in place.
+extension path uses pi's own jiti, which has no such floor).
 
 ## Testing (R8)
 
 - **Unit level**: `npm test` (the coverage gate — every module ≥ 90%
   lines AND branches, enforced by Node's threshold flags over
-  `tests/unit/**`).
+  `tests/unit/**`). 114 tests, hermetic and model-free. In this repo,
+  the `pi-obs-unit-tests` workflow runs the same suite under c8 on
+  every push and reports per-file coverage in the job summary
+  (`utils/run-tests.sh pi-obs "tests/unit/**/*.test.ts"`).
 - **Typecheck**: `npm run typecheck` (`tsc --noEmit`, strict) — a
   gate alongside coverage: Node's type-stripping does no type
   checking.
@@ -252,3 +281,9 @@ publishing to a registry, add a `license` field and drop
   (v1.34.0) plus the generated `pi.*` registry
   (`tests/tools/weaver/`, regenerated by `npm run gen:registry`).
   Pinned tools: otelcol-contrib 0.165.0, weaver 0.28.0.
+
+## Future work
+
+- Per-day/per-project rollups with a `--since` filter on `/pi-obs all`.
+- A `pi-obs` tool the agent can call to budget itself mid-task.
+- picl integration: surface the same stats in `picl sessions show`.
