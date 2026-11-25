@@ -69,11 +69,14 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
-      - PI_OBS_OTLP_ENDPOINT=http://otlp-jaeger:4318
-      - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-fleet-kit
-      - PI_OBS_CAPTURE_PROMPTS=1
-    # Default model (adjust the model ID to taste), and --continue to resume
-    # the most recent session automatically (fresh start: /new inside pi):
+      # pi-obs telemetry DISABLED for this agent: the config manager writes
+      # the fleet's own code (compose, extensions, skills) — its turns contain
+      # sensitive config content that should not be mirrored to the tracing
+      # backend. The pi-obs extension is still loaded (stats commands work);
+      # PI_OBS_ENABLED=0 only disables the export pipeline.
+      - PI_OBS_ENABLED=0
+      # Default model (adjust the model ID to taste), and --continue to resume
+      # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/pi-obs/index.ts",
