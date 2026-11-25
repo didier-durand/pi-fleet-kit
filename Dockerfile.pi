@@ -19,6 +19,11 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
   && apt-get update \
   && apt-get install -y --no-install-recommends gh \
   && rm -rf /var/lib/apt/lists/*
+# PI_INSTALL_BUST: the CI workflow passes a unique value per run (github.run_id),
+# forcing a fresh npm install — picks up the latest pi version from the
+# registry even when the Dockerfile hasn't changed (Docker layer cache
+# would otherwise reuse the stale npm install layer indefinitely).
+ARG PI_INSTALL_BUST=1
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 
 # Entrypoint wrapper: sets git identity + token-based credential helper from

@@ -63,6 +63,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # cache-bust the pi install layer: github.run_id changes every run,
+          # forcing a fresh npm install (picks up the latest pi version)
+          build-args: PI_INSTALL_BUST=${{ github.run_id }}
 
       # --- post-push verification: pull back from GHCR and run ---------
       # Pulling by digest proves the image is downloadable from GHCR
