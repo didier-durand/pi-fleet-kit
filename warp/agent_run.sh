@@ -234,6 +234,12 @@ if [[ ! -d "$ws/.git" ]]; then
   fi
 fi
 
+# Refresh the local image cache from GHCR (the default pull policy is
+# "missing" — without an explicit pull, a stale cached `latest` would be
+# reused even after a CI/daily build publishes a newer image). Silently
+# skipped on failure (offline, rate-limit): the cached image still works.
+"$DOCKER" pull "${PI_SANDBOX_IMAGE:-ghcr.io/didier-durand/pi-sandbox:latest}" >/dev/null 2>&1 || true
+
 # Heartbeat: record this tab's docker client PID (the PID survives the exec
 # below), then watch it from a background loop. When the tab closes (or the
 # container exits), the client dies; the loop then removes the heartbeat —
