@@ -13,4 +13,4 @@
 | pi-review-2 | pi-review-2-home | github-best-practices, review-pull-request | pi-obs, git-status, prompt-trigger | npm:pi-web-access | active — /home/pi/pi-exchange/pi-review-2 | /home/pi/pi-agents/pi-review-2 |
 | pi-research | pi-research-home | publishing-best-practices, github-best-practices, web-research | pi-obs, git-status, prompt-trigger | npm:pi-web-access | dormant | /home/pi/pi-agents/pi-research |
 | pi-personal | pi-personal-home | publishing-best-practices, hello-world, github-best-practices | pi-obs, git-status, prompt-trigger | npm:pi-web-access | dormant | /home/pi/pi-agents/pi-personal |
-| jaeger |  | — | — | — | dormant | /home/pi/pi-agents/ |
+| otlp-jaeger |  | — | — | — | dormant | /home/pi/pi-agents/ |
