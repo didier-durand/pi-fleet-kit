@@ -436,6 +436,12 @@ services:
   otlp-jaeger:
     image: jaegertracing/jaeger:latest
     container_name: otlp-jaeger
+    # Jaeger v2 requires an explicit --config (OTel Collector format).
+    # The config adds metrics/logs pipelines (the default only has traces,
+    # which 404s pi-obs's /v1/metrics and /v1/logs requests).
+    volumes:
+      - ./config/otelcol-jaeger.yaml:/jaeger/config.yaml:ro
+    command: ["--config", "/jaeger/config.yaml"]
     ports:
       # Jaeger UI — open http://localhost:16686 in the host browser.
       # Only this port needs host mapping; agents reach the OTLP

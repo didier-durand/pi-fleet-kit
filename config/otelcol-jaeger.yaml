@@ -1,0 +1,53 @@
+# Jaeger v2 configuration — extends the default all-in-one setup with
+# metrics and logs pipelines so pi-obs's OTLP export doesn't 404 on
+# those signals. Jaeger stores traces; metrics and logs are received
+# and logged to stdout (debug exporter) but not persisted — Jaeger is
+# a tracing backend, not a metrics/logs store.
+#
+# Passed to the binary via --config (the Jaeger v2 image has no
+# built-in default config file — it requires an explicit --config
+# argument per https://www.jaegertracing.io/docs/2.23/deployment/).
+
+extensions:
+  jaeger_storage:
+    backends:
+      mem:
+        type: memory
+  jaeger_query:
+    storage:
+      traces: mem
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+
+processors:
+  batch:
+    send_batch_size: 64
+    timeout: 5s
+
+exporters:
+  jaeger_storage_exporter:
+    trace_storage: mem
+  debug:
+    verbosity: 0
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [jaeger_storage_exporter]
+    metrics:
+      receivers: [otlp]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      exporters: [debug]
+  telemetry:
+    resource:
+      service.name: otlp-jaeger
