@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# pi-obs — consolidated black-box suite (SPECS R8, DEV_PLAN Step 9).
+# pi-obs — consolidated black-box suite (SPECS.md v1.0.0 R8,
+# DEV_PLAN.md v1.0.0 Step 9).
 #
 # Proves R1–R8 mechanically, without white-box knowledge of pi internals.
 # POSIX bash 3.2-safe, `set -eu`, cleanup traps (no leftovers: temp dirs,
@@ -13,7 +14,7 @@
 #   - live           : scripted `pi -e` runs. Requires: pi on PATH +
 #                      OPENROUTER_API_KEY (model-gated, like the repo's
 #                      other suites).
-#   - standard-tools : reference-toolchain conformance (SPECS R4).
+#   - standard-tools : reference-toolchain conformance (SPECS.md R4).
 #                      Requires: otelcol + weaver on PATH. Pinned:
 #                      otelcol-contrib 0.165.0, weaver 0.28.0,
 #                      semantic-conventions v1.34.0 (registry dependency
@@ -22,7 +23,7 @@
 #   - isolation      : unreachable endpoint / read-only target (R1).
 #                      Requires: pi + OPENROUTER_API_KEY.
 #
-# AC → check table (SPECS ACs mapped to named checks):
+# AC → check table (SPECS.md ACs mapped to named checks):
 #   R1 zero-harm     : L3 identical-output  ·  I1/I2 unaffected-agent +
 #                      drop records  ·  U fault-isolation (index.test.ts)
 #   R2 privacy       : L2 canary-absent (opt-in, redacted)  ·
@@ -31,7 +32,6 @@
 #   R3b replay       : U replay suite (replay.test.ts)  ·  L4 report on
 #                      the run's own session file  ·  S1/S2 report legs  ·
 #                      C1-C3 the standalone piobs CLI
-#                      the run's own session file  ·  S1/S2 report legs
 #   R4 formatting    : S1 Collector accepts every record (pdata parse) ·
 #                      S2 Weaver zero violations (pinned GenAI + pi.*)
 #   R5 export        : L5 receiver delivery  ·  L2 file exporter trace ·
@@ -278,7 +278,7 @@ else
 fi
 printf '\n'
 
-# === LEVEL: standard-tools (reference toolchain, SPECS R4) =================
+# === LEVEL: standard-tools (reference toolchain, SPECS.md R4) ==============
 printf 'standard-tools level (Collector + Weaver; gated on PATH)\n'
 if [ "$OTELCOL_OK" = true ] && [ "$NODE_OK" = true ]; then
   # a file-exporter trace to replay: the live run's when available, else a

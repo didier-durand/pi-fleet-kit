@@ -1,9 +1,13 @@
 # pi-obs — Implementation Plan
 
-> **Status:** plan, derived from `extensions/pi-obs/SPECS.md` (requirements
-> R1–R8 + R3b). **Convention:** each step is a self-contained milestone,
-> executable by a dedicated prompt against this plan; artifacts land under
-> `extensions/pi-obs/` following the repo's generated-from-spec workflow.
+Plan version: 1.0.0 (semver — matches the tag `impl-plan-1.0.0`)
+Author: Didier Durand
+Date: 2026-11-25
+
+> **Status:** executed — every step shipped in pi-obs v0.1.9. Derived from
+> `extensions/pi-obs/SPECS.md` (requirements R1–R8 + R3b). **Convention:**
+> each step is a self-contained milestone, executable by a dedicated
+> prompt against this plan; artifacts land under `extensions/pi-obs/`.
 > Every step ends with tests mapped to the ACs of SPECS.md.
 
 ## Ordering principle (deliberate)
@@ -683,3 +687,9 @@ extension output to stderr; sessions land under `~/.pi/agent/sessions`
 - **Live-only paths:** the model-gated smoke tests (Step 6) and live
   levels (Step 9) skip without credentials; every skipped AC is also
   covered at harness level, so CI without a key still proves the AC.
+
+## Revision history
+
+| Version | Date | Author | Change |
+|---|---|---|---|
+| 1.0.0 | 2026-11-25 | Didier Durand | imported from pi-tools; versioned per house convention; status updated to executed |

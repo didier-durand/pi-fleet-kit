@@ -1,9 +1,14 @@
 # pi-obs — OpenTelemetry observability extension for the pi coding agent
 
-> **Status:** specification (generated on the `pi-obs` branch; to be
-> implemented from this document per repo convention). The existing
-> `stats.ts` summary feature (`/pi-obs` stats command) predates this spec
-> and is retained unchanged (R7).
+Specification version: 1.0.0 (semver — matches the tag `specs-1.0.0`)
+Author: Didier Durand
+Date: 2026-11-25
+
+> **Status:** implemented — the extension ships as v0.1.9 (see
+> `package.json`); this spec is the contract it was built against
+> (imported from `didier-durand/pi-tools`, where it was authored on the
+> `pi-obs` branch). The existing `stats.ts` summary feature (`/pi-obs`
+> stats command) predates this spec and is retained unchanged (R7).
 
 ## Objective
 
@@ -743,3 +748,9 @@ Additional deliverable acceptance criteria:
   question, not a mechanism one.
 - **Cost currency.** `pi.cost.total` assumes the provider's reported
   USD; a multi-currency story is out of scope until a need appears.
+
+## Revision history
+
+| Version | Date | Author | Change |
+|---|---|---|---|
+| 1.0.0 | 2026-11-25 | Didier Durand | imported from pi-tools; versioned per house convention; status updated to implemented |
