@@ -1,0 +1,88 @@
+name: pi-obs-otel-compliance
+
+# Compliance gate for external OpenTelemetry data: after the pi-obs unit
+# tests succeed, run the pi-obs parser on the largest external OTLP dataset
+# in the repo (tests/fixtures/data/traces.json.gz — a real OpenTelemetry-demo
+# trace export: 128 records, ~117k spans, 17 services) and prove the
+# toolchain still handles third-party, standards-compliant OTLP:
+#   1. independent structural validation of the dataset (ground truth)
+#   2. the parser's own self-test — 6 accepted shapes + markdown, totals
+#      cross-checked by the harness itself
+#   3. a direct render, with the parser's span count cross-checked against
+#      the ground truth and the rendered HTML content validated
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [pi-obs-unit-tests]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  external-data-compliance:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Validate the external dataset (independent ground truth)
+        run: |
+          node extensions/pi-obs/tests/tools/validate-external-otel.mjs \
+            extensions/pi-obs/tests/fixtures/data/traces.json.gz > /tmp/dataset-stats.json
+          cat /tmp/dataset-stats.json
+          SPANS=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("/tmp/dataset-stats.json","utf8")).spans)')
+          echo "SPANS=$SPANS" >> "$GITHUB_ENV"
+
+      - name: Parser self-test on the external dataset (6 shapes + markdown)
+        run: |
+          OUT=$(extensions/pi-obs/tests/tools/otlp-traces-to-html.sh --self-test)
+          echo "$OUT"
+          echo "| ✅ | Parser self-test (6 shapes + markdown) | $(echo "$OUT" | tail -1 | sed 's/otlp-traces-to-html: //') |" >> /tmp/compliance-rows.md
+
+      - name: Direct render + span-count cross-check
+        run: |
+          OUT=$(extensions/pi-obs/tests/tools/otlp-traces-to-html.sh \
+            extensions/pi-obs/tests/fixtures/data/traces.json.gz /tmp/otel-compliance.html)
+          echo "$OUT"
+          RENDERED=$(echo "$OUT" | sed -n 's/^\([0-9]*\) span(s).*/\1/p')
+          if [ "$RENDERED" = "$SPANS" ]; then
+            echo "| ✅ | Span-count cross-check | parser counted $RENDERED — ground truth $SPANS |" >> /tmp/compliance-rows.md
+          else
+            echo "| ❌ | Span-count cross-check | parser counted $RENDERED, ground truth $SPANS |" >> /tmp/compliance-rows.md
+            exit 1
+          fi
+
+      - name: Validate the rendered HTML content
+        run: |
+          grep -q "<h1>pi-obs — collected traces" /tmp/otel-compliance.html
+          grep -q "<h2>Global summary" /tmp/otel-compliance.html
+          grep -q "<h2>Sessions" /tmp/otel-compliance.html
+          for svc in frontend product-catalog checkout load-generator; do
+            grep -q "$svc" /tmp/otel-compliance.html
+          done
+          echo "| ✅ | Rendered HTML content | $(du -h /tmp/otel-compliance.html | cut -f1), headings + service names present |" >> /tmp/compliance-rows.md
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## 🔭 pi-obs — external OpenTelemetry data compliance"
+            echo
+            echo "Dataset: \`extensions/pi-obs/tests/fixtures/data/traces.json.gz\` (real OpenTelemetry-demo export)"
+            echo
+            if [ -s /tmp/dataset-stats.json ]; then
+              echo "Ground truth: $(node -e 'const s=JSON.parse(require("fs").readFileSync("/tmp/dataset-stats.json","utf8"));console.log(`${s.records} records · ${s.spans.toLocaleString("en-US")} spans · ${s.traces.toLocaleString("en-US")} traces · ${s.services.length} services`)')"
+            fi
+            echo
+            echo "| Result | Check | Detail |"
+            echo "|---|---|---|"
+            cat /tmp/compliance-rows.md 2>/dev/null || echo "| ❌ | (workflow failed before any check completed) | see job logs |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
