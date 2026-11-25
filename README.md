@@ -23,7 +23,7 @@ flowchart TB
     WARP["Warp terminal — one tab per agent · agent_run.sh → docker compose run --rm · one instance per agent (heartbeat + fixed name)<br/>agents_start.sh · tabs_install.sh · fleet_doctor.sh · fleet app (macOS)"]
     FILES["Host files & shell env · $PI_FLEET_KIT_HOME/pi-fleet-kit — repo: compose · skills · extensions · $PI_FLEET_KIT_HOME/pi-agents/[agent] — workspace clones<br/>$PI_FLEET_KIT_HOME/pi-exchange/[agent] — watchdog dirs · $PI_FLEET_KIT_HOME/.ssh — signing key · env: model key · GitHub token · git identity · .env = dollar-brace refs"]
   end
-  subgraph DOCKER["Docker — compose project: pi-agents · image: pi-sandbox"]
+  subgraph DOCKER["Docker — compose project: pi-agents · image: ghcr.io/didier-durand/pi-sandbox"]
     direction LR
     FLEET["pi-fleet-kit<br/>pi-fleet-kit-home → /home/pi/.pi/agent"]
     DEV["pi-developer<br/>pi-developer-home → /home/pi/.pi/agent<br/>+ /exchange"]
@@ -74,7 +74,7 @@ flowchart TB
 
 The whole system in one picture: the host runs **Warp** (one tab per agent,
 launching through `agent_run.sh`) and, on macOS, the **Pi Agent Fleet** Dock
-app; Docker runs eight `pi-sandbox` containers from the `pi-agents` compose
+app; Docker runs eight sandbox containers (image `ghcr.io/didier-durand/pi-sandbox`) from the `pi-agents` compose
 project, each with its own
 persistent Pi-home volume, its own workspace git
 clone, and read-only mounts of this repo's skills/extensions; outside, the
@@ -128,7 +128,7 @@ mirroring the host's setup.
 
 | File | Purpose |
 |---|---|
-| `compose.yml` | Defines the agent services. Currently eight agents — `pi-fleet-kit`, `pi-developer`, `pi-coding-1`, `pi-coding-2`, `pi-review-1`, `pi-review-2`, `pi-research`, `pi-personal` — all running the `pi-sandbox` image, each with its own persistent Pi-home volume and a bind-mounted workspace under `$PI_FLEET_KIT_HOME/pi-agents/`. |
+| `compose.yml` | Defines the agent services. Currently eight agents — `pi-fleet-kit`, `pi-developer`, `pi-coding-1`, `pi-coding-2`, `pi-review-1`, `pi-review-2`, `pi-research`, `pi-personal` — all running the `ghcr.io/didier-durand/pi-sandbox` image (CI-published, public), each with its own persistent Pi-home volume and a bind-mounted workspace under `$PI_FLEET_KIT_HOME/pi-agents/`. |
 | `Dockerfile.pi` | Builds the `pi-sandbox` image: Node 24 base, git + ripgrep + GitHub CLI (`gh`, from the official cli.github.com apt repo), `pi` installed globally, the entrypoint wrapper below, and a non-root `pi` user (least privilege — the agent runs unprivileged). CI also publishes it (private package) as `ghcr.io/didier-durand/pi-sandbox`. |
 | `utils/gen-fleet-registry.sh` | Generates `fleet/agent-registry.md` (the fleet "who does what" table) from `compose.yml`; the `fleet/` directory is mounted read-only into every agent at `/fleet`. |
 | `utils/check-extension.sh` · `utils/run-tests.sh` | CI helpers: per-extension sanity gate (manifest, CHANGELOG, tsc, npm-pack tarball, optional live-load smoke test) and unit tests under V8 coverage with a Markdown job summary — each driven by its own GitHub workflow. |
@@ -201,7 +201,8 @@ release workflow.
 ## Usage
 
 ```bash
-# Build the image (once, from this directory):
+# Run the agent (pulls ghcr.io/didier-durand/pi-sandbox:latest on first use —
+# the package is public, no docker login needed):
 docker build -t pi-sandbox -f Dockerfile.pi .
 
 # Run the agent:
@@ -278,7 +279,10 @@ Emergency bypass (avoid): `git commit --no-verify`.
   `${VAR}` references — the real values must be exported):
   `OPENROUTER_API_KEY`, `GITHUB_TOKEN`, `GITHUB_USER_NAME`,
   `GITHUB_USER_EMAIL`.
-- **The sandbox image built once**:
+- **The sandbox image**: pulled from GHCR by default
+  (`ghcr.io/didier-durand/pi-sandbox:latest` — CI-built and verified on
+  every push, public package). To build and run a local image instead:
+  `export PI_SANDBOX_IMAGE=pi-sandbox - **The sandbox image built once**:- **The sandbox image built once**: docker build -t pi-sandbox -f Dockerfile.pi .`
   `docker build -t pi-sandbox -f Dockerfile.pi .`
   (CI also publishes it as `ghcr.io/didier-durand/pi-sandbox`, multi-arch
   and verified on every push — private package for now; switching the
