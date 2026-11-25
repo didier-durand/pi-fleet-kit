@@ -46,7 +46,7 @@ jobs:
           OUT=$(extensions/pi-obs/tests/tools/otlp-traces-to-html.sh --self-test)
           echo "$OUT"
           # the note line carries two raw numbers — reformat with separators
-          read -r N1 N3 <<< "$(echo "$OUT" | sed -n 's/.*markdown, \\([0-9]*\\) span(s) each (pretty doc: \\([0-9]*\\))/\\1 \\2/p')"
+          read -r N1 N3 <<< "$(echo "$OUT" | sed -n 's/.*markdown, \([0-9]*\) span(s) each (pretty doc: \([0-9]*\))/\1 \2/p')"
           echo "| ✅ | Parser self-test (6 shapes + markdown) | $(fmt "$N1") span(s) each (pretty doc: $(fmt "$N3")) |" >> /tmp/compliance-rows.md
 
       - name: Direct render + span-count cross-check
