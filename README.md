@@ -21,18 +21,18 @@ flowchart TB
     subgraph HOST["HOST — macOS · Linux · Windows"]
     direction LR
     WARP["Warp terminal — one tab per agent · agent_run.sh → docker compose run --rm · one instance per agent (heartbeat + fixed name)<br/>agents_start.sh · tabs_install.sh · fleet_doctor.sh · fleet app (macOS)"]
-    FILES["Host files & shell env · ~/pi-fleet-kit — repo: compose · skills · extensions · ~/pi-agents/[agent] — workspace clones<br/>~/pi-exchange/[agent] — watchdog dirs · ~/.ssh — signing key · env: model key · GitHub token · git identity · .env = dollar-brace refs"]
+    FILES["Host files & shell env · $PI_FLEET_KIT_HOME/pi-fleet-kit — repo: compose · skills · extensions · $PI_FLEET_KIT_HOME/pi-agents/[agent] — workspace clones<br/>$PI_FLEET_KIT_HOME/pi-exchange/[agent] — watchdog dirs · $PI_FLEET_KIT_HOME/.ssh — signing key · env: model key · GitHub token · git identity · .env = dollar-brace refs"]
   end
   subgraph DOCKER["Docker — compose project: pi-agents · image: pi-sandbox"]
     direction LR
-    FLEET["pi-fleet-kit<br/>pi-fleet-kit-home → ~/.pi/agent"]
-    DEV["pi-developer<br/>pi-developer-home → ~/.pi/agent<br/>+ /exchange"]
-    CODING["pi-coding-1<br/>pi-coding-1-home → ~/.pi/agent<br/>+ /exchange"]
-    CODING2["pi-coding-2<br/>pi-coding-2-home → ~/.pi/agent<br/>+ /exchange"]
-    REVIEW["pi-review-1<br/>pi-review-1-home → ~/.pi/agent<br/>+ /exchange"]
-    REVIEW2["pi-review-2<br/>pi-review-2-home → ~/.pi/agent<br/>+ /exchange"]
-    RESEARCH["pi-research<br/>pi-research-home → ~/.pi/agent"]
-    PERSONAL["pi-personal<br/>pi-personal-home → ~/.pi/agent"]
+    FLEET["pi-fleet-kit<br/>pi-fleet-kit-home → /home/pi/.pi/agent"]
+    DEV["pi-developer<br/>pi-developer-home → /home/pi/.pi/agent<br/>+ /exchange"]
+    CODING["pi-coding-1<br/>pi-coding-1-home → /home/pi/.pi/agent<br/>+ /exchange"]
+    CODING2["pi-coding-2<br/>pi-coding-2-home → /home/pi/.pi/agent<br/>+ /exchange"]
+    REVIEW["pi-review-1<br/>pi-review-1-home → /home/pi/.pi/agent<br/>+ /exchange"]
+    REVIEW2["pi-review-2<br/>pi-review-2-home → /home/pi/.pi/agent<br/>+ /exchange"]
+    RESEARCH["pi-research<br/>pi-research-home → /home/pi/.pi/agent"]
+    PERSONAL["pi-personal<br/>pi-personal-home → /home/pi/.pi/agent"]
   end
   end
   LLM["LLM providers (OpenRouter)<br/>model set per agent in compose.yml"]
@@ -83,14 +83,20 @@ signing), and npm (Pi Packages, including this repo's published extensions).
 
 ## Machine requirements (portability)
 
-No path in this repo is user-specific: all runtime paths are `${HOME}`- or
-tilde-relative (compose mounts, tab configs, scripts, the Swift app), and
-scripts locate themselves relative to their own directory. The one
-**convention** other files depend on: clone this repo to **`~/pi-fleet-kit`**
-(exactly that name/location) and keep agent workspaces under
-`~/pi-agents/`. Everything else adapts per machine; tool lookup covers the
-standard install locations on macOS (`/usr/local/bin`, `/opt/homebrew/bin`,
-`~/.docker/bin`) and Linux.
+No path in this repo is user-specific: all runtime paths derive from one
+environment variable, **`PI_FLEET_KIT_HOME`** — the fleet root directory
+(default: the host home). Expected layout under it:
+
+- **`$PI_FLEET_KIT_HOME/pi-fleet-kit/`** — this repo (clone it there)
+- **`$PI_FLEET_KIT_HOME/pi-agents/`** — agent workspace clones
+- **`$PI_FLEET_KIT_HOME/pi-exchange/`** — watchdog exchange dirs
+- **`$PI_FLEET_KIT_HOME/.ssh/pi-agent-signing`** — the agents' signing key
+
+Export `PI_FLEET_KIT_HOME` (in your shell profile or `.env`) to relocate
+the whole fleet — e.g. `PI_FLEET_KIT_HOME=/srv/fleet`. The default keeps
+the classic layout. Everything else adapts per machine; tool lookup covers
+the standard install locations on macOS (`/usr/local/bin`,
+`/opt/homebrew/bin`, `$HOME/.docker/bin`) and Linux.
 
 ## Per-agent skills
 
@@ -122,13 +128,13 @@ mirroring the host's setup.
 
 | File | Purpose |
 |---|---|
-| `compose.yml` | Defines the agent services. Currently eight agents — `pi-fleet-kit`, `pi-developer`, `pi-coding-1`, `pi-coding-2`, `pi-review-1`, `pi-review-2`, `pi-research`, `pi-personal` — all running the `pi-sandbox` image, each with its own persistent Pi-home volume and a bind-mounted workspace under `~/pi-agents/`. |
+| `compose.yml` | Defines the agent services. Currently eight agents — `pi-fleet-kit`, `pi-developer`, `pi-coding-1`, `pi-coding-2`, `pi-review-1`, `pi-review-2`, `pi-research`, `pi-personal` — all running the `pi-sandbox` image, each with its own persistent Pi-home volume and a bind-mounted workspace under `$PI_FLEET_KIT_HOME/pi-agents/`. |
 | `Dockerfile.pi` | Builds the `pi-sandbox` image: Node 24 base, git + ripgrep + GitHub CLI (`gh`, from the official cli.github.com apt repo), `pi` installed globally, the entrypoint wrapper below, and a non-root `pi` user (least privilege — the agent runs unprivileged). CI also publishes it (private package) as `ghcr.io/didier-durand/pi-sandbox`. |
 | `utils/gen-fleet-registry.sh` | Generates `fleet/agent-registry.md` (the fleet "who does what" table) from `compose.yml`; the `fleet/` directory is mounted read-only into every agent at `/fleet`. |
 | `utils/check-extension.sh` · `utils/run-tests.sh` | CI helpers: per-extension sanity gate (manifest, CHANGELOG, tsc, npm-pack tarball, optional live-load smoke test) and unit tests under V8 coverage with a Markdown job summary — each driven by its own GitHub workflow. |
 | `utils/entrypoint.sh` | Container entrypoint. Before handing off to `pi`, it configures the agent's git environment from env vars passed by Compose: commit identity (`GITHUB_USER_NAME`/`GITHUB_USER_EMAIL`) and a token-based git credential helper (`GITHUB_TOKEN`) — the container has no keyring, so auth must come from the environment. |
 | `.env` | Credentials bridge for Compose. Holds **`${VAR}` references only** (e.g. `GITHUB_TOKEN=${GITHUB_TOKEN}`), resolved from the host shell when `docker compose` runs. |
-| `.gitignore` | Excludes `.DS_Store`, coverage output and the legacy agent workspace (`finance-agent/`); agent workspaces now live outside this repo in `~/pi-agents/`. |
+| `.gitignore` | Excludes `.DS_Store`, coverage output and the legacy agent workspace (`finance-agent/`); agent workspaces now live outside this repo in `$PI_FLEET_KIT_HOME/pi-agents/`. |
 | `.githooks/pre-commit` | Secret-leak guard (see below). |
 | `package.json` | Pi package manifest (see below). |
 | `skills/` | Installable Pi skills; each subdirectory holds a `SKILL.md` (Agent Skills spec). Currently `build-skill`, `github-best-practices`, `hello-world`, `publishing-best-practices`, `write-pull-request`, `review-pull-request`, `write-code`, `write-specifications`, `write-implementation-plan`, `web-research`, `prompt-agent`, `apply-pull-request`. |
@@ -199,16 +205,16 @@ release workflow.
 docker build -t pi-sandbox -f Dockerfile.pi .
 
 # Run the agent:
-docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-personal
+docker compose -f $PI_FLEET_KIT_HOME/pi-fleet-kit/compose.yml run --rm pi-personal
 
 # Teardown (deletes volumes and ALL agent state):
-docker compose -f ~/pi-fleet-kit/compose.yml down -v
+docker compose -f $PI_FLEET_KIT_HOME/pi-fleet-kit/compose.yml down -v
 ```
 
 ### Agent workspaces must be git clones
 
 Each agent works in its own independently cloned repository
-(`~/pi-agents/<agent>`, mounted as `/workspace`) — the `git-status`
+(`$PI_FLEET_KIT_HOME/pi-agents/<agent>`, mounted as `/workspace`) — the `git-status`
 footer extension is inactive otherwise. `warp/agent_run.sh` bootstraps this
 at launch: `pi-fleet-kit`'s workspace (a clone of this repo, its natural
 domain) is cloned automatically from the origin if missing; other agents'
@@ -262,11 +268,11 @@ Emergency bypass (avoid): `git commit --no-verify`.
 - **Docker + Compose v2**: Docker Desktop (macOS/Windows) or Docker Engine
   with the compose plugin (Linux). The `warp/` scripts also probe the usual
   Docker Desktop install locations (`/usr/local/bin`, `/opt/homebrew/bin`,
-  `~/.docker/bin`, `/usr/bin`), so launcher contexts with a minimal `PATH`
+  `$HOME/.docker/bin`, `/usr/bin`), so launcher contexts with a minimal `PATH`
   work too. Where available, **Docker Desktop is a nice addition** beyond
   the engine itself: its GUI makes it efficient to inspect, start/stop and
   read logs of the agent containers without leaving the desktop.
-- **The repo at `~/pi-fleet-kit`** — the one path convention other files
+- **The repo at `$PI_FLEET_KIT_HOME/pi-fleet-kit`** — the one path convention other files
   depend on (see [Machine requirements](#machine-requirements-portability)).
 - **Credentials in the host shell** (the tracked `.env` holds only
   `${VAR}` references — the real values must be exported):
@@ -281,7 +287,7 @@ Emergency bypass (avoid): `git commit --no-verify`.
   `git config core.hooksPath .githooks`
 - **Network access** at first launch: npm registry (the `PI_PACKAGES`
   auto-install of `pi-web-access`) and the model API.
-- **Agent workspaces as git clones** under `~/pi-agents/` (`git-status` is
+- **Agent workspaces as git clones** under `$PI_FLEET_KIT_HOME/pi-agents/` (`git-status` is
   inactive otherwise) — see [Agent workspaces must be git
   clones](#agent-workspaces-must-be-git-clones).
 
@@ -298,7 +304,7 @@ Emergency bypass (avoid): `git commit --no-verify`.
 
 ### macOS capstone — the "Pi Agent Fleet" Dock app (optional)
 
-- Built by `warp/build_fleet_app.sh` into `~/Applications`: one Dock icon
+- Built by `warp/build_fleet_app.sh` into `$HOME/Applications`: one Dock icon
   for the whole fleet (running-dot while agents are up, click-while-running
   convergence via `agents_start.sh`).
 - Requires the Xcode Command Line Tools (`xcode-select --install`) for

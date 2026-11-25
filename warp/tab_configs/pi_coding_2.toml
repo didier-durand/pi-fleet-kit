@@ -1,5 +1,5 @@
 # Tab Config: pi-coding-2 agent (Docker sandbox)
-# Install: copy to ~/.warp/tab_configs/  (macOS stable)
+# Install: copy to $HOME/.warp/tab_configs/  (macOS stable)
 # The compose service command includes --continue, so each launch resumes
 # this agent's most recent session (fresh start: /new inside pi).
 # agent_run.sh enforces one instance per agent: if the agent is already
@@ -12,6 +12,7 @@ color = "blue"
 [[panes]]
 id = "main"
 type = "terminal"
-directory = "~/pi-fleet-kit"
-commands = ["~/pi-fleet-kit/warp/agent_run.sh pi-coding-2"]
-is_focused = true
+# no 'directory': Warp's directory field expands only ~ and {{param}} — not
+# env vars — and agent_run.sh self-locates the repo from its own path.
+commands = ["${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/warp/agent_run.sh pi-coding-2"]
+	is_focused = true

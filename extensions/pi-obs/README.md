@@ -57,16 +57,16 @@ Copy or symlink this directory into the pi auto-discovery locations:
 
 ```sh
 # global (all projects)
-ln -s ~/pi-fleet-kit/extensions/pi-obs ~/.pi/agent/extensions/pi-obs
+ln -s $PI_FLEET_KIT_HOME/pi-fleet-kit/extensions/pi-obs ~/.pi/agent/extensions/pi-obs
 
 # or project-local (after the project is trusted)
-ln -s ~/pi-fleet-kit/extensions/pi-obs <project>/.pi/extensions/pi-obs
+ln -s $PI_FLEET_KIT_HOME/pi-fleet-kit/extensions/pi-obs <project>/.pi/extensions/pi-obs
 ```
 
 Or test quickly without installing:
 
 ```sh
-pi -e ~/pi-fleet-kit/extensions/pi-obs/index.ts
+pi -e $PI_FLEET_KIT_HOME/pi-fleet-kit/extensions/pi-obs/index.ts
 ```
 
 ## Usage
@@ -227,10 +227,10 @@ pi's "Extension Updates" display. The manifest is publishable:
 Install as a Pi package (any documented source):
 
 ```sh
-pi install ~/pi-fleet-kit/extensions/pi-obs           # local dir (loaded in place)
+pi install $PI_FLEET_KIT_HOME/pi-fleet-kit/extensions/pi-obs           # local dir (loaded in place)
 pi install npm:pi-obs@0.1.9                           # once published
 pi install git:github.com/didier-durand/pi-fleet-kit  # git source (this repo)
-pi -e ~/pi-fleet-kit/extensions/pi-obs                # try for one invocation
+pi -e $PI_FLEET_KIT_HOME/pi-fleet-kit/extensions/pi-obs                # try for one invocation
 ```
 
 Or from the tarball directly:

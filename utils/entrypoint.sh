@@ -30,7 +30,7 @@ if [[ -n "${GITHUB_TOKEN:-}" ]]; then
 fi
 
 # Optional commit signing: if a dedicated SSH signing key is mounted
-# (compose: ~/.ssh/pi-agent-signing -> /home/pi/.ssh/signing_key), configure
+# (compose: $PI_FLEET_KIT_HOME/.ssh/pi-agent-signing -> /home/pi/.ssh/signing_key), configure
 # git to sign every commit with it. The key must be a SIGNING-ONLY key whose
 # public half is registered on GitHub (Settings -> SSH and GPG keys ->
 # type: Signing key); then commits made here show the Verified badge.

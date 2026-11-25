@@ -1,6 +1,6 @@
 # Register the agent signing key on GitHub
 
-One-time setup so commits signed with `~/.ssh/pi-agent-signing` show the
+One-time setup so commits signed with `$PI_FLEET_KIT_HOME/.ssh/pi-agent-signing` show the
 **Verified** badge.
 
 ## Steps
@@ -8,7 +8,7 @@ One-time setup so commits signed with `~/.ssh/pi-agent-signing` show the
 1. Open the public key on your Mac and copy it:
 
    ```bash
-   cat ~/.ssh/pi-agent-signing.pub
+   cat $PI_FLEET_KIT_HOME/.ssh/pi-agent-signing.pub
    ```
 
    It is one long line starting with `ssh-ed25519` and ending with the key
@@ -49,7 +49,7 @@ After rebuilding the image and relaunching the agents (see README), the
 quickest test is any commit made in the container:
 
 ```bash
-docker compose -f ~/pi-fleet-kit/compose.yml run --rm pi-coding-1 bash -c \
+docker compose -f $PI_FLEET_KIT_HOME/pi-fleet-kit/compose.yml run --rm pi-coding-1 bash -c \
   'cd /workspace && git commit --allow-empty -m "test: signing from container" 2>&1 | tail -2'
 ```
 

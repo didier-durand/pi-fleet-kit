@@ -11,7 +11,7 @@
 # Usage:
 #   ./tabs_install.sh       # copy configs (skip identical files)
 #   ./tabs_install.sh -f    # overwrite even if identical
-#   TAB_CONFIGS_DIR=~/.warp-preview/tab_configs ./tabs_install.sh
+#   TAB_CONFIGS_DIR="$HOME/.warp-preview/tab_configs" ./tabs_install.sh
 
 set -euo pipefail
 

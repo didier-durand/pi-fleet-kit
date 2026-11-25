@@ -5,7 +5,7 @@ Shared loading info (channels, Pi Package vs `--extension`): [pi-fleet-kit exten
 ## Why this extension exists
 
 Each agent works in its **own independently git-cloned repository** — the
-compose workspaces `~/pi-agents/<agent>` are separate checkouts, cloned and
+compose workspaces `$PI_FLEET_KIT_HOME/pi-agents/<agent>` are separate checkouts, cloned and
 updated at different times by different sessions. Without this extension
 there is no per-agent way to see, at a glance, *which repo state which agent
 is in*: whether its checkout is dirty from mid-task edits, whether it has

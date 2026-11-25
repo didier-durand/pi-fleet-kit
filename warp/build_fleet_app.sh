@@ -17,7 +17,7 @@
 # (functional for launching, but it will not stay running / show the dot).
 #
 # Usage:
-#   ./build_fleet_app.sh               # build into ~/Applications
+#   ./build_fleet_app.sh               # build into $HOME/Applications
 #   ./build_fleet_app.sh /Applications # build into /Applications
 #
 # Requirements: macOS. Icon: repo's precomputed iconset/ (preferred) or
@@ -29,6 +29,10 @@ set -euo pipefail
 WARP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_NAME="Pi Agent Fleet.app"
 DEST="${1:-$HOME/Applications}"
+# Fleet root: the Swift/AppleScript templates embed the resolved warp path at
+# build time (PI_FLEET_KIT_HOME, default $HOME) — rebuild the app after any
+# change of PI_FLEET_KIT_HOME.
+FLEET_WARP="${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/warp"
 
 [[ "$(uname -s)" == "Darwin" ]] || { echo "error: macOS only" >&2; exit 1; }
 [[ -f "$WARP_DIR/agents_start.sh" ]] || { echo "error: agents_start.sh not found next to this script" >&2; exit 1; }
@@ -74,7 +78,7 @@ if [[ -n "$SWIFTC" ]]; then
   mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
   cat > "$WORK/main.swift" <<'EOF'
-// Pi Agent Fleet — Dock app for ~/pi-fleet-kit/warp (built by build_fleet_app.sh)
+// Pi Agent Fleet — Dock app for @FLEET_WARP@ (built by build_fleet_app.sh)
 // Launch and every Dock click run agents_start.sh (idempotent: adds missing
 // agents, skips running ones, heals orphans). Stays running while any agent
 // container is up (Dock black dot); terminates ~60s after the fleet stops.
@@ -98,7 +102,7 @@ final class FleetDelegate: NSObject, NSApplicationDelegate {
 
     func startFleet() {
         lastSeenUp = Date()
-        _ = shell("nohup \"$HOME/pi-fleet-kit/warp/agents_start.sh\" > /tmp/pi-agent-fleet.log 2>&1 & exit 0")
+        _ = shell("nohup \"@FLEET_WARP@/agents_start.sh\" > /tmp/pi-agent-fleet.log 2>&1 & exit 0")
     }
 
     func poll() {
@@ -111,7 +115,7 @@ final class FleetDelegate: NSObject, NSApplicationDelegate {
 
     func fleetUp() -> Bool {
         for a in agents {
-            if shell("\"$HOME/pi-fleet-kit/warp/agent_run.sh\" --check " + a) == 0 { return true }
+            if shell("\"@FLEET_WARP@/agent_run.sh\" --check " + a) == 0 { return true }
         }
         return false
     }
@@ -135,6 +139,10 @@ app.setActivationPolicy(.regular)
 app.run()
 EOF
 
+  # resolve the fleet-root placeholder (PI_FLEET_KIT_HOME, default $HOME)
+  # into the generated sources — Swift and AppleScript both embed the path
+  ESC="${FLEET_WARP//\\/\\\\}"; ESC="${ESC//&/\\&}"
+  sed -i '' "s|@FLEET_WARP@|$ESC|g" "$WORK/main.swift"
   "$SWIFTC" -O -o "$APP/Contents/MacOS/PiAgentFleet" "$WORK/main.swift"
 
   cat > "$APP/Contents/Info.plist" <<'EOF'
@@ -168,13 +176,13 @@ property LastSeenUp : missing value
 
 on run
 	try
-		do shell script "nohup $HOME/pi-fleet-kit/warp/agents_start.sh > /tmp/pi-agent-fleet.log 2>&1 & exit 0"
+		do shell script "nohup @FLEET_WARP@/agents_start.sh > /tmp/pi-agent-fleet.log 2>&1 & exit 0"
 	end try
 end run
 
 on reopen
 	try
-		do shell script "nohup $HOME/pi-fleet-kit/warp/agents_start.sh > /tmp/pi-agent-fleet.log 2>&1 & exit 0"
+		do shell script "nohup @FLEET_WARP@/agents_start.sh > /tmp/pi-agent-fleet.log 2>&1 & exit 0"
 	end try
 end reopen
 
@@ -183,6 +191,9 @@ on idle
 	return 15
 end idle
 EOF
+  # resolve the fleet-root placeholder (PI_FLEET_KIT_HOME, default $HOME)
+  ESC="${FLEET_WARP//\\/\\\\}"; ESC="${ESC//&/\\&}"
+  sed -i '' "s|@FLEET_WARP@|$ESC|g" "$WORK/fleet.applescript"
   osacompile -o "$APP" "$WORK/fleet.applescript"
   gen_icns "$APP"
   plist_set "$APP/Contents/Info.plist" CFBundleIconFile AppIcon.icns

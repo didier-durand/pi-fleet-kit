@@ -19,7 +19,11 @@ OUT="${2:-$REPO_DIR/fleet/agent-registry.md}"
 
 [[ -f "$COMPOSE" ]] || { echo "error: compose file not found: $COMPOSE" >&2; exit 1; }
 
-table="$(awk '
+# fleet root for the host paths in the generated table (PI_FLEET_KIT_HOME,
+# default $HOME) — resolved at generation time so the registry shows the
+# operator's actual layout
+ROOT="${PI_FLEET_KIT_HOME:-$HOME}"
+table="$(awk -v root="$ROOT" '
   # Only the services section matters; the top-level volumes: block ends it.
   /^volumes:/ { sec = "volumes" }
   sec != "volumes" && /^  [a-z0-9-]+:$/ {
@@ -62,11 +66,10 @@ table="$(awk '
   END { if (svc != "") flush() }
   function flush() {
     pt = "dormant"
-    if (exch != "")      pt = "active — ~/pi-exchange/" exch
+    if (exch != "")      pt = sprintf("active — %s/pi-exchange/%s", root, exch)
     else if (trig != "") pt = "active — /exchange (external mount)"
     order[++n] = svc
-    rows[svc] = "| " svc " | " home " | " (skills == "" ? "—" : skills) " | " \
-                (exts == "" ? "—" : exts) " | " (pkgs == "" ? "—" : pkgs) " | " pt " | ~/pi-agents/" ws " |"
+    rows[svc] = sprintf("| %s | %s | %s | %s | %s | %s | %s/pi-agents/%s |", svc, home, (skills == "" ? "—" : skills), (exts == "" ? "—" : exts), (pkgs == "" ? "—" : pkgs), pt, root, ws)
   }
   END {
     print "| Agent | Pi home volume | Skills | Extensions | Pi Packages | Prompt trigger | Workspace (host) |"

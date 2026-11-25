@@ -15,7 +15,7 @@ automation and the interactive session you are watching.
 | Piece | Where | Value |
 |---|---|---|
 | Watched directory (container view) | `PI_TRIGGER_DIR` env per agent | `/exchange` |
-| Watched directory (host view) | compose mount per agent | `~/pi-exchange/<agent>` — per-agent exchange dir, so no agent sees another agent's files |
+| Watched directory (host view) | compose mount per agent | `$PI_FLEET_KIT_HOME/pi-exchange/<agent>` — per-agent exchange dir, so no agent sees another agent's files |
 | Dormant when | env unset or directory missing | extension polls nothing |
 
 The extension announces itself in the TUI at startup:

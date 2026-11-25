@@ -4,7 +4,7 @@
 # Agent runtime workspace (session state, scratch files) — infrastructure
 # lives here, agent output stays local:
 finance-agent/
-# Note: agent workspaces now live outside this repo, in ~/pi-agents/
+# Note: agent workspaces now live outside this repo, in $PI_FLEET_KIT_HOME/pi-agents/
 
 # npm installs from CI-style checks (never committed):
 node_modules/

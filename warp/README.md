@@ -20,7 +20,7 @@ One Tab Config per agent defined in `../compose.yml`:
 | `tab_configs/pi_research.toml` | pi-research | green | `agent_run.sh pi-research` |
 | `tab_configs/pi_personal.toml` | pi-personal | magenta | `agent_run.sh pi-personal` |
 
-Each config opens a terminal in `~/pi-fleet-kit` and runs `agent_run.sh` for
+Each config opens a terminal in `$PI_FLEET_KIT_HOME/pi-fleet-kit` and runs `agent_run.sh` for
 that agent, so selecting it from the `+` menu drops you directly into the
 agent's sandbox. The compose service `command` includes `--continue`, so
 each launch resumes that agent's most recent session (fresh start: `/new`
@@ -65,7 +65,7 @@ Starts every agent in its own Warp tab (installing the tab configs first if
 needed):
 
 ```bash
-~/pi-fleet-kit/warp/agents_start.sh
+$PI_FLEET_KIT_HOME/pi-fleet-kit/warp/agents_start.sh
 ```
 
 The script opens each config via the `warp://tab_config/<name>` URI scheme,
@@ -118,13 +118,13 @@ detects the platform (same logic as `agents_start.sh`) and installs every
 
 | Platform | Default destination |
 |---|---|
-| macOS (stable) | `~/.warp/tab_configs/` |
+| macOS (stable) | `$HOME/.warp/tab_configs/` |
 | Linux | `${XDG_DATA_HOME:-$HOME/.local/share}/warp-terminal/tab_configs/` |
 | Windows (Git Bash/MSYS) | `%APPDATA%\warp\Warp\data\tab_configs\` |
 | (any) override | `TAB_CONFIGS_DIR=...` |
 
 ```bash
-~/pi-fleet-kit/warp/tabs_install.sh
+$PI_FLEET_KIT_HOME/pi-fleet-kit/warp/tabs_install.sh
 ```
 
 Usage:
@@ -142,10 +142,10 @@ that aren't part of this repo are left untouched.
 To target a non-default location, set `TAB_CONFIGS_DIR`:
 
 ```bash
-TAB_CONFIGS_DIR=~/.warp-preview/tab_configs ~/pi-fleet-kit/warp/tabs_install.sh
+TAB_CONFIGS_DIR=$HOME/.warp-preview/tab_configs $PI_FLEET_KIT_HOME/pi-fleet-kit/warp/tabs_install.sh
 ```
 
-Warp Preview (macOS) reads `~/.warp-preview/tab_configs/` — the same
+Warp Preview (macOS) reads `$HOME/.warp-preview/tab_configs/` — the same
 override covers it.
 
 Newly added files appear in the `+` menu automatically — no restart needed.
@@ -160,8 +160,8 @@ soon as the run handler returns. The builder therefore compiles a tiny
 **native Swift app** (using `swiftc` from the Xcode Command Line Tools):
 
 ```bash
-~/pi-fleet-kit/warp/build_fleet_app.sh            # builds into ~/Applications
-~/pi-fleet-kit/warp/build_fleet_app.sh /Applications
+$PI_FLEET_KIT_HOME/pi-fleet-kit/warp/build_fleet_app.sh            # builds into $HOME/Applications
+$PI_FLEET_KIT_HOME/pi-fleet-kit/warp/build_fleet_app.sh /Applications
 ```
 
 Behavior:
@@ -205,7 +205,7 @@ for the agent, docker reachability, compose file presence, and all
 heartbeats. It never modifies anything:
 
 ```bash
-~/pi-fleet-kit/warp/fleet_doctor.sh pi-coding-1
+$PI_FLEET_KIT_HOME/pi-fleet-kit/warp/fleet_doctor.sh pi-coding-1
 ```
 
 Newly added files appear in the `+` menu automatically — no restart needed.

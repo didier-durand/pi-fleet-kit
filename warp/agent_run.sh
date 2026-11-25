@@ -45,7 +45,10 @@ set -euo pipefail
 
 WARP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="${PI_COMPOSE_FILE:-$WARP_DIR/../compose.yml}"
-HB_DIR="${PI_HEARTBEAT_DIR:-$HOME/.pi-agent-fleet}"
+# Fleet root: the repo (pi-fleet-kit/), workspaces (pi-agents/), exchange
+# dirs (pi-exchange/) and the signing key (.ssh/) all live under it.
+FLEET_ROOT="${PI_FLEET_KIT_HOME:-$HOME}"
+HB_DIR="${PI_HEARTBEAT_DIR:-$FLEET_ROOT/.pi-agent-fleet}"
 FRESH_SECS=20   # claim needs a heartbeat touched within this window
                 # (the tab's watcher refreshes every 5s; wide enough to
                 # survive brief system stalls/sleep, tight enough to kill
@@ -204,13 +207,13 @@ if agent_up; then
 fi
 
 # Workspace bootstrap: git-status (and sane git hygiene) require each agent
-# workspace (~/pi-agents/<agent>, mounted as /workspace) to be a git clone —
-# the git-status extension clears its footer entry entirely when the
+# workspace ($FLEET_ROOT/pi-agents/<agent>, mounted as /workspace) to be a
+# git clone — the git-status extension clears its footer entry entirely when the
 # workspace is not a repo. pi-fleet-kit's workspace is the fleet-kit repo
 # itself (same origin as this checkout), so it can be cloned automatically.
 # Other agents' workspaces are per-project clones only the operator knows —
 # warn instead of guessing.
-ws="$HOME/pi-agents/$agent"
+ws="$FLEET_ROOT/pi-agents/$agent"
 if [[ ! -d "$ws/.git" ]]; then
   if [[ "$agent" == "pi-fleet-kit" ]]; then
     url="$(git -C "$WARP_DIR/.." remote get-url origin 2>/dev/null || echo https://github.com/didier-durand/pi-fleet-kit)"
@@ -220,7 +223,7 @@ if [[ ! -d "$ws/.git" ]]; then
     else
       echo "note: '$agent': workspace $ws is not a git clone — cloning from $url" >&2
       rm -rf "$ws"
-      mkdir -p "$HOME/pi-agents"
+      mkdir -p "$FLEET_ROOT/pi-agents"
       if ! git clone "$url" "$ws" >&2; then
         echo "warning: '$agent': clone failed — launching anyway, git-status stays inactive" >&2
       fi
