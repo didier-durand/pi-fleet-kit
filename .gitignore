@@ -9,3 +9,6 @@ finance-agent/
 # npm installs from CI-style checks (never committed):
 node_modules/
 package-lock.json
+
+# coverage output (c8/v8) — CI-style checks, never committed:
+coverage/
