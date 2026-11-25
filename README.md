@@ -1,6 +1,8 @@
 # 🚧 pi-fleet-kit — Work In Progress
 
 > ⚠️ **WORK IN PROGRESS** — this project is under active development; breaking changes are expected and nothing is finalized yet.
+>
+> 🤖 **Note:** every artifact of this repo — code, docs included — is 100% automatically produced by a pair of (Pi Agent, GLM 5.3 Flash) running in the `pi-fleet-kit` container of the fleet itself. The repository is its own dogfood: the agent you get by running this solution wrote the solution.
 
 pi-fleet-kit is a ready-made solution for running a **fleet of Pi coding agents on a single local machine** (desktop or server): each agent lives in its own Docker sandbox with fully isolated state — its own persistent home, its own workspace git clone, its own credentials — while sharing one image and one compose file. The fleet is operated from Warp tabs (or a macOS Dock app), with live per-agent git status and file-triggered prompts bridging automation to running sessions. The `pi-fleet-kit` agent instantiated by the solution is itself the configuration manager: prompt it with your requirements — more or fewer agents, different names, different skills or models — and it adapts the fleet's config (compose services, mounts, tab configs) accordingly.
 
