@@ -59,7 +59,7 @@ step "tsc --noEmit (strict, with host package types)"
 npm install --no-save --no-package-lock --ignore-scripts --no-audit --no-fund \
   @earendil-works/pi-coding-agent typescript >/dev/null 2>&1
 ENTRY="$(node -e 'console.log(require("./package.json").pi.extensions.join(" "))')"
-npx tsc --noEmit --strict --skipLibCheck --target es2022 --module esnext \
+npx tsc --noEmit --strict --skipLibCheck --allowImportingTsExtensions --target es2022 --module esnext \
   --moduleResolution bundler --types node $ENTRY
 echo "  OK: $ENTRY compiles clean"
 end_group
@@ -72,8 +72,22 @@ PKG_NAME="$(node -e 'console.log(require("./package.json").name)')"
 TARBALL="$PACKDIR/$PKG_NAME-$VERSION.tgz"
 EXPECTED="$(node -e '
 const p = require("./package.json");
+const fs = require("fs");
+const path = require("path");
 const set = new Set(["package.json"]);
-for (const f of p.files || []) set.add(f);
+function walk(rel) {
+  // directory entries ("src/") ship their full contents via npm pack
+  const full = path.join(process.cwd(), rel);
+  for (const e of fs.readdirSync(full, { withFileTypes: true })) {
+    const child = rel.replace(/\/$/, "") + "/" + e.name;
+    if (e.isDirectory()) walk(child);
+    else set.add(child);
+  }
+}
+for (const f of p.files || []) {
+  if (f.endsWith("/")) walk(f);
+  else set.add(f);
+}
 console.log([...set].sort().join("\n"));
 ')"
 ACTUAL="$(tar -tf "$TARBALL" | sed 's|^package/||' | grep -v '^$' | sort)"

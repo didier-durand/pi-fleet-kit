@@ -1,9 +1,17 @@
 {
   "name": "pi-obs",
   "version": "0.1.9",
-  "private": true,
   "type": "module",
   "description": "OpenTelemetry observability extension for the pi coding agent (jiti-loaded, no build step)",
+  "keywords": [
+    "pi-package"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/didier-durand/pi-fleet-kit.git",
+    "directory": "extensions/pi-obs"
+  },
   "engines": {
     "node": ">=23.6"
   },
@@ -27,9 +35,6 @@
     "bin/",
     "README.md",
     "CHANGELOG.md"
-  ],
-  "keywords": [
-    "pi-package"
   ],
   "pi": {
     "extensions": [

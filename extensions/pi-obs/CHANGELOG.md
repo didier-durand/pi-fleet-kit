@@ -3,6 +3,12 @@
 ## [0.1.9] - 2026-11-19
 
 - Version bump from 0.1.8 (see `git log pi-obs-0.1.8..pi-obs-0.1.9` for changes).
+- Imported into pi-fleet-kit and aligned to the house package layout:
+  publishable manifest (no `private`), `license`/`repository` fields,
+  same field order as `pi-git-status`/`pi-prompt-trigger`. The repo's
+  extension sanity checker (`utils/check-extension.sh`) now covers
+  pi-obs; its tsc gate gained `--allowImportingTsExtensions` (multi-file
+  extensions import with explicit `.ts` extensions, as loaded by pi).
 
 ## [0.1.8] - 2026-11-19
 
