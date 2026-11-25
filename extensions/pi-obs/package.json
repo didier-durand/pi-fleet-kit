@@ -1,0 +1,42 @@
+{
+  "name": "pi-obs",
+  "version": "0.1.9",
+  "private": true,
+  "type": "module",
+  "description": "OpenTelemetry observability extension for the pi coding agent (jiti-loaded, no build step)",
+  "engines": {
+    "node": ">=23.6"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-test-coverage --test-coverage-lines=90 --test-coverage-branches=90 tests/unit/*.test.ts tests/unit/exporters/*.test.ts",
+    "suite": "./test_pi_obs.sh",
+    "gen:registry": "node tests/tools/gen_weaver_registry.ts > tests/tools/weaver/pi_registry.yaml",
+    "cli": "node src/cli.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "typescript": "^5"
+  },
+  "bin": {
+    "piobs": "./bin/piobs"
+  },
+  "files": [
+    "index.ts",
+    "src/",
+    "bin/",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "keywords": [
+    "pi-package"
+  ],
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}

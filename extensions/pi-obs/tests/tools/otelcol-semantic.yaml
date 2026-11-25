@@ -1,0 +1,24 @@
+# Semantic conformance (DEV_PLAN Step 9): OTLP/HTTP receiver -> OTLP/gRPC relay
+# into `weaver registry live-check` (live-check ingests gRPC).
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 127.0.0.1:${env:PI_OBS_COL_PORT}
+exporters:
+  otlp/relay:
+    endpoint: 127.0.0.1:${env:PI_OBS_WEAVER_GRPC_PORT}
+    tls:
+      insecure: true
+    compression: none # weaver's live-check gRPC listener does not accept gzip
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [otlp/relay]
+    metrics:
+      receivers: [otlp]
+      exporters: [otlp/relay]
+    logs:
+      receivers: [otlp]
+      exporters: [otlp/relay]

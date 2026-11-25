@@ -1,0 +1,5 @@
+{"type": "session", "version": 3, "id": "0193aaaa-0005-7000-8000-000000000005", "timestamp": "2024-12-03T14:00:00.000Z", "cwd": "/work/demo"}
+{"type": "message", "id": "g1", "parentId": null, "timestamp": "2024-12-03T14:00:01.000Z", "message": {"role": "user", "content": [{"type": "text", "text": "good entry"}], "timestamp": 1}}
+{"type":"message","id":"broken"  
+not json at all
+{"type": "message", "id": "g2", "parentId": "g1", "timestamp": "2024-12-03T14:00:02.000Z", "message": {"role": "assistant", "content": [{"type": "text", "text": "still good"}], "provider": "p", "model": "m", "usage": {"input": 5, "output": 5, "totalTokens": 10, "cost": {"total": 0.001}}, "stopReason": "stop", "timestamp": 2}}

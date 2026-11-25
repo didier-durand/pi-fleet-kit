@@ -1,0 +1,22 @@
+# Structural conformance (DEV_PLAN Step 9): OTLP/HTTP receiver -> file exporter.
+# The suite POSTs the file-exporter JSONL line-by-line; every record must be
+# accepted (HTTP 2xx) and re-emitted by the Collector's own pdata parse.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 127.0.0.1:${env:PI_OBS_COL_PORT}
+exporters:
+  file:
+    path: ${env:PI_OBS_COL_OUT}
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [file]
+    metrics:
+      receivers: [otlp]
+      exporters: [file]
+    logs:
+      receivers: [otlp]
+      exporters: [file]

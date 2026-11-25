@@ -1,0 +1,6 @@
+#!/bin/sh
+# piobs — the standalone pi-obs CLI (SPECS R3b).
+# A thin launcher: node (>= 23.6) runs src/cli.ts with native type
+# stripping — no build step, no dependencies, jiti-free.
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+exec node "$DIR/src/cli.ts" "$@"

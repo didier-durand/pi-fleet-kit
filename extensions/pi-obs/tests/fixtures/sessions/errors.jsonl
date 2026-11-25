@@ -1,0 +1,8 @@
+{"type": "session", "version": 3, "id": "0193aaaa-0006-7000-8000-000000000006", "timestamp": "2024-12-03T14:00:00.000Z", "cwd": "/work/demo"}
+{"type": "message", "id": "f1", "parentId": null, "timestamp": "2024-12-03T14:00:01.000Z", "message": {"role": "user", "content": [{"type": "text", "text": "make it fail"}], "timestamp": 1}}
+{"type": "message", "id": "f2", "parentId": "f1", "timestamp": "2024-12-03T14:00:02.000Z", "message": {"role": "assistant", "content": [{"type": "text", "text": "ok"}], "provider": "p", "model": "m", "usage": {"input": 10, "output": 2, "totalTokens": 12, "cost": {"total": 0.001}}, "stopReason": "stop", "timestamp": 2}}
+{"type": "message", "id": "f3", "parentId": "f2", "timestamp": "not-a-timestamp", "message": {"role": "toolResult", "toolCallId": "c", "toolName": "edit", "content": [], "isError": true, "timestamp": 3}}
+{"type": "message", "id": "f4", "parentId": "f3", "message": {"role": "user", "content": "no timestamp on me", "timestamp": 4}}
+{"type": "message", "parentId": "f4", "timestamp": "2024-12-03T14:00:05.000Z", "message": {"role": "assistant", "content": "id-less", "provider": "p", "model": "m", "usage": {"input": 1, "output": 1, "totalTokens": 2}, "stopReason": "stop", "timestamp": 5}}
+
+

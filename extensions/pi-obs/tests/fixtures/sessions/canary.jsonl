@@ -1,0 +1,3 @@
+{"type": "session", "version": 3, "id": "0193aaaa-0004-7000-8000-000000000004", "timestamp": "2024-12-03T14:00:00.000Z", "cwd": "/work/demo"}
+{"type": "message", "id": "k1", "parentId": null, "timestamp": "2024-12-03T14:00:01.000Z", "message": {"role": "user", "content": [{"type": "text", "text": "deploy with SECRET_CANARY=zlX9.trap-Canary_q7r8s9t0u1 now"}], "timestamp": 1}}
+{"type": "message", "id": "k2", "parentId": "k1", "timestamp": "2024-12-03T14:00:02.000Z", "message": {"role": "toolResult", "toolCallId": "c", "toolName": "bash", "content": [{"type": "text", "text": "token=zlX9.trap-Canary_q7r8s9t0u1 deployed"}], "isError": false, "timestamp": 2}}

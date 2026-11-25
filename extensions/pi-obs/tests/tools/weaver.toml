@@ -1,0 +1,43 @@
+# Weaver live-check configuration (DEV_PLAN Step 9, standard-tools level).
+# Matched spans map by name to the generated registry's span types.
+[[live-check.matchers]]
+id = "match.pi.obs.events"
+sample_type = "span_event"
+when = 'name.startsWith("pi.")'
+attribute_groups = ["pi.obs.event_attributes"]
+
+[[live-check.matchers]]
+id = "match.pi.obs.resource"
+sample_type = "resource"
+when = '"service.name" in attributes'
+attribute_groups = ["pi.obs.resource"]
+
+[[live-check.matchers]]
+id = "match.pi.session"
+sample_type = "span"
+when = 'name == "pi.session"'
+signal = "pi.session"
+
+[[live-check.matchers]]
+id = "match.pi.run"
+sample_type = "span"
+when = 'name == "pi.run"'
+signal = "pi.run"
+
+[[live-check.matchers]]
+id = "match.pi.turn"
+sample_type = "span"
+when = 'name == "pi.turn"'
+signal = "pi.turn"
+
+[[live-check.matchers]]
+id = "match.pi.model"
+sample_type = "span"
+when = 'name == "pi.model"'
+signal = "pi.model"
+
+[[live-check.matchers]]
+id = "match.pi.tool"
+sample_type = "span"
+when = 'name.startsWith("pi.tool ")'
+signal = "pi.tool"

@@ -1,0 +1,14 @@
+{"type": "session", "version": 3, "id": "0193aaaa-0003-7000-8000-000000000003", "timestamp": "2024-12-03T14:00:00.000Z", "cwd": "/work/demo"}
+{"type": "model_change", "id": "mc0", "parentId": null, "timestamp": "2024-12-03T14:00:00.100Z", "provider": "openai", "modelId": "gpt-6.1-sol"}
+{"type": "thinking_level_change", "id": "tl0", "parentId": "mc0", "timestamp": "2024-12-03T14:00:00.200Z", "thinkingLevel": "medium"}
+{"type": "message", "id": "u1", "parentId": "tl0", "timestamp": "2024-12-03T14:00:01.000Z", "message": {"role": "user", "content": [{"type": "text", "text": "long session"}], "timestamp": 1}}
+{"type": "usage", "id": "us1", "parentId": "u1", "timestamp": "2024-12-03T14:00:02.000Z", "kind": "cache_warm", "provider": "openrouter", "model": "nvidia/nemotron-3.5-lightning", "usage": {"cacheRead": 40960, "totalTokens": 40960, "cost": {"total": 0.015}}}
+{"type": "compaction", "id": "cp1", "parentId": "us1", "timestamp": "2024-12-03T14:00:03.000Z", "tokensBefore": 95000, "summary": "compacted"}
+{"type": "message", "id": "a9", "parentId": "cp1", "timestamp": "2024-12-03T14:00:04.000Z", "message": {"role": "assistant", "content": [{"type": "text", "text": "after compaction"}], "provider": "openrouter", "model": "nvidia/nemotron-3.5-lightning", "usage": {"input": 800, "output": 80, "totalTokens": 880, "cost": {"total": 0.008}}, "stopReason": "stop", "timestamp": 4}}
+{"type": "tree", "id": "t1", "parentId": "a9", "timestamp": "2024-12-03T14:00:05.000Z", "targetId": "u1"}
+{"type": "model_change", "id": "mc2", "parentId": "t1", "timestamp": "2024-12-03T14:00:06.000Z"}
+{"type": "usage", "id": "us2", "parentId": "mc2", "timestamp": "2024-12-03T14:00:07.000Z", "usage": {"input": 7, "totalTokens": 7}}
+{"type": "compaction", "id": "cp2", "parentId": "us2", "timestamp": "2024-12-03T14:00:08.000Z"}
+{"type": "message", "id": "sm1", "parentId": "cp2", "timestamp": "2024-12-03T14:00:09.000Z", "message": {"role": "system", "content": "", "timestamp": 9}}
+{"type": "message", "id": "nm1", "parentId": "sm1", "timestamp": "2024-12-03T14:00:10.000Z", "message": null}
+{"type": "custom_thing", "id": "cz1", "parentId": "nm1", "timestamp": "2024-12-03T14:00:11.000Z", "payload": "unknown entry type"}

@@ -1,0 +1,16 @@
+{
+  "provider": "openrouter",
+  "model": "nvidia/nemotron-3.5-lightning",
+  "responseModel": "nvidia/nemotron-3.5-lightning",
+  "responseId": "gen-9f2c1a7e4d",
+  "stopReason": "end_turn",
+  "usage": {
+    "input": 1523,
+    "output": 287,
+    "cacheRead": 40960,
+    "cacheWrite": 0,
+    "reasoning": 512,
+    "totalTokens": 43282,
+    "cost": { "total": 0.001234 }
+  }
+}
