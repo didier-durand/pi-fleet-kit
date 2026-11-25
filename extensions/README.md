@@ -18,7 +18,7 @@ one is what compose uses for the extensions below:
 |---|---|---|
 | `git-status/` | Live per-agent git state in the pi footer (branch, ↑ahead/↓behind, dirty count, ✓clean) — each agent has its own checkout; complements Warp's host-side git view | [git-status/README.md](git-status/README.md) |
 | `prompt-trigger/` | Turns files dropped in a watched directory into prompts in the running TUI (as if typed), with `/new [kickoff]` for fresh sessions — the watchdog-to-agent bridge | [prompt-trigger/README.md](prompt-trigger/README.md) |
-| `pi-obs/` | Session observability: live token/cost/model footer, `/pi-obs` reports, and out-of-process OpenTelemetry export (OTLP/file) — read-only, zero side effects on the session. **Imported (v0.1.9), not yet wired into any agent** — attach it to a service's `--extension` list to trial it | [pi-obs/README.md](pi-obs/README.md) |
+| `extensions/pi-obs/` | Session observability: live token/cost/model footer, `/pi-obs` reports, and out-of-process OpenTelemetry export (OTLP/HTTP → Jaeger) — read-only, zero side effects on the session. Wired into every agent via compose; the Jaeger UI is available at `http://localhost:16686` | [pi-obs/README.md](pi-obs/README.md) |
 | `pi-web-access` (Pi Package, npm) | Web search, URL fetching, GitHub repo cloning, PDF extraction, YouTube transcription — the web-research toolchain | [package on npm](https://www.npmjs.com/package/pi-web-access) · [source](https://github.com/nicobailon/pi-web-access) |
 
 Loading details per channel are above; installation specifics

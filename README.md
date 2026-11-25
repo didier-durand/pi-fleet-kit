@@ -138,7 +138,7 @@ mirroring the host's setup.
 | `.githooks/pre-commit` | Secret-leak guard (see below). |
 | `package.json` | Pi package manifest (see below). |
 | `skills/` | Installable Pi skills; each subdirectory holds a `SKILL.md` (Agent Skills spec). Currently `build-skill`, `github-best-practices`, `hello-world`, `publishing-best-practices`, `write-pull-request`, `review-pull-request`, `write-code`, `write-specifications`, `write-implementation-plan`, `web-research`, `prompt-agent`, `apply-pull-request`. |
-| `extensions/` | Shared Pi extensions (`git-status`, `prompt-trigger` — also published as standalone npm Pi Packages, `pi-git-status` / `pi-prompt-trigger`) plus `pi-obs` (OpenTelemetry observability, imported v0.1.9, not yet wired into the fleet) — see [extensions/README.md](extensions/README.md). |
+| `extensions/` | Shared Pi extensions (`git-status`, `prompt-trigger` — also published as standalone npm Pi Packages, `pi-git-status` / `pi-prompt-trigger`) plus `pi-obs` (OpenTelemetry observability: live token/cost footer, `/pi-obs` reports, OTLP export to Jaeger) — see [extensions/README.md](extensions/README.md). |
 | `fleet/` | Fleet-level files shared with agents: `agent-registry.md` (the generated who-does-what table), mounted read-only at `/fleet` in every container. |
 | `docs/` | Supplementary docs (e.g. registering the agents' SSH signing key on GitHub). |
 | `sources/` | Summaries of external sources informing the fleet's practices (e.g. `vuln-to-pr/` — a dataset of vulnerability-introducing pull requests). |

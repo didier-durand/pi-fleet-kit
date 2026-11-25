@@ -69,10 +69,13 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
+      - PI_OBS_OTLP_ENDPOINT=http://jaeger:4318
+      - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-fleet-kit
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
+       "--extension", "/repo-extensions/pi-obs/index.ts",
        "--extension", "/repo-extensions/git-status/git-status.ts",
        "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/build-skill",
@@ -116,11 +119,14 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
+      - PI_OBS_OTLP_ENDPOINT=http://jaeger:4318
+      - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-developer
       - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
+       "--extension", "/repo-extensions/pi-obs/index.ts",
        "--extension", "/repo-extensions/git-status/git-status.ts",
        "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/github-best-practices",
@@ -160,11 +166,14 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
+      - PI_OBS_OTLP_ENDPOINT=http://jaeger:4318
+      - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-coding-1
       - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
+       "--extension", "/repo-extensions/pi-obs/index.ts",
        "--extension", "/repo-extensions/git-status/git-status.ts",
        "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/github-best-practices",
@@ -207,11 +216,14 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
+      - PI_OBS_OTLP_ENDPOINT=http://jaeger:4318
+      - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-coding-2
       - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
+       "--extension", "/repo-extensions/pi-obs/index.ts",
        "--extension", "/repo-extensions/git-status/git-status.ts",
        "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/github-best-practices",
@@ -250,11 +262,14 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
+      - PI_OBS_OTLP_ENDPOINT=http://jaeger:4318
+      - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-review-1
       - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
+       "--extension", "/repo-extensions/pi-obs/index.ts",
        "--extension", "/repo-extensions/git-status/git-status.ts",
        "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/github-best-practices",
@@ -292,11 +307,14 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
+      - PI_OBS_OTLP_ENDPOINT=http://jaeger:4318
+      - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-review-2
       - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
+       "--extension", "/repo-extensions/pi-obs/index.ts",
        "--extension", "/repo-extensions/git-status/git-status.ts",
        "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/github-best-practices",
@@ -337,10 +355,13 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
+      - PI_OBS_OTLP_ENDPOINT=http://jaeger:4318
+      - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-research
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
+       "--extension", "/repo-extensions/pi-obs/index.ts",
        "--extension", "/repo-extensions/git-status/git-status.ts",
        "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/publishing-best-practices",
@@ -381,10 +402,13 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
+      - PI_OBS_OTLP_ENDPOINT=http://jaeger:4318
+      - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-personal
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
+       "--extension", "/repo-extensions/pi-obs/index.ts",
        "--extension", "/repo-extensions/git-status/git-status.ts",
        "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/publishing-best-practices",
@@ -393,6 +417,22 @@ services:
     # Uncomment to reach MCP servers or services running on the host:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
+
+  # Jaeger v2 (all-in-one): OTel collector + query + UI in one container.
+  # Agents export traces/metrics/logs via OTLP/HTTP to http://jaeger:4318
+  # (compose network). The UI is mapped to host port 16686 for browser
+  # access. In-memory storage: data is lost on restart — sufficient for
+  # the fleet's live-observability use case (not a persistence backend).
+  # Start with: docker compose -f $PI_FLEET_KIT_HOME/pi-fleet-kit/compose.yml up -d jaeger
+  # UI: http://localhost:16686
+  jaeger:
+    image: jaegertracing/jaeger:latest
+    ports:
+      - "16686:16686"   # Jaeger UI (browser)
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    # NOT labeled pi.agent.fleet=1: this is infrastructure, not an agent.
+    # docker compose run --rm jaeger would be wrong (it is a daemon).
 
 volumes:
   pi-fleet-kit-home:
