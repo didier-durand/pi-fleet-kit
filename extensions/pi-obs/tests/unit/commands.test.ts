@@ -31,7 +31,7 @@ import { mockPi, type MockPi } from "../harness.ts";
 import { startReceiver, type OtlpReceiver } from "../otlp_receiver.ts";
 
 const FIXTURES = join(import.meta.dirname, "..", "fixtures", "sessions");
-const ENV_KEYS = ["PI_HOME", "HOME", "PI_OBS_FILE", "PI_OBS_FILE_PATH", "PI_OBS_OTLP_ENDPOINT", "PI_OBS_CAPTURE_PROMPTS", "PI_OBS_CAPTURE_TOOL_IO", "PI_OBS_QUEUE_MAX", "PI_SERVE_DIR"];
+const ENV_KEYS = ["PI_HOME", "HOME", "PI_OBS_FILE", "PI_OBS_FILE_PATH", "PI_OBS_OTLP_ENDPOINT", "PI_OBS_CAPTURE_PROMPTS", "PI_OBS_CAPTURE_TOOL_IO", "PI_OBS_QUEUE_MAX", "PI_SERVE_DIR", "PI_OBS_ENABLED", "PI_OBS_RESOURCE_SERVICE"];
 let savedEnv: Record<string, string | undefined>;
 let dir: string;
 let exportPath: string;
@@ -75,6 +75,7 @@ afterEach(() => {
 const activate = (extra: Record<string, string> = {}) => {
 	process.env.PI_OBS_FILE = "1";
 	process.env.PI_OBS_FILE_PATH = exportPath;
+	delete process.env.PI_OBS_ENABLED; // the container may inject PI_OBS_ENABLED=0 — tests control their own env
 	for (const [key, value] of Object.entries(extra)) process.env[key] = value;
 	piObs(pi as never);
 };

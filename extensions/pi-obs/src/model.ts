@@ -353,6 +353,19 @@ function usableString(value: unknown): string | undefined {
  * `message_end`-shaped payload (R4). Malformed fields are skipped —
  * this function NEVER throws (R1: external data is not trusted).
  */
+/** Extract readable text from a pi message content field (string or array of typed blocks). */
+export function contentText(content: unknown): string | undefined {
+	if (typeof content === "string") return content || undefined;
+	if (Array.isArray(content)) {
+		const texts = content
+			.filter((b): b is { type: "text"; text: string } =>
+				typeof b === "object" && b !== null && (b as { type?: unknown }).type === "text" && typeof (b as { text?: unknown }).text === "string")
+			.map((b) => (b as { text: string }).text);
+		return texts.length ? texts.join("\n") : undefined;
+	}
+	return undefined;
+}
+
 export function genaiAttributes(payload: MessageEndPayload): Record<string, AttrValue> {
 	const attrs: Record<string, AttrValue> = { "gen_ai.operation.name": "generate_content" };
 	if (typeof payload !== "object" || payload === null) return attrs; // garbage in → constant only, never a throw

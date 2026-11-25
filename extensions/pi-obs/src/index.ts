@@ -50,6 +50,7 @@ import {
 	startToolSpan,
 	startTurnSpan,
 	tokenCounters,
+	contentText,
 	type AttrValue,
 	type MetricData,
 	type SpanData,
@@ -552,6 +553,10 @@ class LiveCapture {
 						const model = this.model;
 						for (const [key, value] of Object.entries(genaiAttributes({ provider: message.provider, model: message.model, usage: message.usage, stopReason: message.stopReason }))) {
 							model.attributes[key] = value;
+						}
+						if (this.capturePrompts) {
+							const responseText = contentText(message.content);
+							if (responseText) model.attributes["pi.content.text"] = redact(responseText); // R2: opt-in AND redacted before the queue
 						}
 						endSpan(model);
 						this.enqueue({ kind: "span", span: model });
