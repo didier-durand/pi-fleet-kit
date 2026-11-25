@@ -162,6 +162,15 @@ interface TelemetryState {
 	readonly otlpEndpoint: string | null;
 	readonly fileMaxBytes: number | null;
 	readonly fileMaxFiles: number | null;
+	/** Per-signal enqueue counts — the status view breaks spans/metrics/logs apart. */
+	readonly signalCounts: SignalCounts;
+}
+
+/** Per-signal enqueue counters (status view: spans vs metrics vs logs). */
+interface SignalCounts {
+	span: number;
+	metric: number;
+	log: number;
 }
 
 /** Register the /pi-obs command: retained stats subs + status/flush/report (R7). */
@@ -285,7 +294,10 @@ function statusView(ctx: CtxLike, telemetry: TelemetryState | null): void {
 		}
 	}
 	const q = telemetry.queue.counters;
+	const sc = telemetry.signalCounts;
+	const total = sc.span + sc.metric + sc.log;
 	lines.push(`  queue: depth ${telemetry.queue.pending} · enqueued ${q.enqueued} · drained ${q.drained} · dropped ${q.dropped}`);
+	lines.push(`  signals: ${total} total — spans ${sc.span} · metrics ${sc.metric} · logs ${sc.log}`);
 	emit(ctx, lines.join("\n"));
 }
 
@@ -709,6 +721,7 @@ function wireTelemetry(pi: ExtensionAPI, result: ConfigResult): TelemetryState {
 		}
 	};
 	const exporters: Exporter[] = [];
+	const signalCounts: SignalCounts = { span: 0, metric: 0, log: 0 };
 	if (config.otlp !== null) {
 		exporters.push(new OtlpExporter({ endpoint: config.otlp.endpoint, headers: config.otlp.headers, timeoutMs: config.otlp.timeoutMs, batch: config.otlp.batch, resource, onError: exporterFault("otlp") }));
 	}
@@ -744,7 +757,10 @@ function wireTelemetry(pi: ExtensionAPI, result: ConfigResult): TelemetryState {
 	const capture = new LiveCapture(
 		config.capturePrompts,
 		config.captureToolIo,
-		(item) => queue.enqueue(item), // the ≤ 1 ms R1 path: assemble + enqueue, nothing else
+		(item) => {
+			signalCounts[item.kind]++;
+			queue.enqueue(item); // the ≤ 1 ms R1 path: assemble + enqueue, nothing else
+		},
 		() => queue.shutdown(FLUSH_TIMEOUT_MS),
 	);
 
@@ -770,7 +786,7 @@ function wireTelemetry(pi: ExtensionAPI, result: ConfigResult): TelemetryState {
 			}
 		});
 	}
-	return { queue, exporters, capturePrompts: config.capturePrompts, captureToolIo: config.captureToolIo, otlpEndpoint: config.otlp?.endpoint ?? null, fileMaxBytes: config.file?.maxBytes ?? null, fileMaxFiles: config.file?.maxFiles ?? null };
+	return { queue, exporters, capturePrompts: config.capturePrompts, captureToolIo: config.captureToolIo, otlpEndpoint: config.otlp?.endpoint ?? null, fileMaxBytes: config.file?.maxBytes ?? null, fileMaxFiles: config.file?.maxFiles ?? null, signalCounts };
 }
 
 // ---------------------------------------------------------------------------

@@ -546,3 +546,29 @@ test("harness spies: appendEntry records, unknown commands throw, notify path", 
 	const uiLog = (pi.lastContext as unknown as { uiLog: { notify: { text: string }[] } }).uiLog;
 	assert.ok(uiLog.notify.some((n) => n.text.includes("pi-obs · session")), "UI notify emit path");
 });
+
+test("status: per-signal breakdown — spans vs metrics vs logs counted separately", async () => {
+	activate();
+	// emit events that generate all three signal kinds
+	const branch = [
+		{ type: "message", timestamp: "2024-12-03T14:00:01.000Z", message: { role: "user", content: "test question", timestamp: 1733234401000 } },
+		{ type: "message", timestamp: "2024-12-03T14:01:01.000Z", message: { role: "assistant", provider: "openrouter", model: "m", usage: { input: 100, output: 50, totalTokens: 150, cost: { total: 0.002 } }, stopReason: "stop", timestamp: 1733234461000 } },
+	];
+	const ctx = mockContext({ mode: "print", hasUI: false, branch, sessionId: "s-signals", sessionDir: dir });
+	await pi.emit("session_start", { reason: "startup" }, ctx);
+	await pi.emit("turn_end", {}, ctx);
+	stdout = [];
+	await pi.runCommand("pi-obs", "status");
+	const text = stdout.join("\n");
+	// the per-signal line must distinguish the three kinds
+	assert.ok(text.includes("signals:"), `status has a signals line: ${text.slice(0, 300)}`);
+	assert.match(text, /spans \d+/);
+	assert.match(text, /metrics \d+/);
+	assert.match(text, /logs \d+/);
+	assert.match(text, /total/);
+	// the total equals the sum of the three kinds
+	const spans = Number(/spans (\d+)/.exec(text)?.[1] ?? 0);
+	const metrics = Number(/metrics (\d+)/.exec(text)?.[1] ?? 0);
+	const logs = Number(/logs (\d+)/.exec(text)?.[1] ?? 0);
+	assert.equal(spans + metrics + logs, Number(/(\d+) total/.exec(text)?.[1] ?? 0), "total == spans + metrics + logs");
+});
