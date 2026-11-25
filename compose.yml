@@ -439,6 +439,9 @@ services:
   otlp-jaeger:
     image: jaegertracing/jaeger:latest
     container_name: otlp-jaeger
+    # Restart on crash (not on explicit stop): the OTLP backend should be
+    # self-healing — if it crashes, Docker brings it back within seconds.
+    restart: unless-stopped
     # Jaeger v2 requires an explicit --config (OTel Collector format).
     # The config adds metrics/logs pipelines (the default only has traces,
     # which 404s pi-obs's /v1/metrics and /v1/logs requests).
