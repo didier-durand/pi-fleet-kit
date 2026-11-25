@@ -428,7 +428,14 @@ services:
   jaeger:
     image: jaegertracing/jaeger:latest
     ports:
-      - "16686:16686"   # Jaeger UI (browser)
+      # Jaeger UI — open http://localhost:16686 in the host browser.
+      # Only this port needs host mapping; agents reach the OTLP
+      # collector over the compose network (service name `jaeger`),
+      # not via host ports.
+      - "16686:16686"
+      # OTLP/HTTP — uncomment to expose to the host (e.g. for the
+      # pi-obs test scripts running outside Docker):
+      # - "4318:4318"
     environment:
       - COLLECTOR_OTLP_ENABLED=true
     # NOT labeled pi.agent.fleet=1: this is infrastructure, not an agent.
