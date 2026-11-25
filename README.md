@@ -12,6 +12,75 @@ See the dedicated READMEs: [extensions/intro](extensions/README.md),
 [extensions/pi-obs](extensions/pi-obs/README.md),
 [warp/](warp/README.md), [skills/](skills/), [docs/](docs/), [sources/](sources/).
 
+## Running environment
+
+```mermaid
+%%{init: {"flowchart": {"nodeSpacing": 12, "rankSpacing": 28, "padding": 6, "diagramPadding": 8, "subGraphTitleMargin": {"top": 4, "bottom": 2}}}}%%
+flowchart TB
+  subgraph MACHINE["Developer machine / Server"]
+    subgraph HOST["HOST — macOS · Linux · Windows"]
+    direction LR
+    WARP["Warp terminal — one tab per agent · agent_run.sh → docker compose run --rm · one instance per agent (heartbeat + fixed name)<br/>agents_start.sh · tabs_install.sh · fleet_doctor.sh · fleet app (macOS)"]
+    FILES["Host files & shell env · ~/pi-fleet-kit — repo: compose · skills · extensions · ~/pi-agents/[agent] — workspace clones<br/>~/pi-exchange/[agent] — watchdog dirs · ~/.ssh — signing key · env: model key · GitHub token · git identity · .env = dollar-brace refs"]
+  end
+  subgraph DOCKER["Docker — compose project: pi-agents · image: pi-sandbox"]
+    direction LR
+    FLEET["pi-fleet-kit<br/>pi-fleet-kit-home → ~/.pi/agent"]
+    DEV["pi-developer<br/>pi-developer-home → ~/.pi/agent<br/>+ /exchange"]
+    CODING["pi-coding-1<br/>pi-coding-1-home → ~/.pi/agent<br/>+ /exchange"]
+    CODING2["pi-coding-2<br/>pi-coding-2-home → ~/.pi/agent<br/>+ /exchange"]
+    REVIEW["pi-review-1<br/>pi-review-1-home → ~/.pi/agent<br/>+ /exchange"]
+    REVIEW2["pi-review-2<br/>pi-review-2-home → ~/.pi/agent<br/>+ /exchange"]
+    RESEARCH["pi-research<br/>pi-research-home → ~/.pi/agent"]
+    PERSONAL["pi-personal<br/>pi-personal-home → ~/.pi/agent"]
+  end
+  end
+  LLM["LLM providers (OpenRouter)<br/>model set per agent in compose.yml"]
+  GH["GitHub<br/>clone / pull / push over HTTPS (GITHUB_TOKEN)<br/>SSH-signed commits → Verified badge"]
+  NPM["npm registry · pi.dev/packages<br/>PI_PACKAGES=npm:pi-web-access<br/>pi-git-status · pi-prompt-trigger"]
+  HOST -->|"docker compose run"| DOCKER
+  HOST -->|"bind mounts · named volumes · env passthrough"| DOCKER
+  DOCKER -->|"LLM API calls"| LLM
+  DOCKER -->|"git over HTTPS · SSH signing"| GH
+  DOCKER -->|"pi install"| NPM
+  classDef warp fill:#DBEAFE,stroke:#2563EB,color:#1E3A8A
+  classDef files fill:#F1F5F9,stroke:#64748B,color:#334155
+  classDef yellow fill:#FEF3C7,stroke:#B45309,color:#92400E
+  classDef blue fill:#DBEAFE,stroke:#1D4ED8,color:#1E40AF
+  classDef cyan fill:#CFFAFE,stroke:#0E7490,color:#155E75
+  classDef green fill:#DCFCE7,stroke:#15803D,color:#166534
+  classDef magenta fill:#FCE7F3,stroke:#BE185D,color:#9D174D
+  classDef white fill:#FFFFFF,stroke:#64748B,color:#334155
+  classDef llm fill:#FFF8EC,stroke:#C08A2D,color:#7A5410
+  classDef gh fill:#F2FAF2,stroke:#3C8C4E,color:#256B36
+  classDef npm fill:#FFF8EC,stroke:#C08A2D,color:#7A5410
+  class WARP warp
+  class FILES files
+  class FLEET yellow
+  class DEV white
+  class CODING blue
+  class CODING2 blue
+  class REVIEW cyan
+  class REVIEW2 cyan
+  class RESEARCH green
+  class PERSONAL magenta
+  class LLM llm
+  class GH gh
+  class NPM npm
+  style HOST fill:#F5F9FF,stroke:#4A78B5,color:#2B4C7E
+  style DOCKER fill:#F7F4FD,stroke:#6A4FA3,color:#4C3575
+  style MACHINE fill:#FBFDFF,stroke:#94A3B8,color:#334155
+```
+
+The whole system in one picture: the host runs **Warp** (one tab per agent,
+launching through `agent_run.sh`) and, on macOS, the **Pi Agent Fleet** Dock
+app; Docker runs eight `pi-sandbox` containers from the `pi-agents` compose
+project, each with its own
+persistent Pi-home volume, its own workspace git
+clone, and read-only mounts of this repo's skills/extensions; outside, the
+agents talk to the model API (OpenRouter), GitHub (HTTPS auth + SSH commit
+signing), and npm (Pi Packages, including this repo's published extensions).
+
 ## Machine requirements (portability)
 
 No path in this repo is user-specific: all runtime paths are `${HOME}`- or
@@ -122,74 +191,6 @@ Both carry the `pi-package` keyword and appear in the Pi package gallery.
 See [extensions/README.md](extensions/README.md) for details and the
 release workflow.
 
-## Running environment
-
-```mermaid
-%%{init: {"flowchart": {"nodeSpacing": 12, "rankSpacing": 28, "padding": 6, "diagramPadding": 8, "subGraphTitleMargin": {"top": 4, "bottom": 2}}}}%%
-flowchart TB
-  subgraph MACHINE["Developer machine / Server"]
-    subgraph HOST["HOST — macOS · Linux · Windows"]
-    direction LR
-    WARP["Warp terminal — one tab per agent · agent_run.sh → docker compose run --rm · one instance per agent (heartbeat + fixed name)<br/>agents_start.sh · tabs_install.sh · fleet_doctor.sh · fleet app (macOS)"]
-    FILES["Host files & shell env · ~/pi-fleet-kit — repo: compose · skills · extensions · ~/pi-agents/[agent] — workspace clones<br/>~/pi-exchange/[agent] — watchdog dirs · ~/.ssh — signing key · env: model key · GitHub token · git identity · .env = dollar-brace refs"]
-  end
-  subgraph DOCKER["Docker — compose project: pi-agents · image: pi-sandbox"]
-    direction LR
-    FLEET["pi-fleet-kit<br/>pi-fleet-kit-home → ~/.pi/agent"]
-    DEV["pi-developer<br/>pi-developer-home → ~/.pi/agent<br/>+ /exchange"]
-    CODING["pi-coding-1<br/>pi-coding-1-home → ~/.pi/agent<br/>+ /exchange"]
-    CODING2["pi-coding-2<br/>pi-coding-2-home → ~/.pi/agent<br/>+ /exchange"]
-    REVIEW["pi-review-1<br/>pi-review-1-home → ~/.pi/agent<br/>+ /exchange"]
-    REVIEW2["pi-review-2<br/>pi-review-2-home → ~/.pi/agent<br/>+ /exchange"]
-    RESEARCH["pi-research<br/>pi-research-home → ~/.pi/agent"]
-    PERSONAL["pi-personal<br/>pi-personal-home → ~/.pi/agent"]
-  end
-  end
-  LLM["LLM providers (OpenRouter)<br/>model set per agent in compose.yml"]
-  GH["GitHub<br/>clone / pull / push over HTTPS (GITHUB_TOKEN)<br/>SSH-signed commits → Verified badge"]
-  NPM["npm registry · pi.dev/packages<br/>PI_PACKAGES=npm:pi-web-access<br/>pi-git-status · pi-prompt-trigger"]
-  HOST -->|"docker compose run"| DOCKER
-  HOST -->|"bind mounts · named volumes · env passthrough"| DOCKER
-  DOCKER -->|"LLM API calls"| LLM
-  DOCKER -->|"git over HTTPS · SSH signing"| GH
-  DOCKER -->|"pi install"| NPM
-  classDef warp fill:#DBEAFE,stroke:#2563EB,color:#1E3A8A
-  classDef files fill:#F1F5F9,stroke:#64748B,color:#334155
-  classDef yellow fill:#FEF3C7,stroke:#B45309,color:#92400E
-  classDef blue fill:#DBEAFE,stroke:#1D4ED8,color:#1E40AF
-  classDef cyan fill:#CFFAFE,stroke:#0E7490,color:#155E75
-  classDef green fill:#DCFCE7,stroke:#15803D,color:#166534
-  classDef magenta fill:#FCE7F3,stroke:#BE185D,color:#9D174D
-  classDef white fill:#FFFFFF,stroke:#64748B,color:#334155
-  classDef llm fill:#FFF8EC,stroke:#C08A2D,color:#7A5410
-  classDef gh fill:#F2FAF2,stroke:#3C8C4E,color:#256B36
-  classDef npm fill:#FFF8EC,stroke:#C08A2D,color:#7A5410
-  class WARP warp
-  class FILES files
-  class FLEET yellow
-  class DEV white
-  class CODING blue
-  class CODING2 blue
-  class REVIEW cyan
-  class REVIEW2 cyan
-  class RESEARCH green
-  class PERSONAL magenta
-  class LLM llm
-  class GH gh
-  class NPM npm
-  style HOST fill:#F5F9FF,stroke:#4A78B5,color:#2B4C7E
-  style DOCKER fill:#F7F4FD,stroke:#6A4FA3,color:#4C3575
-  style MACHINE fill:#FBFDFF,stroke:#94A3B8,color:#334155
-```
-
-The whole system in one picture: the host runs **Warp** (one tab per agent,
-launching through `agent_run.sh`) and, on macOS, the **Pi Agent Fleet** Dock
-app; Docker runs eight `pi-sandbox` containers from the `pi-agents` compose
-project, each with its own
-persistent Pi-home volume, its own workspace git
-clone, and read-only mounts of this repo's skills/extensions; outside, the
-agents talk to the model API (OpenRouter), GitHub (HTTPS auth + SSH commit
-signing), and npm (Pi Packages, including this repo's published extensions).
 
 ## Usage
 
