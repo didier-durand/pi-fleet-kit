@@ -126,6 +126,7 @@ services:
       - PI_OBS_OTLP_ENDPOINT=http://otlp-jaeger:4318
       - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-developer
       - PI_OBS_CAPTURE_PROMPTS=1
+      - PI_OBS_CAPTURE_TOOL_IO=1
       - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
@@ -174,6 +175,7 @@ services:
       - PI_OBS_OTLP_ENDPOINT=http://otlp-jaeger:4318
       - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-coding-1
       - PI_OBS_CAPTURE_PROMPTS=1
+      - PI_OBS_CAPTURE_TOOL_IO=1
       - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
@@ -225,6 +227,7 @@ services:
       - PI_OBS_OTLP_ENDPOINT=http://otlp-jaeger:4318
       - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-coding-2
       - PI_OBS_CAPTURE_PROMPTS=1
+      - PI_OBS_CAPTURE_TOOL_IO=1
       - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
@@ -272,6 +275,7 @@ services:
       - PI_OBS_OTLP_ENDPOINT=http://otlp-jaeger:4318
       - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-review-1
       - PI_OBS_CAPTURE_PROMPTS=1
+      - PI_OBS_CAPTURE_TOOL_IO=1
       - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
@@ -318,6 +322,7 @@ services:
       - PI_OBS_OTLP_ENDPOINT=http://otlp-jaeger:4318
       - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-review-2
       - PI_OBS_CAPTURE_PROMPTS=1
+      - PI_OBS_CAPTURE_TOOL_IO=1
       - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
@@ -367,6 +372,7 @@ services:
       - PI_OBS_OTLP_ENDPOINT=http://otlp-jaeger:4318
       - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-research
       - PI_OBS_CAPTURE_PROMPTS=1
+      - PI_OBS_CAPTURE_TOOL_IO=1
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
@@ -415,6 +421,7 @@ services:
       - PI_OBS_OTLP_ENDPOINT=http://otlp-jaeger:4318
       - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-personal
       - PI_OBS_CAPTURE_PROMPTS=1
+      - PI_OBS_CAPTURE_TOOL_IO=1
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:

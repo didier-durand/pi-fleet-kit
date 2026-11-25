@@ -602,6 +602,9 @@ class LiveCapture {
 					if (path !== undefined) attrs["pi.tool.path"] = path; // R2: paths are the work being observed
 					const command = str(input?.command);
 					if (command !== undefined) attrs["pi.tool.command"] = command;
+					if (this.captureToolIo && input !== undefined && Object.keys(input).length > 0) {
+						attrs["pi.tool.input"] = redact(JSON.stringify(input)); // R2: opt-in AND redacted before the queue
+					}
 					addEvent(tool, "pi.tool.outcome", attrs);
 					return undefined;
 				};
@@ -611,8 +614,8 @@ class LiveCapture {
 					if (tool === undefined) return undefined;
 					if ((event as { isError?: unknown }).isError === true) tool.attributes["pi.tool.is_error"] = true;
 					if (this.captureToolIo) {
-						const content = (event as { content?: unknown }).content;
-						if (typeof content === "string") tool.attributes["pi.tool.result"] = redact(content); // R2: opt-in AND redacted before the queue
+						const resultText = contentText((event as { content?: unknown }).content);
+						if (resultText) tool.attributes["pi.tool.result"] = redact(resultText); // R2: opt-in AND redacted before the queue
 					}
 					return undefined;
 				};
