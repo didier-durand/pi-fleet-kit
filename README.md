@@ -5,7 +5,8 @@ pi-fleet-kit is a ready-made solution for running a **fleet of Pi coding agents 
 See the dedicated READMEs: [extensions/intro](extensions/README.md),
 [extensions/git-status](extensions/git-status/README.md),
 [extensions/prompt-trigger](extensions/prompt-trigger/README.md),
-[warp/](warp/README.md), [skills/](skills/), [docs/](docs/).
+[extensions/pi-obs](extensions/pi-obs/README.md),
+[warp/](warp/README.md), [skills/](skills/), [docs/](docs/), [sources/](sources/).
 
 ## Machine requirements (portability)
 
@@ -51,15 +52,17 @@ mirroring the host's setup.
 | `compose.yml` | Defines the agent services. Currently eight agents — `pi-fleet-kit`, `pi-developer`, `pi-coding-1`, `pi-coding-2`, `pi-review-1`, `pi-review-2`, `pi-research`, `pi-personal` — all running the `pi-sandbox` image, each with its own persistent Pi-home volume and a bind-mounted workspace under `~/pi-agents/`. |
 | `Dockerfile.pi` | Builds the `pi-sandbox` image: Node 24 base, git + ripgrep + GitHub CLI (`gh`, from the official cli.github.com apt repo), `pi` installed globally, the entrypoint wrapper below, and a non-root `pi` user (least privilege — the agent runs unprivileged). CI also publishes it (private package) as `ghcr.io/didier-durand/pi-sandbox`. |
 | `utils/gen-fleet-registry.sh` | Generates `fleet/agent-registry.md` (the fleet "who does what" table) from `compose.yml`; the `fleet/` directory is mounted read-only into every agent at `/fleet`. |
+| `utils/check-extension.sh` · `utils/run-tests.sh` | CI helpers: per-extension sanity gate (manifest, CHANGELOG, tsc, npm-pack tarball, optional live-load smoke test) and unit tests under V8 coverage with a Markdown job summary — each driven by its own GitHub workflow. |
 | `utils/entrypoint.sh` | Container entrypoint. Before handing off to `pi`, it configures the agent's git environment from env vars passed by Compose: commit identity (`GITHUB_USER_NAME`/`GITHUB_USER_EMAIL`) and a token-based git credential helper (`GITHUB_TOKEN`) — the container has no keyring, so auth must come from the environment. |
 | `.env` | Credentials bridge for Compose. Holds **`${VAR}` references only** (e.g. `GITHUB_TOKEN=${GITHUB_TOKEN}`), resolved from the host shell when `docker compose` runs. |
-| `.gitignore` | Excludes `.DS_Store` and the legacy agent workspace (`finance-agent/`); agent workspaces now live outside this repo in `~/pi-agents/`. |
+| `.gitignore` | Excludes `.DS_Store`, coverage output and the legacy agent workspace (`finance-agent/`); agent workspaces now live outside this repo in `~/pi-agents/`. |
 | `.githooks/pre-commit` | Secret-leak guard (see below). |
 | `package.json` | Pi package manifest (see below). |
 | `skills/` | Installable Pi skills; each subdirectory holds a `SKILL.md` (Agent Skills spec). Currently `build-skill`, `github-best-practices`, `hello-world`, `publishing-best-practices`, `write-pull-request`, `review-pull-request`, `write-code`, `write-specifications`, `write-implementation-plan`, `web-research`, `prompt-agent`, `apply-pull-request`. |
-| `extensions/` | Shared Pi extensions (`git-status`, `prompt-trigger`), also published as standalone npm Pi Packages (`pi-git-status`, `pi-prompt-trigger`) — see [extensions/README.md](extensions/README.md). |
+| `extensions/` | Shared Pi extensions (`git-status`, `prompt-trigger` — also published as standalone npm Pi Packages, `pi-git-status` / `pi-prompt-trigger`) plus `pi-obs` (OpenTelemetry observability, imported v0.1.9, not yet wired into the fleet) — see [extensions/README.md](extensions/README.md). |
 | `fleet/` | Fleet-level files shared with agents: `agent-registry.md` (the generated who-does-what table), mounted read-only at `/fleet` in every container. |
 | `docs/` | Supplementary docs (e.g. registering the agents' SSH signing key on GitHub). |
+| `sources/` | Summaries of external sources informing the fleet's practices (e.g. `vuln-to-pr/` — a dataset of vulnerability-introducing pull requests). |
 | `LICENSE` | MIT license text. |
 | `warp/` | Warp editor config: Tab Configs for the agents (`tab_configs/`), a launcher (`agent_run.sh`), an all-agents launcher (`agents_start.sh`), a config installer (`tabs_install.sh`), a fleet diagnostic (`fleet_doctor.sh`), a macOS Dock app builder (`build_fleet_app.sh`), and feature-request drafts (`issues/`). |
 
