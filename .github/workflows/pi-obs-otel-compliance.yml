@@ -73,6 +73,18 @@ jobs:
           done
           echo "| ✅ | Rendered HTML content | $(du -h /tmp/otel-compliance.html | cut -f1), headings + service names present |" >> /tmp/compliance-rows.md
 
+      # The full rendered report (58 MB HTML, ~4 MB zipped) as a run artifact:
+      # the job summary links to its download page. Retention kept short —
+      # it is a render of a fixed fixture, not unique data.
+      - name: Upload the rendered HTML as an artifact
+        id: html
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: otel-compliance-traces
+          path: /tmp/otel-compliance.html
+          retention-days: 7
+
       - name: Job summary
         if: always()
         run: |
@@ -88,5 +100,9 @@ jobs:
             echo "| Result | Check | Detail |"
             echo "|---|---|---|"
             cat /tmp/compliance-rows.md 2>/dev/null || echo "| ❌ | (workflow failed before any check completed) | see job logs |"
+            if [ -n "${{ steps.html.outputs.artifact-id }}" ]; then
+              echo
+              echo "📄 **Full rendered report:** [otel-compliance-traces.html](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ steps.html.outputs.artifact-id }}) — click to open the artifact page and download the HTML (unzip, then open in a browser)."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
           cat "$GITHUB_STEP_SUMMARY"
