@@ -42,7 +42,7 @@ jobs:
       # (latest, main, daily) are added AFTER the smoke tests pass (promotion
       # step below) — a failed verification leaves latest pointing at the
       # last good image, so agents never pull an unverified build.
-      - name: Docker metadata (staging: sha tag only)
+      - name: "Docker metadata (staging: sha tag only)"
         id: meta
         uses: docker/metadata-action@v5
         with:
