@@ -50,7 +50,7 @@ jobs:
           tags: |
             type=sha
             type=semver,pattern={{version}}
-            flavor: latest=false
+          flavor: latest=false   # staging: no auto-latest — promotion adds it after verification
 
       - name: Build and push (amd64 + arm64)
         id: build
