@@ -37,19 +37,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Tags: branch name (main), semver from v* tags, the commit SHA
-      # (every build addressable), and latest on the default branch.
-      - name: Docker metadata
+      # STAGING: push with ONLY the immutable sha tag (plus the semver tag on
+      # version pushes — both are per-build, never moving). The mutable tags
+      # (latest, main, daily) are added AFTER the smoke tests pass (promotion
+      # step below) — a failed verification leaves latest pointing at the
+      # last good image, so agents never pull an unverified build.
+      - name: Docker metadata (staging: sha tag only)
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository_owner }}/pi-sandbox
           tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
             type=sha
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=daily,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            flavor: latest=false
 
       - name: Build and push (amd64 + arm64)
         id: build
@@ -102,6 +103,28 @@ jobs:
 
       # Identical checks on both platforms: entrypoint + pi version, and
       # the toolchain agents depend on (git / gh / node).
+      # PROMOTION: only reached when every verification step passed. Re-tags
+      # the verified digest with the mutable tags WITHOUT rebuilding (the
+      # manifest index is copied server-side by buildx imagetools).
+      #   - push/dispatch on main: latest + main
+      #   - schedule (daily):      latest + main + daily
+      #   - v* tag push:           latest + <version>
+      # On any earlier failure the job stops here — the tags keep pointing
+      # at the previous verified image.
+      - name: Promote the verified image (latest + trigger tags)
+        run: |
+          SOURCE="ghcr.io/${{ github.repository_owner }}/pi-sandbox@${{ steps.build.outputs.digest }}"
+          REPO="ghcr.io/${{ github.repository_owner }}/pi-sandbox"
+          TAGS=(latest main)
+          if [ "${{ github.event_name }}" = "schedule" ]; then TAGS+=(daily); fi
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAGS=(latest "${GITHUB_REF_NAME#v}")
+          fi
+          for tag in "${TAGS[@]}"; do
+            docker buildx imagetools create -t "$REPO:$tag" "$SOURCE"
+            echo "| ✅ | Promoted to \`:$tag\` | both platforms | verified digest ${{ steps.build.outputs.digest }} |" >> /tmp/job-summary.md
+          done
+
       # Identical checks on both platforms: entrypoint + pi version, then
       # one line per tool (git / gh / node) in the job summary.
       - name: Smoke-run the pulled image (amd64)
