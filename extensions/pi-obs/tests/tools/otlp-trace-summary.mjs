@@ -109,10 +109,27 @@ const renderSpan = (sp, list, prefix, depth, isLast, out, visited) => {
   }
   const content = sp.content ? ` — "${excerpt(sp.content)}"` : "";
   out.push(`${prefix}${branch}${label} (${durStr})${detail}${content}`);
-  // child spans (same trace only)
+  // children (same trace only) + span events, interleaved by timestamp:
+  // events (◆) render inline — pi.user.input carries the prompt text right
+  // where it happened, next to the pi.model span carrying the answer.
   const children = list.filter((s) => s.parent === sp.spanId);
   const childPrefix = depth === 0 ? "" : prefix + (isLast ? "   " : "│  ");
-  children.forEach((child, i) => renderSpan(child, list, childPrefix, depth + 1, i === children.length - 1, out, visited));
+  const nodes = [
+    ...(sp.events ?? []).map((ev) => ({
+      t: Number(ev.timeUnixNano ?? 0), kind: "event", ev,
+    })),
+    ...children.map((c) => ({ t: Number(c.start), kind: "span", c })),
+  ].sort((a, b) => a.t - b.t);
+  nodes.forEach((n, i) => {
+    const last = i === nodes.length - 1;
+    if (n.kind === "event") {
+      const branch = depth === 0 ? "◆ " : last ? "└─ ◆ " : "├─ ◆ ";
+      const evContent = n.ev.content ?? attrOf(n.ev.attributes, "pi.tool.command") ?? attrOf(n.ev.attributes, "pi.tool.path");
+      out.push(`${childPrefix}${branch}${n.ev.name}${evContent ? ` — "${excerpt(evContent)}"` : ""}`);
+    } else {
+      renderSpan(n.c, list, childPrefix, depth + 1, last, out, visited);
+    }
+  });
 };
 
 for (const [traceId, list] of byTrace) {
