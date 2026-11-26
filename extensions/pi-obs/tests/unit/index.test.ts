@@ -307,7 +307,7 @@ test("tool IO capture: tool_call records the input JSON as pi.tool.input (R2 opt
 	assert.ok(tool, "the bash tool span exists");
 	const outcome = (tool!.events as { name: string; attributes: { key: string; value: Record<string, unknown> }[] }[]).flat().find((e) => e.name === "pi.tool.outcome");
 	assert.ok(outcome, "the pi.tool.outcome event exists (the handler was not disabled)");
-	const input = outcome.attributes.find((a) => a.key === "pi.tool.input")?.value?.stringValue ?? "";
+	const input = String(outcome.attributes.find((a) => a.key === "pi.tool.input")?.value?.stringValue ?? "");
 	assert.ok(input.includes("send.sh pi-developer -"), "the input JSON is captured");
 	assert.ok(!input.includes("sk-abcdefgh12345678"), "R2 redaction applied before the queue");
 	assert.ok(input.includes("[REDACTED]"), "the credential became [REDACTED]");
