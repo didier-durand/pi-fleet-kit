@@ -1,5 +1,6 @@
 # Mailbox-scenario override: activates the prompt-trigger bridge on the two
-# coding agents so the fleet test can exercise a real 2-way exchange.
+# coding agents and on the pi-fleet-kit → pi-developer pair, so the fleet
+# test can exercise a real 2-way exchange and a simple one-way request.
 #
 # The base compose.yml keeps the bridge dormant fleet-wide (no --extension,
 # no PI_TRIGGER_DIR, no exchange mounts). This committed override — used ONLY
@@ -18,6 +19,13 @@
 # The exchange tree itself (pi-exchange/<agent>/{inbox,working,pending,
 # processed,failed}) is created by setupMaildir at session start; only the
 # agent dirs must pre-exist for the bind mounts.
+#
+# pi-fleet-kit's base config disables telemetry export (PI_OBS_ENABLED=0 —
+# the config manager sees sensitive fleet content). The simple-exchange
+# scenario needs its spans (the OTLP proof that the LLM called the bash
+# tool to run send.sh), so the override re-enables it with the same
+# capture flags the other agents carry. Compose merges `environment`
+# per key: the override value wins over the base value.
 
 services:
   pi-coding-1:
@@ -47,3 +55,38 @@ services:
        "--skill", "/repo-skills/github-best-practices",
        "--skill", "/repo-skills/write-code",
        "--skill", "/repo-skills/write-pull-request"]
+
+  # Simple-exchange pair (fleet test: pi-fleet-kit sends one request, its
+  # LLM driving the bash tool that runs send.sh; pi-developer answers).
+  pi-fleet-kit:
+    volumes:
+      - ${PI_FLEET_KIT_HOME:-$HOME}/pi-exchange:/exchange
+    environment:
+      # base sets PI_OBS_ENABLED=0 — this scenario needs the spans:
+      - PI_OBS_ENABLED=1
+      - PI_OBS_OTLP_ENDPOINT=http://otlp-jaeger:4318
+      - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-fleet-kit
+      - PI_OBS_CAPTURE_PROMPTS=1
+      - PI_OBS_CAPTURE_TOOL_IO=1
+      - PI_TRIGGER_DIR=/exchange/pi-fleet-kit
+    command:
+      ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
+       "--extension", "/repo-extensions/pi-obs/index.ts",
+       "--extension", "/repo-extensions/git-status/git-status.ts",
+       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
+       "--skill", "/repo-skills/build-skill",
+       "--skill", "/repo-skills/github-best-practices"]
+
+  pi-developer:
+    volumes:
+      - ${PI_FLEET_KIT_HOME:-$HOME}/pi-exchange:/exchange
+    environment:
+      - PI_TRIGGER_DIR=/exchange/pi-developer
+    command:
+      ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
+       "--extension", "/repo-extensions/pi-obs/index.ts",
+       "--extension", "/repo-extensions/git-status/git-status.ts",
+       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
+       "--skill", "/repo-skills/github-best-practices",
+       "--skill", "/repo-skills/write-specifications",
+       "--skill", "/repo-skills/write-implementation-plan"]

@@ -17,15 +17,21 @@ name: prompt-trigger-fleet-test
 # semantics. Jaeger stays the operator's UI; CI wants files.
 #
 # Mailbox scenario: the same compose-native mechanism activates the
-# prompt-trigger bridge on the two coding agents via the COMMITTED
-# compose.mailbox.yml override (COMPOSE_FILE=compose.yml:compose.mailbox.yml)
-# — the only override in the kit, versioned and reviewed, for the one
-# scenario the dormant base config cannot express (partial-service wiring).
-# The test runs a real 2-way exchange: send.sh drops a request into
-# pi-coding-2's inbox; its LLM answers; the settled reply lands in
-# pi-coding-1's inbox and its LLM reads it — proven three ways: mailbox
-# files (correlation_id chain), and OTLP spans (the PONG answer on
-# pi-coding-2's model span; pi-coding-1's turn on the delivered reply).
+# prompt-trigger bridge on the two coding agents and on the
+# pi-fleet-kit → pi-developer pair via the COMMITTED compose.mailbox.yml
+# override (COMPOSE_FILE=compose.yml:compose.mailbox.yml) — the only
+# override in the kit, versioned and reviewed, for the scenarios the
+# dormant base config cannot express (partial-service wiring).
+# Two exchanges are proven, both via mailbox files AND OTLP spans:
+#   1. simple: pi-fleet-kit's LLM calls its bash tool to run send.sh
+#      (OTLP: pi.model + pi.tool bash span carrying the "sent:" write);
+#      pi-developer's tick delivers it, its LLM answers "3 + 2 = 5"
+#      (OTLP: pi.user.input event with the delivered prompt + a
+#      pi.model span with the answer), the reply settles correlated.
+#   2. 2-way: send.sh drops a request into pi-coding-2's inbox; its
+#      LLM answers; the settled reply lands in pi-coding-1's inbox
+#      and its LLM reads it (the PONG answer on pi-coding-2's model
+#      span; pi-coding-1's turn on the delivered reply).
 #
 # Mechanism: with piped stdin and no TTY (docker compose run -T), pi uses
 # print mode automatically and prepends the piped content as the first
@@ -73,7 +79,8 @@ jobs:
           # exchange dirs pre-exist and are RUNNER-OWNED: docker otherwise
           # auto-creates missing bind-mount sources as root, which would lock
           # send.sh (and the agents) out of the maildirs
-          mkdir -p "$PI_FLEET_KIT_HOME/pi-exchange/pi-coding-1" "$PI_FLEET_KIT_HOME/pi-exchange/pi-coding-2"
+          mkdir -p "$PI_FLEET_KIT_HOME/pi-exchange/pi-coding-1" "$PI_FLEET_KIT_HOME/pi-exchange/pi-coding-2" \
+                   "$PI_FLEET_KIT_HOME/pi-exchange/pi-fleet-kit" "$PI_FLEET_KIT_HOME/pi-exchange/pi-developer"
 
       - name: Start the collector (the CI telemetry backend)
         run: |
@@ -107,6 +114,52 @@ jobs:
             fi
             sleep 4   # exporter flush window; avoid rate bursts
           done
+
+      # Simple mailbox exchange (the minimal request/response pair): the
+      # pi-fleet-kit LLM itself calls the bash tool to run send.sh (no tick
+      # involved — the send happens inside its turn; OTLP later proves the
+      # pi.model + pi.tool bash spans), the request lands in pi-developer's
+      # inbox, the tick delivers it, its LLM answers "3 + 2 = 5" and
+      # agent_end settles the correlated reply into pi-fleet-kit's inbox.
+      - name: Simple mailbox exchange (pi-fleet-kit → pi-developer)
+        run: |
+          EXCHANGE="$PI_FLEET_KIT_HOME/pi-exchange"
+          echo "| ℹ️ | simple exchange | bridge active on pi-fleet-kit + pi-developer (committed compose.mailbox.yml) |" >> /tmp/fleet-rows.md
+
+          # 1. pi-fleet-kit SENDS: the LLM must run send.sh through its bash
+          #    tool — a plain script call would not prove the LLM+tool path
+          printf 'You are agent pi-fleet-kit. Send a mailbox message to the agent pi-developer.\nYour sender id comes from $PI_TRIGGER_DIR (already set in your environment).\nRun exactly: bash /repo-extensions/prompt-trigger/send.sh pi-developer - <<< "how much is 3+2 ?"\nThen reply with the envelope path that was written.' \
+            | timeout 180 docker compose run -T --rm pi-fleet-kit 2>&1 | tail -3
+          REQ=$(ls "$EXCHANGE/pi-developer/inbox/"msg-*.json 2>/dev/null | head -1)
+          [ -n "$REQ" ] || { echo "pi-fleet-kit produced no request envelope (LLM + bash send failed)" >&2; exit 1; }
+          REQ_ID=$(basename "$REQ")
+          echo "| ✅ | simple exchange: request written | pi-fleet-kit (LLM + bash tool) wrote $REQ_ID |" >> /tmp/fleet-rows.md
+
+          # 2. pi-developer consumes it: kick with a LONG turn (the mailbox
+          #    tick fires 1.5s after session start and container startup eats
+          #    ~2.5s — the turn must stream past ~4s or the run exits before
+          #    the first tick; see the coding-exchange step for the math)
+          DEVKICK="Write a 400-word essay about the ocean. Do not use any tools."
+          for i in 1 2 3; do
+            echo "$DEVKICK" | timeout 240 docker compose run -T --rm pi-developer 2>&1 | tail -2 || true
+            [ -f "$EXCHANGE/pi-developer/processed/$REQ_ID" ] && break
+            echo "attempt $i: request not yet processed; retrying"
+            sleep 2
+          done
+          [ -f "$EXCHANGE/pi-developer/processed/$REQ_ID" ] || { echo "pi-developer never processed $REQ_ID" >&2; ls -R "$EXCHANGE/pi-developer" >&2; exit 1; }
+          echo "| ✅ | simple exchange: request consumed | pi-developer processed $REQ_ID (inbox → processed) |" >> /tmp/fleet-rows.md
+
+          # 3. the settled reply must sit in pi-fleet-kit's inbox, correlated
+          REPLY=$(ls "$EXCHANGE/pi-fleet-kit/inbox/"msg-*.json 2>/dev/null | head -1)
+          [ -n "$REPLY" ] || { echo "no reply in pi-fleet-kit's inbox" >&2; exit 1; }
+          REPLY_ID=$(basename "$REPLY")
+          node -e '
+          const env = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+          const ok = env.type === "reply" && env.correlation_id === process.argv[2]
+            && env.from === "pi-developer" && env.to === "pi-fleet-kit" && /5/.test(env.body);
+          console.log("reply envelope:", JSON.stringify(env));
+          if (!ok) { console.error("reply envelope failed validation"); process.exit(1); }' "$REPLY" "$REQ_ID"
+          echo "| ✅ | simple exchange: reply correlated | $REPLY_ID echoes correlation_id=$REQ_ID, body contains the answer (3+2=5) |" >> /tmp/fleet-rows.md
 
       # 2-way mailbox exchange (SPECS v1.1.0 R9-R12): send.sh drops a request
       # into pi-coding-2's inbox; the extension delivers it on a tick (1.5s),
@@ -224,7 +277,7 @@ jobs:
           # every telemetry-active agent must have spans AND metrics in the capture;
           # logs = 0 is HEALTHY (pi-obs emits log records only for faults —
           # exporter failures, drops — so a clean run carries none)
-          for agent in $(docker compose config --services | grep '^pi-' | grep -v '^pi-fleet-kit$' | sort); do
+          for agent in $(docker compose config --services | grep '^pi-' | sort); do
             read -r SP MN LG <<< "$(node -e "const s=JSON.parse(require('fs').readFileSync('/tmp/otel-stats.json','utf8'))['pi-agent-$agent']??{};console.log(s.spans??0, s.metrics??0, s.logs??0)")"
             S="$SP spans · $MN metrics · $LG logs"
             if [ "${SP:-0}" -gt 0 ] && [ "${MN:-0}" -gt 0 ]; then
@@ -237,7 +290,6 @@ jobs:
               echo "| ❌ | OTLP capture: \`pi-agent-$agent\` | incomplete: $S |" >> /tmp/fleet-rows.md
             fi
           done
-          echo "| ℹ️ | pi-fleet-kit exports nothing (PI_OBS_ENABLED=0, by design) | |" >> /tmp/fleet-rows.md
           # the 2-way exchange, proven in the spans: pi-coding-2's model span
           # carries the LLM-generated PONG (its answer to the delivered
           # request); pi-coding-1 has model spans for its turn on the
@@ -249,9 +301,15 @@ jobs:
           const models = {};
           for (const line of lines) {
             let rec; try { rec = JSON.parse(line); } catch { continue; }
-            for (const b of [rec.body].flat()) {
-              const doc = typeof b === "string" ? JSON.parse(b) : b;
-              for (const rs of doc.resourceSpans ?? []) {
+            // the capture carries raw OTLP/JSON export requests; some lines
+            // may nest one in a log-record body — accept both shapes
+            const docs = [rec];
+            if (rec && rec.body !== undefined) docs.push(rec.body);
+            for (const doc of docs) {
+              let d = doc;
+              if (typeof d === "string") { try { d = JSON.parse(d); } catch { continue; } }
+              if (!d || typeof d !== "object") continue;
+              for (const rs of d.resourceSpans ?? []) {
                 const svc = (rs.resource?.attributes ?? []).find(a => a.key === "service.name")?.value?.stringValue ?? "?";
                 for (const ss of rs.scopeSpans ?? []) for (const s of ss.spans ?? []) {
                   if (s.name !== "pi.model") continue;
@@ -269,6 +327,52 @@ jobs:
           row(models1 >= 1, "exchange via OTLP spans: pi-coding-1", `${models1} model span(s) — LLM turn on the delivered reply`);
           if (pong2 < 1 || models1 < 1) process.exit(1);
           ' "$CAPTURE" >> /tmp/fleet-rows.md || { cat /tmp/fleet-rows.md | tail -4; echo "OTLP span analysis failed" >&2; exit 1; }
+          # the simple exchange, proven in the spans: pi-fleet-kit has model
+          # spans AND a bash tool span whose captured result carries the
+          # "sent:" envelope write (the LLM ran send.sh through the tool);
+          # pi-developer received the delivered prompt as user input and a
+          # model span answers it (3 + 2 = 5).
+          node -e '
+          const fs = require("fs");
+          const lines = fs.readFileSync(process.argv[1], "utf8").split("\n").filter(Boolean);
+          const byService = {};
+          for (const line of lines) {
+            let rec; try { rec = JSON.parse(line); } catch { continue; }
+            const docs = [rec];
+            if (rec && rec.body !== undefined) docs.push(rec.body);
+            for (const doc of docs) {
+              let d = doc;
+              if (typeof d === "string") { try { d = JSON.parse(d); } catch { continue; } }
+              if (!d || typeof d !== "object") continue;
+              for (const rs of d.resourceSpans ?? []) {
+                const svc = (rs.resource?.attributes ?? []).find(a => a.key === "service.name")?.value?.stringValue ?? "?";
+                for (const ss of rs.scopeSpans ?? []) for (const s of ss.spans ?? []) {
+                  const m = byService[svc] = byService[svc] ?? { modelTexts: [], bashResults: [], userInputs: [] };
+                  const attr = k => (s.attributes ?? []).find(a => a.key === k)?.value?.stringValue;
+                  if (s.name === "pi.model") m.modelTexts.push(attr("pi.content.text") ?? "");
+                  if (s.name === "pi.tool bash") m.bashResults.push(attr("pi.tool.result") ?? "");
+                  for (const e of s.events ?? []) {
+                    const t = (e.attributes ?? []).find(a => a.key === "pi.content.text")?.value?.stringValue;
+                    if (e.name === "pi.user.input" && t) m.userInputs.push(t);
+                  }
+                }
+              }
+            }
+          }
+          const fk = byService["pi-agent-pi-fleet-kit"] ?? { modelTexts: [], bashResults: [], userInputs: [] };
+          const dv = byService["pi-agent-pi-developer"] ?? { modelTexts: [], bashResults: [], userInputs: [] };
+          const row = (ok, label, detail) => console.log(`| ${ok ? "✅" : "❌"} | ${label} | ${detail} |`);
+          const sent = fk.bashResults.some(t => t.includes("sent:"));
+          const received = dv.userInputs.some(t => t.includes("3+2"));
+          const answered = dv.modelTexts.some(t => /3\s*\+\s*2/.test(t));
+          row(fk.modelTexts.length >= 1 && sent, "simple exchange via OTLP: pi-fleet-kit",
+              `${fk.modelTexts.length} model span(s) + a bash tool span whose captured result carries the "sent:" envelope write`);
+          row(received, "simple exchange via OTLP: pi-developer received",
+              "pi.user.input event carries the delivered request \"how much is 3+2 ?\"");
+          row(answered, "simple exchange via OTLP: pi-developer processed",
+              "a pi.model span carries the LLM answer (3 + 2 = 5)");
+          if (fk.modelTexts.length < 1 || !sent || !received || !answered) process.exit(1);
+          ' "$CAPTURE" >> /tmp/fleet-rows.md || { cat /tmp/fleet-rows.md | tail -4; echo "simple-exchange OTLP assertions failed" >&2; exit 1; }
 
       - name: Teardown
         if: always()
