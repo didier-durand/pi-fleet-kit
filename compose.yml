@@ -47,6 +47,8 @@ services:
       - pi-fleet-kit-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-agents/pi-fleet-kit:/workspace
+      # Watched dir for file-triggered prompts (extension prompt-trigger):
+      - ${PI_FLEET_KIT_HOME:-$HOME}/pi-exchange/pi-fleet-kit:/exchange
       # Skills for THIS agent only (/skill:build-skill, /skill:github-best-practices):
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/build-skill:/repo-skills/build-skill:ro
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/github-best-practices:/repo-skills/github-best-practices:ro
@@ -67,6 +69,7 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
+      - PI_TRIGGER_DIR=/exchange
       # pi-obs telemetry DISABLED for this agent: the config manager writes
       # the fleet's own code (compose, extensions, skills) — its turns contain
       # sensitive config content that should not be mirrored to the tracing
@@ -347,6 +350,8 @@ services:
       # The agent's working folder:
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-agents/pi-research:/workspace
       # Watched dir for file-triggered prompts (extension prompt-trigger):
+      - ${PI_FLEET_KIT_HOME:-$HOME}/pi-exchange/pi-research:/exchange
+      # Watched dir for file-triggered prompts (extension prompt-trigger):
       # Skills for THIS agent only (/skill:publishing-best-practices, /skill:github-best-practices):
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/publishing-best-practices:/repo-skills/publishing-best-practices:ro
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/web-research:/repo-skills/web-research:ro
@@ -367,6 +372,7 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
+      - PI_TRIGGER_DIR=/exchange
       - PI_OBS_OTLP_ENDPOINT=http://otlp-jaeger:4318
       - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-research
       - PI_OBS_CAPTURE_PROMPTS=1
@@ -395,6 +401,8 @@ services:
       - pi-personal-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-agents/pi-personal:/workspace
+      # Watched dir for file-triggered prompts (extension prompt-trigger):
+      - ${PI_FLEET_KIT_HOME:-$HOME}/pi-exchange/pi-personal:/exchange
       # Skills for THIS agent only (/skill:publishing-best-practices, /skill:hello-world, /skill:github-best-practices):
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/publishing-best-practices:/repo-skills/publishing-best-practices:ro
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/hello-world:/repo-skills/hello-world:ro
@@ -416,6 +424,7 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
+      - PI_TRIGGER_DIR=/exchange
       - PI_OBS_OTLP_ENDPOINT=http://otlp-jaeger:4318
       - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-personal
       - PI_OBS_CAPTURE_PROMPTS=1

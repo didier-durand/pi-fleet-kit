@@ -5,12 +5,12 @@
 
 | Agent | Pi home volume | Skills | Extensions | Pi Packages | Prompt trigger | Workspace (host) |
 |---|---|---|---|---|---|---|
-| pi-fleet-kit | pi-fleet-kit-home | build-skill, github-best-practices | pi-obs, git-status, prompt-trigger | npm:pi-web-access | dormant | /home/pi/pi-agents/pi-fleet-kit |
+| pi-fleet-kit | pi-fleet-kit-home | build-skill, github-best-practices | pi-obs, git-status, prompt-trigger | npm:pi-web-access | active — /home/pi/pi-exchange/pi-fleet-kit | /home/pi/pi-agents/pi-fleet-kit |
 | pi-developer | pi-developer-home | github-best-practices, write-specifications, write-implementation-plan | pi-obs, git-status, prompt-trigger | npm:pi-web-access | active — /home/pi/pi-exchange/pi-developer | /home/pi/pi-agents/pi-developer |
 | pi-coding-1 | pi-coding-1-home | github-best-practices, write-code, write-pull-request | pi-obs, git-status, prompt-trigger | npm:pi-web-access | active — /home/pi/pi-exchange/pi-coding-1 | /home/pi/pi-agents/pi-coding-1 |
 | pi-coding-2 | pi-coding-2-home | github-best-practices, write-code, write-pull-request | pi-obs, git-status, prompt-trigger | npm:pi-web-access | active — /home/pi/pi-exchange/pi-coding-2 | /home/pi/pi-agents/pi-coding-2 |
 | pi-review-1 | pi-review-1-home | github-best-practices, review-pull-request | pi-obs, git-status, prompt-trigger | npm:pi-web-access | active — /home/pi/pi-exchange/pi-review-1 | /home/pi/pi-agents/pi-review-1 |
 | pi-review-2 | pi-review-2-home | github-best-practices, review-pull-request | pi-obs, git-status, prompt-trigger | npm:pi-web-access | active — /home/pi/pi-exchange/pi-review-2 | /home/pi/pi-agents/pi-review-2 |
-| pi-research | pi-research-home | publishing-best-practices, github-best-practices, web-research | pi-obs, git-status, prompt-trigger | npm:pi-web-access | dormant | /home/pi/pi-agents/pi-research |
-| pi-personal | pi-personal-home | publishing-best-practices, hello-world, github-best-practices | pi-obs, git-status, prompt-trigger | npm:pi-web-access | dormant | /home/pi/pi-agents/pi-personal |
+| pi-research | pi-research-home | publishing-best-practices, github-best-practices, web-research | pi-obs, git-status, prompt-trigger | npm:pi-web-access | active — /home/pi/pi-exchange/pi-research | /home/pi/pi-agents/pi-research |
+| pi-personal | pi-personal-home | publishing-best-practices, hello-world, github-best-practices | pi-obs, git-status, prompt-trigger | npm:pi-web-access | active — /home/pi/pi-exchange/pi-personal | /home/pi/pi-agents/pi-personal |
 | otlp-jaeger |  | — | — | — | dormant | /home/pi/pi-agents/ |
