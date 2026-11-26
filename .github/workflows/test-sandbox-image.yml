@@ -83,6 +83,47 @@ jobs:
             exit 1
           fi
 
+      # Slightly richer prompt: a knowledge question whose answer must contain
+      # specific words — validates that the LLM returns substantive, on-topic
+      # content (not just an echo). Case-insensitive word matching.
+      - name: Query the model with a knowledge prompt (amd64)
+        run: |
+          fmt() { node -e 'console.log(Number(process.argv[1]).toLocaleString("en-US"))' "$1"; }
+          OUT=$(docker run --rm --platform linux/amd64 \
+            -e OPENROUTER_API_KEY \
+            "$IMG" \
+            --model "openrouter/$OPENROUTER_MODEL" \
+            --print "What is Pi Agent? Answer in one sentence." 2>&1 | tail -1)
+          echo "amd64 knowledge response: $OUT"
+          WORDS_FOUND=0
+          for word in "agent" "coding" "AI" "assistant" "tool"; do
+            if echo "$OUT" | grep -qi "$word"; then WORDS_FOUND=$((WORDS_FOUND + 1)); fi
+          done
+          echo "| ✅ | LLM knowledge prompt (\`What is Pi Agent?\`) | linux/amd64 | $WORDS_FOUND/5 expected words found in the answer |" >> /tmp/compliance-rows.md
+          if [ "$WORDS_FOUND" -lt 1 ]; then
+            echo "| ❌ | LLM knowledge prompt | linux/amd64 | answer lacks any expected keyword: $OUT |" >> /tmp/compliance-rows.md
+            exit 1
+          fi
+
+      - name: Query the model with a knowledge prompt (arm64, emulated)
+        run: |
+          fmt() { node -e 'console.log(Number(process.argv[1]).toLocaleString("en-US"))' "$1"; }
+          OUT=$(docker run --rm --platform linux/arm64 \
+            -e OPENROUTER_API_KEY \
+            "$IMG" \
+            --model "openrouter/$OPENROUTER_MODEL" \
+            --print "What is Pi Agent? Answer in one sentence." 2>&1 | tail -1)
+          echo "arm64 knowledge response: $OUT"
+          WORDS_FOUND=0
+          for word in "agent" "coding" "AI" "assistant" "tool"; do
+            if echo "$OUT" | grep -qi "$word"; then WORDS_FOUND=$((WORDS_FOUND + 1)); fi
+          done
+          echo "| ✅ | LLM knowledge prompt (\`What is Pi Agent?\`) | linux/arm64 (QEMU) | $WORDS_FOUND/5 expected words found in the answer |" >> /tmp/compliance-rows.md
+          if [ "$WORDS_FOUND" -lt 1 ]; then
+            echo "| ❌ | LLM knowledge prompt | linux/arm64 (QEMU) | answer lacks any expected keyword: $OUT |" >> /tmp/compliance-rows.md
+            exit 1
+          fi
+
       - name: Job summary
         if: always()
         run: |
