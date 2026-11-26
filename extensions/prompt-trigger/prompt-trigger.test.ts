@@ -120,7 +120,8 @@ test("dormant without PI_TRIGGER_DIR: no notification, no consumption", { timeou
 test("session_start announces the watched directory and poll interval", { timeout: 10000 }, async (t) => {
 	await withHarness(t, async (h, dir) => {
 		await h.handlers.session_start(null, h.ctx);
-		assert.deepEqual(h.notified, [`[prompt-trigger] watching ${dir} (poll 1500ms)`]);
+		assert.equal(h.notified.length, 1);
+		assert.match(h.notified[0], /^\[prompt-trigger\] watching \S+ \(poll 1500ms, mailbox active, self=/);
 	});
 });
 

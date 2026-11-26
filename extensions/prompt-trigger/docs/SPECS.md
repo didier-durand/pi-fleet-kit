@@ -1,6 +1,6 @@
 # prompt-trigger — file-triggered prompts for a running pi TUI
 
-Specification version: 1.1.0 (semver — matches the tag `specs-prompt-trigger-1.1.0`)
+Specification version: 1.1.1 (semver — matches the tag `specs-prompt-trigger-1.1.1`)
 Author: Didier Durand
 Date: 2026-11-25
 
@@ -82,10 +82,10 @@ checks, directives, queuing) fits in one readable file.
 | R6 | Queuing | Mid-run prompts queue as followUp instead of interrupting | 6 | shipped 0.1.0 |
 | R7 | Dormancy | Unset `PI_TRIGGER_DIR` leaves the extension dormant | 7 | shipped 0.1.0 |
 | R8 | Privacy | Dotfiles are never consumed; no agent can see another agent's files | 8 | shipped 0.1.0 |
-| R9 | Envelope | Mailbox messages carry the standard envelope; `send.sh` builds them | 9 | **to implement** |
-| R10 | Maildir | inbox/working/pending/processed/failed + atomic claim | 10 | **to implement** |
-| R11 | Ledger | append-only handled-ids: at-most-once work; startup replay | 11 | **to implement** |
-| R12 | Replies | auto-reply envelope echoing correlation_id to the sender's inbox | 12 | **to implement** |
+| R9 | Envelope | Mailbox messages carry the standard envelope; `send.sh` builds them | 9 | shipped 0.2.0 |
+| R10 | Maildir | inbox/working/pending/processed/failed + atomic claim | 10 | shipped 0.2.0 |
+| R11 | Ledger | append-only handled-ids: at-most-once work; startup replay | 11 | shipped 0.2.0 |
+| R12 | Replies | auto-reply envelope echoing correlation_id to the sender's inbox | 12 | shipped 0.2.0 |
 
 ### R1 — Never harms the agent
 
@@ -262,3 +262,4 @@ reply, and replies are matchable:
 |---|---|---|---|
 | 1.0.0 | 2026-11-25 | Didier Durand | retroactive spec from shipped v0.1.0; versioned per house convention |
 | 1.1.0 | 2026-11-25 | Didier Durand | mailbox protocol: R9 envelope + send.sh, R10 maildir state machine, R11 ledger (at-most-once), R12 replies with correlation — aligned with pi-mailbox-arch.json levels 1–2; per-requirement status column added |
+| 1.1.1 | 2026-11-26 | Didier Durand | R9–R12 implemented and shipped in v0.2.0; statuses updated |

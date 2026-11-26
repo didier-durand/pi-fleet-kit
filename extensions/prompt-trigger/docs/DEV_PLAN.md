@@ -1,14 +1,12 @@
 # prompt-trigger — Implementation Plan
 
-Plan version: 1.1.0 (semver — matches the tag `impl-plan-prompt-trigger-1.1.0`)
+Plan version: 1.1.1 (semver — matches the tag `impl-plan-prompt-trigger-1.1.1`)
 Author: Didier Durand
 Date: 2026-11-25
 
-> **Status:** partially executed — Steps 1–3 shipped in v0.1.0 (the
-> prompt-dropper layer, live in the fleet). Steps 4–7 specify the
-> **mailbox protocol implementation** (R9–R12: envelope, maildir,
-> ledger, replies) — specified ahead of implementation, executable by
-> coding agents against this plan and the v1.1.0 spec.
+> **Status:** executed — Steps 1–3 shipped in v0.1.0; Steps 4–7 (the
+> **mailbox protocol**: envelope, maildir, ledger, replies) shipped in
+> v0.2.0. Derived from `extensions/prompt-trigger/docs/SPECS.md`.
 
 ## Ordering principle
 
@@ -172,3 +170,4 @@ replies close the loop (task delegation with answers).
 |---|---|---|---|
 | 1.0.0 | 2026-11-25 | Didier Durand | retroactive plan from shipped v0.1.0; versioned per house convention |
 | 1.1.0 | 2026-11-25 | Didier Durand | mailbox protocol steps 4–7 (envelope+send.sh, maildir, ledger+replies, suite/CI) specified ahead of implementation — closes the divergences from pi-mailbox-arch.json levels 1–2 |
+| 1.1.1 | 2026-11-26 | Didier Durand | steps 4–7 executed and shipped in v0.2.0 (47 tests, all gates green) |

@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.2.0] - 2026-11-26
+
+The mailbox protocol (SPECS v1.1.0, R9–R12): the prompt bridge becomes
+the agent-to-agent mailbox from the fleet's mailbox architecture —
+task delegation with answers.
+
+- **Envelope (R9)**: messages in `inbox/` are JSON envelopes (id, from,
+  to, type request|reply|error, correlation_id, created, body,
+  attempts), built by the new `send.sh` helper — agents never
+  hand-craft JSON. Fail-closed: malformed envelopes → `failed/` with
+  the parse error recorded. Backward compatible: raw (non-JSON) files
+  in the exchange root remain legacy prompts.
+- **Maildir (R10)**: the exchange dir gains
+  `inbox/working/pending/processed/failed`; claim = atomic
+  `mv inbox → working`; completion = `working → processed` after the
+  reply; `MAX_ATTEMPTS` (3) escalation; crash recovery replays
+  `working/` at startup; `processed/` retention (last 100).
+- **Ledger (R11)**: append-only `ledger.ndjson` of handled message ids
+  — at-most-once work across restarts and delete failures (replaces
+  the v1.0.0 duplicate-delivery risk).
+- **Replies (R12)**: after a request's turn settles, a reply envelope
+  (type reply, correlation_id echoed, body = the turn's final
+  assistant text) is written to the sender's inbox; error replies
+  after max attempts or interruption; dedupe by correlation_id;
+  unreachable sender → failed/ + ledger note.
+- 47 unit tests (22 legacy + 15 envelope + 10 mailbox lifecycle),
+  all hermetic.
+
 ## [0.1.0] - 2026-11-23
 
 First public release.
