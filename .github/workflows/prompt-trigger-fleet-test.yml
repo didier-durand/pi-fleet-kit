@@ -164,12 +164,18 @@ jobs:
           fs.writeFileSync("/tmp/otel-stats.json", JSON.stringify(stats, null, 0));
           console.log(JSON.stringify(stats, null, 1));
           ' "$CAPTURE"
-          # every telemetry-active agent must have spans AND metrics AND logs in the capture
+          # every telemetry-active agent must have spans AND metrics in the capture;
+          # logs = 0 is HEALTHY (pi-obs emits log records only for faults —
+          # exporter failures, drops — so a clean run carries none)
           for agent in pi-developer pi-coding-1 pi-coding-2 pi-review-1 pi-review-2 pi-research pi-personal; do
             read -r SP MN LG <<< "$(node -e "const s=JSON.parse(require('fs').readFileSync('/tmp/otel-stats.json','utf8'))['pi-agent-$agent']??{};console.log(s.spans??0, s.metrics??0, s.logs??0)")"
             S="$SP spans · $MN metrics · $LG logs"
-            if [ "${SP:-0}" -gt 0 ] && [ "${MN:-0}" -gt 0 ] && [ "${LG:-0}" -gt 0 ]; then
-              echo "| ✅ | OTLP capture: \`pi-agent-$agent\` | $S — all three signals in the collector file |" >> /tmp/fleet-rows.md
+            if [ "${SP:-0}" -gt 0 ] && [ "${MN:-0}" -gt 0 ]; then
+              if [ "${LG:-0}" -eq 0 ]; then
+                echo "| ✅ | OTLP capture: \`pi-agent-$agent\` | $S (0 logs = no faults — healthy) |" >> /tmp/fleet-rows.md
+              else
+                echo "| ⚠️ | OTLP capture: \`pi-agent-$agent\` | $S ($LG fault log record(s) — see capture) |" >> /tmp/fleet-rows.md
+              fi
             else
               echo "| ❌ | OTLP capture: \`pi-agent-$agent\` | incomplete: $S |" >> /tmp/fleet-rows.md
             fi
