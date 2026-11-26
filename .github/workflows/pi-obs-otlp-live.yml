@@ -1,0 +1,108 @@
+name: pi-obs-otlp-live
+
+# End-to-end live test: a sandbox container runs a real LLM prompt with
+# pi-obs capturing and exporting OTLP to a capture receiver; the captured
+# spans are then validated for prompt/answer correlation.
+#
+# Chain validated: user prompt → LLM call → response → pi-obs hooks →
+# OTel spans (pi.user.input event, pi.model span) → OTLP/HTTP → capture
+# file → correlation check (same traceId, prompt text, answer text).
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [pi-obs-docker-tests]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  otlp-live:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL }}
+    steps:
+      - name: Skip without credentials
+        if: env.OPENROUTER_API_KEY == ''
+        run: echo "::notice::OPENROUTER_API_KEY not configured — skipping live OTLP test" && exit 0
+
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Pull the sandbox image from GHCR
+        run: |
+          IMG=ghcr.io/${{ github.repository_owner }}/pi-sandbox:latest
+          echo "IMG=$IMG" >> "$GITHUB_ENV"
+          docker pull "$IMG"
+
+      - name: Start the OTLP capture receiver (on the runner)
+        run: |
+          node extensions/pi-obs/tests/tools/otlp-capture-receiver.mjs 14318 \
+            --out /tmp/otlp-capture.jsonl > /tmp/receiver.log 2>&1 &
+          echo $! > /tmp/receiver.pid
+          for i in $(seq 1 20); do
+            grep -q "listening" /tmp/receiver.log && break
+            sleep 0.5
+          done
+          cat /tmp/receiver.log
+
+      - name: Run the sandbox with a prompt (pi-obs exporting to the receiver)
+        run: |
+          # --add-host maps host.docker.internal to the docker bridge gateway:
+          # the container reaches the receiver running on the runner host.
+          # The prompt has a deterministic answer ("4") for the correlation check.
+          PROMPT='What is 2+2? Reply with just the number.'
+          echo "PROMPT=$PROMPT" >> "$GITHUB_ENV"
+          docker run --rm \
+            --add-host=host.docker.internal:host-gateway \
+            -e OPENROUTER_API_KEY \
+            -e PI_OBS_OTLP_ENDPOINT=http://host.docker.internal:14318 \
+            -e PI_OBS_RESOURCE_SERVICE=pi-agent-otel-live-test \
+            -e PI_OBS_CAPTURE_PROMPTS=1 \
+            -v "$GITHUB_WORKSPACE/extensions/pi-obs:/pi-obs:ro" \
+            "$IMG" \
+            --extension /pi-obs/index.ts \
+            --model "openrouter/$OPENROUTER_MODEL" \
+            --print "$PROMPT"
+          sleep 5   # let the exporter flush its last batch
+
+      - name: Stop the receiver
+        run: kill "$(cat /tmp/receiver.pid)" 2>/dev/null || true; sleep 1
+
+      - name: Validate the captured spans (prompt/answer correlation)
+        run: |
+          echo "captured requests: $(wc -l < /tmp/otlp-capture.jsonl)"
+          node extensions/pi-obs/tests/tools/validate-otlp-correlation.mjs \
+            /tmp/otlp-capture.jsonl "2+2" "4" > /tmp/correlation.json
+          cat /tmp/correlation.json
+          echo "| ✅ | Live OTLP capture: prompt/answer correlated | both on traceId $(node -e 'console.log(JSON.parse(require("fs").readFileSync("/tmp/correlation.json","utf8")).promptTraceId.slice(0,16))…') |" >> /tmp/otlp-rows.md
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## 🔗 pi-obs — live OTLP capture & correlation"
+            echo
+            echo "**Prompt:** \`$PROMPT\`"
+            echo "**Model:** \`$OPENROUTER_MODEL\` (OpenRouter, via the sandbox image)"
+            echo
+            if [ -s /tmp/correlation.json ]; then
+              echo "Captured answer: \`\$(node -e 'console.log(JSON.parse(require("fs").readFileSync("/tmp/correlation.json","utf8")).answerExcerpt)')\`"
+              echo
+            fi
+            echo "| Result | Check | Detail |"
+            echo "|---|---|---|"
+            cat /tmp/otlp-rows.md 2>/dev/null || echo "| ❌ | (workflow failed — see logs) | |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
