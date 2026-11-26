@@ -87,6 +87,9 @@ jobs:
           services:
             otlp-jaeger:
               image: otel/opentelemetry-collector-contrib:latest
+              # the collector image runs as UID 10001 — the runner-side bind
+              # mount is owned by the runner user; write as root instead
+              user: "0"
               command: ["--config", "/etc/otelcol/config.yaml"]
               volumes:
                 - /tmp/otel-capture:/data
