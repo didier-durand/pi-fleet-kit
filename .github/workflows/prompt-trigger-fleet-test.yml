@@ -94,11 +94,11 @@ jobs:
               ports:
                 - "13133:13133"
           YAML
-          echo "COMPOSE=\"docker compose -f $GITHUB_WORKSPACE/compose.yml -f /tmp/ci-otelcol-override.yml\"" >> "$GITHUB_ENV"
+          echo "COMPOSE_FILES=-f $GITHUB_WORKSPACE/compose.yml -f /tmp/ci-otelcol-override.yml" >> "$GITHUB_ENV"
 
       - name: Start the collector (as the otlp-jaeger service)
         run: |
-          eval "$COMPOSE" up -d otlp-jaeger
+          docker compose $COMPOSE_FILES up -d otlp-jaeger
           # the collector's own health check — proves it RUNS, not just exists
           for i in $(seq 1 20); do
             CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:13133 || echo 000)
@@ -172,7 +172,7 @@ jobs:
 
       - name: Teardown
         if: always()
-        run: docker compose -f "$GITHUB_WORKSPACE/compose.yml" -f /tmp/ci-otelcol-override.yml down -v --remove-orphans || true
+        run: docker compose $COMPOSE_FILES down -v --remove-orphans || true
 
       - name: Job summary
         if: always()
