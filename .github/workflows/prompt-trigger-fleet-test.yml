@@ -1,19 +1,21 @@
 name: prompt-trigger-fleet-test
 
 # Fleet bring-up test on a GitHub runner: the full compose fleet (8 agents
-# + otlp-jaeger) comes up exactly as configured, and every agent is
-# validated end-to-end — full compose command (model, extensions, skills),
-# a real prompt, an OpenRouter round-trip, and (for the 7 telemetry-active
-# agents) traces arriving in Jaeger.
+# + the observability backend) comes up exactly as configured, and every
+# agent is validated end-to-end — full compose command (model, extensions,
+# skills), a real prompt, an OpenRouter round-trip, and the complete OTLP
+# capture validated from a standard OTel Collector's file export.
+#
+# Telemetry backend in CI: a standard OpenTelemetry Collector REPLACES the
+# otlp-jaeger service via a compose OVERRIDE file (CI-only plumbing — the
+# stored compose.yml is untouched). The collector exports all three signals
+# (traces, metrics, logs) to a file on the runner: push-based, deterministic
+# assertions on raw OTLP — no query-API polling, no storage semantics.
+# Jaeger stays the operator's UI in production; CI wants files, not UIs.
 #
 # Mechanism: with piped stdin and no TTY (docker compose run -T), pi uses
 # print mode automatically and prepends the piped content as the first
-# prompt — so the compose `command:` (with all its --extension/--skill
-# flags) runs unmodified.
-#
-# NOTE on the name: "prompt-trigger" is historical; the file-trigger bridge
-# is currently disabled fleet-wide (see compose.yml). This workflow
-# validates the fleet bring-up + LLM reachability, not the trigger bridge.
+# prompt — so the compose `command:` runs unmodified.
 
 on:
   workflow_dispatch:
@@ -46,15 +48,72 @@ jobs:
       - name: Point PI_FLEET_KIT_HOME at the checkout
         run: echo "PI_FLEET_KIT_HOME=$(dirname "$GITHUB_WORKSPACE")" >> "$GITHUB_ENV"
 
-      - name: Start the observability backend
-        run: docker compose -f "$GITHUB_WORKSPACE/compose.yml" up -d otlp-jaeger
+      # CI-only compose override: the otlp-jaeger service becomes a standard
+      # OTel Collector with a file exporter (all three signals). Agents keep
+      # exporting to http://otlp-jaeger:4318 (service-name DNS unchanged).
+      - name: Prepare the collector override + config
+        run: |
+          mkdir -p /tmp/otel-capture
+          cat > /tmp/ci-otelcol.yaml <<'YAML'
+          receivers:
+            otlp:
+              protocols:
+                http:
+                  endpoint: 0.0.0.0:4318
+                grpc:
+                  endpoint: 0.0.0.0:4317
+          exporters:
+            file:
+              path: /data/otel-capture.jsonl
+          extensions:
+            health_check:
+          service:
+            extensions: [health_check]
+            telemetry:
+              logs:
+                level: warn
+            pipelines:
+              traces:
+                receivers: [otlp]
+                exporters: [file]
+              metrics:
+                receivers: [otlp]
+                exporters: [file]
+              logs:
+                receivers: [otlp]
+                exporters: [file]
+          YAML
+          cat > /tmp/ci-otelcol-override.yml <<'YAML'
+          services:
+            otlp-jaeger:
+              image: otel/opentelemetry-collector-contrib:latest
+              command: ["--config", "/etc/otelcol/config.yaml"]
+              volumes:
+                - /tmp/otel-capture:/data
+                - /tmp/ci-otelcol.yaml:/etc/otelcol/config.yaml:ro
+              ports:
+                - "13133:13133"
+          YAML
+          echo "COMPOSE=\"docker compose -f $GITHUB_WORKSPACE/compose.yml -f /tmp/ci-otelcol-override.yml\"" >> "$GITHUB_ENV"
+
+      - name: Start the collector (as the otlp-jaeger service)
+        run: |
+          eval "$COMPOSE" up -d otlp-jaeger
+          # the collector's own health check — proves it RUNS, not just exists
+          for i in $(seq 1 20); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:13133 || echo 000)
+            [ "$CODE" = "200" ] && break
+            sleep 1
+          done
+          [ "$CODE" = "200" ] || { docker logs otlp-jaeger --tail 20 >&2; echo "collector health check failed (last: $CODE)" >&2; exit 1; }
+          echo "| ✅ | OTel Collector up (replaces otlp-jaeger in CI via compose override) | health check 200 on :13133 |" >> /tmp/fleet-rows.md
 
       - name: Bring up every agent and validate its LLM round-trip
         run: |
           for agent in pi-fleet-kit pi-developer pi-coding-1 pi-coding-2 pi-review-1 pi-review-2 pi-research pi-personal; do
             echo "=== $agent"
             OUT=$(echo "Reply with exactly: OK" | timeout 180 \
-              docker compose -f "$GITHUB_WORKSPACE/compose.yml" run -T --rm "$agent" 2>&1 | tail -5)
+              docker compose -f "$GITHUB_WORKSPACE/compose.yml" -f /tmp/ci-otelcol-override.yml run -T --rm "$agent" 2>&1 | tail -5)
             echo "$OUT"
             if echo "$OUT" | grep -q "OK"; then
               echo "| ✅ | \`$agent\` | compose config loaded (extensions + skills + model) — LLM answered OK |" >> /tmp/fleet-rows.md
@@ -64,31 +123,62 @@ jobs:
             sleep 4   # exporter flush window; avoid rate bursts
           done
 
-      - name: Validate the telemetry pipeline (traces in Jaeger)
+      - name: Validate the OTLP capture (collector file export)
         run: |
-          sleep 8   # batch timeout (5s) + margin
-          # Jaeger v2 removed the v1 /api/services endpoint (PR #9260) — the
-          # services list lives at /api/v3/services now
-          SERVICES=$(curl -s http://localhost:16686/api/v3/services)
-          echo "Jaeger services (v3): $SERVICES"
+          sleep 5   # collector file-exporter flush margin
+          CAPTURE=/tmp/otel-capture/otel-capture.jsonl
+          [ -s "$CAPTURE" ] || { echo "collector exported nothing — capture file missing/empty" >&2; exit 1; }
+          echo "capture size: $(wc -c < "$CAPTURE") bytes, $(wc -l < "$CAPTURE") export batches"
+          # per-service span/metric/log counts from the raw OTLP batches
+          node -e '
+          const fs = require("fs");
+          const lines = fs.readFileSync(process.argv[1], "utf8").split("\n").filter(Boolean);
+          const stats = {};
+          for (const line of lines) {
+            let doc; try { doc = JSON.parse(line); } catch { continue; }
+            for (const rs of doc.resourceSpans ?? []) {
+              const svc = (rs.resource?.attributes ?? []).find(a => a.key === "service.name")?.value?.stringValue ?? "?";
+              const n = (rs.scopeSpans ?? []).flatMap(s => s.spans ?? []).length;
+              stats[svc] = stats[svc] ?? { spans: 0, metrics: 0, logs: 0 };
+              stats[svc].spans += n;
+            }
+            for (const rm of doc.resourceMetrics ?? []) {
+              const svc = (rm.resource?.attributes ?? []).find(a => a.key === "service.name")?.value?.stringValue ?? "?";
+              const n = (rm.scopeMetrics ?? []).flatMap(s => s.metrics ?? []).length;
+              stats[svc] = stats[svc] ?? { spans: 0, metrics: 0, logs: 0 };
+              stats[svc].metrics += n;
+            }
+            for (const rl of doc.resourceLogs ?? []) {
+              const svc = (rl.resource?.attributes ?? []).find(a => a.key === "service.name")?.value?.stringValue ?? "?";
+              const n = (rl.scopeLogs ?? []).flatMap(s => s.logRecords ?? []).length;
+              stats[svc] = stats[svc] ?? { spans: 0, metrics: 0, logs: 0 };
+              stats[svc].logs += n;
+            }
+          }
+          fs.writeFileSync("/tmp/otel-stats.json", JSON.stringify(stats, null, 0));
+          console.log(JSON.stringify(stats, null, 1));
+          ' "$CAPTURE"
+          # every telemetry-active agent must have spans AND metrics AND logs in the capture
           for agent in pi-developer pi-coding-1 pi-coding-2 pi-review-1 pi-review-2 pi-research pi-personal; do
-            if echo "$SERVICES" | grep -q "pi-agent-$agent"; then
-              echo "| ✅ | Telemetry: \`pi-agent-$agent\` traces in Jaeger | service visible in the UI |" >> /tmp/fleet-rows.md
+            read -r SP MN LG <<< "$(node -e "const s=JSON.parse(require('fs').readFileSync('/tmp/otel-stats.json','utf8'))['pi-agent-$agent']??{};console.log(s.spans??0, s.metrics??0, s.logs??0)")"
+            S="$SP spans · $MN metrics · $LG logs"
+            if [ "${SP:-0}" -gt 0 ] && [ "${MN:-0}" -gt 0 ] && [ "${LG:-0}" -gt 0 ]; then
+              echo "| ✅ | OTLP capture: \`pi-agent-$agent\` | $S — all three signals in the collector file |" >> /tmp/fleet-rows.md
             else
-              echo "| ❌ | Telemetry: \`pi-agent-$agent\` | service NOT found in Jaeger |" >> /tmp/fleet-rows.md
+              echo "| ❌ | OTLP capture: \`pi-agent-$agent\` | incomplete: $S |" >> /tmp/fleet-rows.md
             fi
           done
           echo "| ℹ️ | pi-fleet-kit exports nothing (PI_OBS_ENABLED=0, by design) | |" >> /tmp/fleet-rows.md
 
       - name: Teardown
         if: always()
-        run: docker compose -f "$GITHUB_WORKSPACE/compose.yml" down -v --remove-orphans || true
+        run: docker compose -f "$GITHUB_WORKSPACE/compose.yml" -f /tmp/ci-otelcol-override.yml down -v --remove-orphans || true
 
       - name: Job summary
         if: always()
         run: |
           {
-            echo "## 🚀 Fleet bring-up test — compose on the runner"
+            echo "## 🚀 Fleet bring-up test — compose on the runner (OTel Collector capture)"
             echo
             echo "Image: \`ghcr.io/${{ github.repository_owner }}/pi-sandbox:latest\` · model: \`$OPENROUTER_MODEL\`"
             echo
