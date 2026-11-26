@@ -31,8 +31,8 @@ flowchart LR
     direction TB
     BUILD["build-sandbox-image<br/>staging → verify → promote latest"]
     TESTIMG["test-sandbox-image<br/>live LLM — minimal + knowledge prompts"]
-    GS_DOCKER["git-status-docker-tests<br/>40 tests inside the sandbox"]
-    OBS_DOCKER["pi-obs-docker-tests<br/>115 tests inside the sandbox"]
+    GS_DOCKER["git-status-docker-tests<br/>the extension's unit tests inside the sandbox"]
+    OBS_DOCKER["pi-obs-docker-tests<br/>the extension's unit tests inside the sandbox"]
     OBS_LIVE["pi-obs-otlp-live<br/>prompt/answer correlation over live OTLP"]
   end
 
@@ -89,9 +89,8 @@ flowchart LR
 
 4. **Image verified** → three parallel consumers:
    `test-sandbox-image` (live LLM: minimal prompt + knowledge prompt,
-   both platforms), `git-status-docker-tests` (the extension's 40 tests
-   inside the sandbox), `pi-obs-docker-tests` (115 tests inside the
-   sandbox) → **pi-obs-otlp-live** (a real prompt through the sandbox
+   both platforms), `git-status-docker-tests` and `pi-obs-docker-tests`
+   (each extension's unit suite inside the sandbox) → **pi-obs-otlp-live** (a real prompt through the sandbox
    with pi-obs exporting OTLP; the captured spans must correlate the
    prompt with the answer on one traceId, displayed as a span tree in
    the job summary).
