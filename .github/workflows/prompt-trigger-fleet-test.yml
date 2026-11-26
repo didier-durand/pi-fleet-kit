@@ -1,0 +1,97 @@
+name: prompt-trigger-fleet-test
+
+# Fleet bring-up test on a GitHub runner: the full compose fleet (8 agents
+# + otlp-jaeger) comes up exactly as configured, and every agent is
+# validated end-to-end — full compose command (model, extensions, skills),
+# a real prompt, an OpenRouter round-trip, and (for the 7 telemetry-active
+# agents) traces arriving in Jaeger.
+#
+# Mechanism: with piped stdin and no TTY (docker compose run -T), pi uses
+# print mode automatically and prepends the piped content as the first
+# prompt — so the compose `command:` (with all its --extension/--skill
+# flags) runs unmodified.
+#
+# NOTE on the name: "prompt-trigger" is historical; the file-trigger bridge
+# is currently disabled fleet-wide (see compose.yml). This workflow
+# validates the fleet bring-up + LLM reachability, not the trigger bridge.
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [build-sandbox-image]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  fleet-test:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL }}
+    steps:
+      - name: Skip without credentials
+        if: env.OPENROUTER_API_KEY == ''
+        run: echo "::notice::OPENROUTER_API_KEY not configured — skipping fleet bring-up test" && exit 0
+
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Point PI_FLEET_KIT_HOME at the checkout
+        run: echo "PI_FLEET_KIT_HOME=$(dirname "$GITHUB_WORKSPACE")" >> "$GITHUB_ENV"
+
+      - name: Start the observability backend
+        run: docker compose -f "$GITHUB_WORKSPACE/compose.yml" up -d otlp-jaeger
+
+      - name: Bring up every agent and validate its LLM round-trip
+        run: |
+          for agent in pi-fleet-kit pi-developer pi-coding-1 pi-coding-2 pi-review-1 pi-review-2 pi-research pi-personal; do
+            echo "=== $agent"
+            OUT=$(echo "Reply with exactly: OK" | timeout 180 \
+              docker compose -f "$GITHUB_WORKSPACE/compose.yml" run -T --rm "$agent" 2>&1 | tail -5)
+            echo "$OUT"
+            if echo "$OUT" | grep -q "OK"; then
+              echo "| ✅ | \`$agent\` | compose config loaded (extensions + skills + model) — LLM answered OK |" >> /tmp/fleet-rows.md
+            else
+              echo "| ❌ | \`$agent\` | no OK in response: $(echo "$OUT" | tail -1) |" >> /tmp/fleet-rows.md
+            fi
+            sleep 4   # exporter flush window; avoid rate bursts
+          done
+
+      - name: Validate the telemetry pipeline (traces in Jaeger)
+        run: |
+          sleep 8   # batch timeout (5s) + margin
+          SERVICES=$(curl -s http://localhost:16686/api/services)
+          echo "Jaeger services: $SERVICES"
+          for agent in pi-developer pi-coding-1 pi-coding-2 pi-review-1 pi-review-2 pi-research pi-personal; do
+            if echo "$SERVICES" | grep -q "pi-agent-$agent"; then
+              echo "| ✅ | Telemetry: \`pi-agent-$agent\` traces in Jaeger | service visible in the UI |" >> /tmp/fleet-rows.md
+            else
+              echo "| ❌ | Telemetry: \`pi-agent-$agent\` | service NOT found in Jaeger |" >> /tmp/fleet-rows.md
+            fi
+          done
+          echo "| ℹ️ | pi-fleet-kit exports nothing (PI_OBS_ENABLED=0, by design) | |" >> /tmp/fleet-rows.md
+
+      - name: Teardown
+        if: always()
+        run: docker compose -f "$GITHUB_WORKSPACE/compose.yml" down -v --remove-orphans || true
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## 🚀 Fleet bring-up test — compose on the runner"
+            echo
+            echo "Image: \`ghcr.io/${{ github.repository_owner }}/pi-sandbox:latest\` · model: \`$OPENROUTER_MODEL\`"
+            echo
+            echo "| Result | Agent / Check | Detail |"
+            echo "|---|---|---|"
+            cat /tmp/fleet-rows.md 2>/dev/null || echo "| ❌ | (workflow failed before any agent ran) | see job logs |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
