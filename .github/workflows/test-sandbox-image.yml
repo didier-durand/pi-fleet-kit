@@ -31,6 +31,11 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      # arm64 containers run under QEMU emulation on the amd64 runner
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - uses: actions/setup-node@v4
         with:
           node-version: 24
