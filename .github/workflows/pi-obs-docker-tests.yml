@@ -1,0 +1,82 @@
+name: pi-obs-docker-tests
+
+# Runs the pi-obs unit tests INSIDE the sandbox container pulled from
+# GHCR — same pattern as git-status-docker-tests: validating that the
+# extension runs correctly in the exact environment the agents use.
+# Chained after build-sandbox-image succeeds.
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [build-sandbox-image]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  docker-tests:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # arm64 containers run under QEMU emulation on the amd64 runner
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Pull the sandbox image from GHCR (both platforms)
+        run: |
+          IMG=ghcr.io/${{ github.repository_owner }}/pi-sandbox:latest
+          echo "IMG=$IMG" >> "$GITHUB_ENV"
+          docker pull "$IMG"
+          docker pull --platform linux/arm64 "$IMG"
+
+      # The pi-obs unit suite (tests/unit/**) is hermetic and model-free;
+      # tests/live and tests/cli are excluded (child pi/CLI processes are
+      # out of scope here and corrupt V8 coverage — they run in the
+      # package's own test_pi_obs.sh suite).
+      # A scratch PI_HOME keeps session writes inside the container.
+      - name: Run the pi-obs unit tests in the sandbox (amd64)
+        run: |
+          OUT=$(docker run --rm --platform linux/amd64 \
+            -e PI_HOME=/tmp/pi-home \
+            -v "$GITHUB_WORKSPACE/extensions/pi-obs:/tests:ro" \
+            --entrypoint bash "$IMG" \
+            -c "cd /tests && node --test --experimental-test-module-mocks 'tests/unit/**/*.test.ts' 2>&1")
+          echo "$OUT" | tail -10
+          PASS=$(echo "$OUT" | grep -oE '^ℹ pass [0-9]+' | awk '{print $3}')
+          FAIL=$(echo "$OUT" | grep -oE '^ℹ fail [0-9]+' | awk '{print $3}')
+          PASS=${PASS:-0}; FAIL=${FAIL:-0}
+          echo "| ✅ | Unit tests in the sandbox (node $(docker run --rm --platform linux/amd64 --entrypoint node "$IMG" --version)) | linux/amd64 | $PASS passed, $FAIL failed |" >> /tmp/docker-test-rows.md
+          [ "$FAIL" = "0" ] || { echo "tests failed inside the sandbox" >&2; exit 1; }
+
+      - name: Run the pi-obs unit tests in the sandbox (arm64, emulated)
+        run: |
+          OUT=$(docker run --rm --platform linux/arm64 \
+            -e PI_HOME=/tmp/pi-home \
+            -v "$GITHUB_WORKSPACE/extensions/pi-obs:/tests:ro" \
+            --entrypoint bash "$IMG" \
+            -c "cd /tests && node --test --experimental-test-module-mocks 'tests/unit/**/*.test.ts' 2>&1")
+          echo "$OUT" | tail -10
+          PASS=$(echo "$OUT" | grep -oE '^ℹ pass [0-9]+' | awk '{print $3}')
+          FAIL=$(echo "$OUT" | grep -oE '^ℹ fail [0-9]+' | awk '{print $3}')
+          PASS=${PASS:-0}; FAIL=${FAIL:-0}
+          echo "| ✅ | Unit tests in the sandbox | linux/arm64 (QEMU) | $PASS passed, $FAIL failed |" >> /tmp/docker-test-rows.md
+          [ "$FAIL" = "0" ] || { echo "tests failed inside the sandbox (arm64)" >&2; exit 1; }
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## 🐳 pi-obs — unit tests inside the sandbox image"
+            echo
+            echo "**Image:** \`ghcr.io/${{ github.repository_owner }}/pi-sandbox:latest\` — the exact environment the agents run in"
+            echo
+            echo "| Result | Check | Platform | Detail |"
+            echo "|---|---|---|---|"
+            cat /tmp/docker-test-rows.md 2>/dev/null || echo "| ❌ | (workflow failed before any test completed) | see job logs |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
