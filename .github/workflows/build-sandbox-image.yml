@@ -102,31 +102,8 @@ jobs:
           echo "| ✅ | Downloaded from GHCR | linux/arm64 | digest pull (--platform) |" >> /tmp/job-summary.md
 
       # Identical checks on both platforms: entrypoint + pi version, and
-      # the toolchain agents depend on (git / gh / node).
-      # PROMOTION: only reached when every verification step passed. Re-tags
-      # the verified digest with the mutable tags WITHOUT rebuilding (the
-      # manifest index is copied server-side by buildx imagetools).
-      #   - push/dispatch on main: latest + main
-      #   - schedule (daily):      latest + main + daily
-      #   - v* tag push:           latest + <version>
-      # On any earlier failure the job stops here — the tags keep pointing
-      # at the previous verified image.
-      - name: Promote the verified image (latest + trigger tags)
-        run: |
-          SOURCE="ghcr.io/${{ github.repository_owner }}/pi-sandbox@${{ steps.build.outputs.digest }}"
-          REPO="ghcr.io/${{ github.repository_owner }}/pi-sandbox"
-          TAGS=(latest main)
-          if [ "${{ github.event_name }}" = "schedule" ]; then TAGS+=(daily); fi
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            TAGS=(latest "${GITHUB_REF_NAME#v}")
-          fi
-          for tag in "${TAGS[@]}"; do
-            docker buildx imagetools create -t "$REPO:$tag" "$SOURCE"
-            echo "| ✅ | Promoted to \`:$tag\` | both platforms | verified digest ${{ steps.build.outputs.digest }} |" >> /tmp/job-summary.md
-          done
-
-      # Identical checks on both platforms: entrypoint + pi version, then
-      # one line per tool (git / gh / node) in the job summary.
+      # the toolchain agents depend on (git / gh / node) — one summary row
+      # per tool (git / gh / node).
       - name: Smoke-run the pulled image (amd64)
         run: |
           IMG=ghcr.io/${{ github.repository_owner }}/pi-sandbox@${{ steps.build.outputs.digest }}
@@ -165,6 +142,28 @@ jobs:
           echo "$TOOLS" | while IFS= read -r line; do
             TOOL=$(echo "$line" | awk '{print $1}')
             echo "| ✅ | Tool: $TOOL | linux/arm64 (QEMU) | $line |" >> /tmp/job-summary.md
+          done
+
+      # PROMOTION: only reached when every verification step passed. Re-tags
+      # the verified digest with the mutable tags WITHOUT rebuilding (the
+      # manifest index is copied server-side by buildx imagetools).
+      #   - push/dispatch on main: latest + main
+      #   - schedule (daily):      latest + main + daily
+      #   - v* tag push:           latest + <version>
+      # On any earlier failure the job stops here — the tags keep pointing
+      # at the previous verified image.
+      - name: Promote the verified image (latest + trigger tags)
+        run: |
+          SOURCE="ghcr.io/${{ github.repository_owner }}/pi-sandbox@${{ steps.build.outputs.digest }}"
+          REPO="ghcr.io/${{ github.repository_owner }}/pi-sandbox"
+          TAGS=(latest main)
+          if [ "${{ github.event_name }}" = "schedule" ]; then TAGS+=(daily); fi
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAGS=(latest "${GITHUB_REF_NAME#v}")
+          fi
+          for tag in "${TAGS[@]}"; do
+            docker buildx imagetools create -t "$REPO:$tag" "$SOURCE"
+            echo "| ✅ | Promoted to \`:$tag\` | both platforms | verified digest ${{ steps.build.outputs.digest }} |" >> /tmp/job-summary.md
           done
 
       - name: Write the verification report to the job summary
