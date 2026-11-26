@@ -10,7 +10,7 @@ See the dedicated READMEs: [extensions/intro](extensions/README.md),
 [extensions/git-status](extensions/git-status/README.md),
 [extensions/prompt-trigger](extensions/prompt-trigger/README.md),
 [extensions/pi-obs](extensions/pi-obs/README.md),
-[warp/](warp/README.md), [skills/](skills/), [docs/](docs/), [sources/](sources/).
+[warp/](warp/README.md), [skills/](skills/), [docs/](docs/), [sources/](sources/), [CI.md](CI.md) — the workflow trigger/dependency graph.
 
 ## Running environment
 
