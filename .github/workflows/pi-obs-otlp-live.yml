@@ -86,19 +86,24 @@ jobs:
           node extensions/pi-obs/tests/tools/validate-otlp-correlation.mjs \
             /tmp/otlp-capture.jsonl "2+2" "4" > /tmp/correlation.json
           cat /tmp/correlation.json
-          echo "| ✅ | Live OTLP capture: prompt/answer correlated | both on traceId $(node -e 'console.log(JSON.parse(require("fs").readFileSync("/tmp/correlation.json","utf8")).promptTraceId.slice(0,16))…') |" >> /tmp/otlp-rows.md
+          # pre-compute the summary values (nested command substitution in
+          # double quotes would not expand)
+          TRACE_ID=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("/tmp/correlation.json","utf8")).promptTraceId.slice(0, 16))')
+          echo "TRACE_ID=$TRACE_ID" >> "$GITHUB_ENV"
+          echo "| ✅ | Live OTLP capture: prompt/answer correlated | both on traceId $TRACE_ID… |" >> /tmp/otlp-rows.md
 
       - name: Job summary
         if: always()
         run: |
+          ANSWER=$(node -e 'try{console.log(JSON.parse(require("fs").readFileSync("/tmp/correlation.json","utf8")).answerExcerpt)}catch{}' 2>/dev/null || true)
           {
             echo "## 🔗 pi-obs — live OTLP capture & correlation"
             echo
             echo "**Prompt:** \`$PROMPT\`"
             echo "**Model:** \`$OPENROUTER_MODEL\` (OpenRouter, via the sandbox image)"
             echo
-            if [ -s /tmp/correlation.json ]; then
-              echo "Captured answer: \`\$(node -e 'console.log(JSON.parse(require("fs").readFileSync("/tmp/correlation.json","utf8")).answerExcerpt)')\`"
+            if [ -n "$ANSWER" ]; then
+              echo "**Captured answer:** \`$ANSWER\` — on traceId \`$TRACE_ID…\` (same trace as the prompt)"
               echo
             fi
             echo "| Result | Check | Detail |"
