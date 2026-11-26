@@ -121,6 +121,15 @@ jobs:
           EXCHANGE="$PI_FLEET_KIT_HOME/pi-exchange"
           echo "| ℹ️ | prompt-trigger bridge | activated on pi-coding-1 + pi-coding-2 via committed compose.mailbox.yml |" >> /tmp/fleet-rows.md
 
+          # diagnostics: identity, mount and permission reality inside the
+          # container (the exchange tree is shared between the runner user
+          # and the container user — a uid mismatch would silently block the
+          # atomic claim)
+          echo "=== host side:"; ls -ln "$EXCHANGE/pi-coding-2" "$EXCHANGE/pi-coding-2/inbox" 2>/dev/null || true
+          echo "=== container side:"
+          docker compose run -T --rm pi-coding-2 sh -c 'id; echo PI_TRIGGER_DIR=$PI_TRIGGER_DIR; ls -ln /exchange/pi-coding-2 /exchange/pi-coding-2/inbox 2>&1' 2>&1 | grep -vE "entrypoint|pi-obs:" || true
+
+
           # 1. the request: pi-coding-1 asks pi-coding-2 for a fixed answer
           REQ_OUT=$(printf 'Reply with exactly: PONG' \
             | PI_TRIGGER_DIR="$EXCHANGE/pi-coding-1" PI_AGENT_ID=pi-coding-1 \
