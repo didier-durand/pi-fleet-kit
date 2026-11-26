@@ -65,6 +65,7 @@ table="$(awk -v root="$ROOT" '
   }
   END { if (svc != "") flush() }
   function flush() {
+    if (ws == "") return  # no workspace mount → not an agent (e.g. otlp-jaeger infra)
     pt = "dormant"
     if (exch != "")      pt = sprintf("active — %s/pi-exchange/%s", root, exch)
     else if (trig != "") pt = "active — /exchange (external mount)"
