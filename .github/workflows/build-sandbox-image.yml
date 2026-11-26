@@ -1,4 +1,4 @@
-name: pi-sandbox image
+name: build-sandbox-image
 
 on:
   workflow_dispatch:
