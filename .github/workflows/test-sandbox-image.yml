@@ -1,0 +1,94 @@
+name: test-sandbox-image
+
+# Live LLM validation of the published sandbox image: after the build
+# workflow succeeds, pull the image from GHCR on both platforms, query the
+# model (OpenRouter), and issue a minimal prompt to validate the full
+# chain: entrypoint → pi → OpenRouter provider → LLM → response.
+# Uses the OPENROUTER_API_KEY secret and the OPENROUTER_MODEL repo variable
+# (e.g. z-ai/glm-5.3-flash) — the same pair the agents run on.
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [build-sandbox-image]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  llm-validation:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL }}
+    steps:
+      - name: Skip without credentials
+        if: env.OPENROUTER_API_KEY == ''
+        run: echo "::notice::OPENROUTER_API_KEY not configured — skipping live LLM validation" && exit 0
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Pull the image from GHCR (both platforms)
+        run: |
+          IMG=ghcr.io/${{ github.repository_owner }}/pi-sandbox:latest
+          echo "IMG=$IMG" >> "$GITHUB_ENV"
+          docker pull "$IMG"
+          docker pull --platform linux/arm64 "$IMG"
+
+      # Identical validation on both platforms: the entrypoint execs pi with
+      # the given args, so docker run <args> == pi <args> inside the sandbox.
+      - name: Query the model (amd64)
+        run: |
+          fmt() { node -e 'console.log(Number(process.argv[1]).toLocaleString("en-US"))' "$1"; }
+          OUT=$(docker run --rm --platform linux/amd64 \
+            -e OPENROUTER_API_KEY \
+            "$IMG" \
+            --model "openrouter/$OPENROUTER_MODEL" \
+            --print "Reply with exactly: OK" 2>&1 | tail -1)
+          echo "amd64 response: $OUT"
+          TRIMMED="${OUT//[[:space:]]/}"
+          if [ "$TRIMMED" = "OK" ]; then
+            echo "| ✅ | LLM query (minimal prompt) | linux/amd64 | model $OPENROUTER_MODEL answered OK |" >> /tmp/compliance-rows.md
+          else
+            echo "| ❌ | LLM query (minimal prompt) | linux/amd64 | unexpected response: $OUT |" >> /tmp/compliance-rows.md
+            exit 1
+          fi
+
+      - name: Query the model (arm64, emulated)
+        run: |
+          fmt() { node -e 'console.log(Number(process.argv[1]).toLocaleString("en-US"))' "$1"; }
+          OUT=$(docker run --rm --platform linux/arm64 \
+            -e OPENROUTER_API_KEY \
+            "$IMG" \
+            --model "openrouter/$OPENROUTER_MODEL" \
+            --print "Reply with exactly: OK" 2>&1 | tail -1)
+          echo "arm64 response: $OUT"
+          TRIMMED="${OUT//[[:space:]]/}"
+          if [ "$TRIMMED" = "OK" ]; then
+            echo "| ✅ | LLM query (minimal prompt) | linux/arm64 (QEMU) | model $OPENROUTER_MODEL answered OK |" >> /tmp/compliance-rows.md
+          else
+            echo "| ❌ | LLM query (minimal prompt) | linux/arm64 (QEMU) | unexpected response: $OUT |" >> /tmp/compliance-rows.md
+            exit 1
+          fi
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## 🧠 test-sandbox-image — live LLM validation"
+            echo
+            echo "**Image:** \`ghcr.io/${{ github.repository_owner }}/pi-sandbox:latest\`"
+            echo "**Model:** \`$OPENROUTER_MODEL\` (OpenRouter)"
+            echo
+            echo "| Result | Check | Platform | Detail |"
+            echo "|---|---|---|---|"
+            cat /tmp/compliance-rows.md 2>/dev/null || echo "| ⏭️ | (skipped — no OPENROUTER_API_KEY) | — | |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
