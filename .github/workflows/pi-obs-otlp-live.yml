@@ -91,6 +91,10 @@ jobs:
           TRACE_ID=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("/tmp/correlation.json","utf8")).promptTraceId.slice(0, 16))')
           echo "TRACE_ID=$TRACE_ID" >> "$GITHUB_ENV"
           echo "| ✅ | Live OTLP capture: prompt/answer correlated | both on traceId $TRACE_ID… |" >> /tmp/otlp-rows.md
+          # the span tree — visual proof of what the OTLP capture contains
+          node extensions/pi-obs/tests/tools/otlp-trace-summary.mjs /tmp/otlp-capture.jsonl --max=80 \
+            > /tmp/trace-tree.md
+          cat /tmp/trace-tree.md >> /tmp/otlp-rows.md
 
       - name: Job summary
         if: always()
@@ -109,5 +113,9 @@ jobs:
             echo "| Result | Check | Detail |"
             echo "|---|---|---|"
             cat /tmp/otlp-rows.md 2>/dev/null || echo "| ❌ | (workflow failed — see logs) | |"
+            echo
+            echo "### Captured span hierarchy"
+            echo
+            cat /tmp/trace-tree.md 2>/dev/null || echo "*(no span tree — validation did not reach the capture stage)*"
           } >> "$GITHUB_STEP_SUMMARY"
           cat "$GITHUB_STEP_SUMMARY"
