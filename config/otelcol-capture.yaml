@@ -1,0 +1,38 @@
+# OTel Collector config for the CI capture backend (compose service
+# `otlp-collector`, profile `ci` — see compose.yml).
+#
+# CI-only plumbing: on GitHub runners this collector REPLACES the otlp-jaeger
+# service as the agents' OTLP endpoint (it carries the `otlp-jaeger` network
+# alias, so agents keep exporting to http://otlp-jaeger:4318 unchanged). It
+# exports all three signals (traces, metrics, logs) to a file on the runner:
+# push-based, deterministic assertions on raw OTLP — no query-API polling, no
+# storage semantics. Jaeger stays the operator's UI on the host; CI wants
+# files, not UIs.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+exporters:
+  file:
+    path: /data/otel-capture.jsonl
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133   # default binds the container's loopback — unreachable via the mapped port
+service:
+  extensions: [health_check]
+  telemetry:
+    logs:
+      level: warn
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [file]
+    metrics:
+      receivers: [otlp]
+      exporters: [file]
+    logs:
+      receivers: [otlp]
+      exporters: [file]

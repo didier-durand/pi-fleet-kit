@@ -448,7 +448,38 @@ services:
     # NOT labeled pi.agent.fleet=1: this is infrastructure, not an agent.
     # docker compose run --rm otlp-jaeger would be wrong (it is a daemon).
 
+  # otlp-collector: the CI-only telemetry backend (profile `ci`). On GitHub
+  # runners it REPLACES otlp-jaeger as the agents' OTLP sink — a standard
+  # OpenTelemetry Collector exporting all three signals to a file (push-based,
+  # deterministic assertions on raw OTLP; Jaeger stays the operator's UI).
+  # It carries the `otlp-jaeger` NETWORK ALIAS on the compose network, so
+  # agents keep exporting to http://otlp-jaeger:4318 with a byte-identical
+  # compose config — the fleet test needs no override file and no env edits.
+  # Dormant by default (profiles: [ci]): `docker compose up -d` on the host
+  # never starts it; CI activates it via COMPOSE_PROFILES=ci. Do not start it
+  # alongside otlp-jaeger on the host: the shared alias would split DNS.
+  otlp-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otlp-collector
+    profiles: [ci]
+    command: ["--config", "/etc/otelcol/config.yaml"]
+    volumes:
+      - ./config/otelcol-capture.yaml:/etc/otelcol/config.yaml:ro
+      - otel-capture:/data
+    ports:
+      # The collector's own health check — CI polls it to prove the backend
+      # RUNS (not just exists) before any agent is brought up.
+      - "13133:13133"
+    networks:
+      default:
+        aliases: [otlp-jaeger]
+    # Runs as root: the contrib image's UID 10001 cannot rely on the named
+    # volume's ownership; root sidesteps it and docker cp reads the capture
+    # regardless of who owns the file.
+    user: "0"
+
 volumes:
+  otel-capture:
   pi-fleet-kit-home:
   pi-developer-home:
   pi-coding-1-home:

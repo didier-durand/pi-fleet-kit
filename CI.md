@@ -102,6 +102,7 @@ flowchart LR
 | `utils/check-extension.sh <name>` | the three `*-check-sanity` workflows |
 | `utils/run-tests.sh <name> [paths…]` | the three `*-unit-tests` workflows |
 | `config/otelcol-jaeger.yaml` | the `otlp-jaeger` compose service (consumed in production, not CI) |
+| `config/otelcol-capture.yaml` | the `otlp-collector` compose service, profile `ci` — the CI telemetry backend (not used on the host) |
 | `extensions/pi-obs/tests/tools/validate-external-otel.mjs` | `pi-obs-otel-compliance` |
 | `extensions/pi-obs/tests/tools/otlp-capture-receiver.mjs` · `validate-otlp-correlation.mjs` · `otlp-trace-summary.mjs` | `pi-obs-otlp-live` |
 
