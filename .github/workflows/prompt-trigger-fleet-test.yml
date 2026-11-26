@@ -140,11 +140,15 @@ jobs:
 
           # 2. pi-coding-2 consumes it: kick the session; the tick delivers
           #    the request, the LLM answers, agent_end settles the reply.
-          #    The kick prompt forces a LONG first turn (llm latency >> the
-          #    1.5s tick) so the delivery lands inside the run — a fast kick
-          #    ("READY") can exit before the first tick and the envelope
-          #    merely oscillates inbox ↔ working across retries.
-          KICK="Count slowly from 1 to 40, one number per line, then stop."
+          #    The first mailbox tick fires 1.5s after SESSION START (not
+          #    process start), and container startup (entrypoint + pi boot +
+          #    extension load + --continue resume) eats ~2.5s of the run —
+          #    so the kick turn must stream well past ~4s or the run exits
+          #    before the first tick and the envelope is never claimed
+          #    (crash recovery only requeues CLAIMED envelopes in working/;
+          #    an unclaimed inbox envelope converges nowhere). Count to 200
+          #    streams ~8-10s on the CI model — safe margin.
+          KICK="Count slowly from 1 to 200, one number per line, then stop."
           for i in 1 2 3; do
             echo "$KICK" | timeout 240 docker compose run -T --rm pi-coding-2 2>&1 | tail -3 || true
             [ -f "$EXCHANGE/pi-coding-2/processed/$REQ_ID" ] && break
