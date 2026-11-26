@@ -1,14 +1,14 @@
 # prompt-trigger — Implementation Plan
 
-Plan version: 1.0.0 (semver — matches the tag `impl-plan-prompt-trigger-1.0.0`)
+Plan version: 1.1.0 (semver — matches the tag `impl-plan-prompt-trigger-1.1.0`)
 Author: Didier Durand
 Date: 2026-11-25
 
-> **Status:** executed — the extension ships as v0.1.0. Derived from
-> `extensions/prompt-trigger/docs/SPECS.md` (requirements R1–R8). This is
-> a **retroactive** plan: the extension was built and shipped as a single
-> release before the spec was formalized; this document describes the
-> architectural decisions and the test strategy.
+> **Status:** partially executed — Steps 1–3 shipped in v0.1.0 (the
+> prompt-dropper layer, live in the fleet). Steps 4–7 specify the
+> **mailbox protocol implementation** (R9–R12: envelope, maildir,
+> ledger, replies) — specified ahead of implementation, executable by
+> coding agents against this plan and the v1.1.0 spec.
 
 ## Ordering principle
 
@@ -84,9 +84,72 @@ Single file `prompt-trigger.ts` (~196 lines) implementing:
   attempt, so a delete failure means the file is simply orphaned
   (not re-consumed until the next full stability cycle).
 
+## Steps 4–7 — mailbox protocol (specified ahead of implementation)
+
+The divergences from the fleet's mailbox architecture
+(`pi-mailbox-arch.json`, levels 1–2) are closed in three steps, ordered
+by dependency: the envelope defines what a message IS, the maildir
+defines where messages LIVE, the ledger defines what has been DONE, and
+replies close the loop (task delegation with answers).
+
+### Step 4 — Envelope + send.sh (R9)
+
+- `src/envelope.ts`: parse/validate/build the envelope
+  (`id`, `from`, `to`, `type` request|reply|error, `correlation_id`,
+  `created`, `body`, `attempts`) — fail-closed: invalid → move to
+  `failed/` with the parse error recorded (never consumed, never
+  dropped).
+- `send.sh` (extension root): builds + drops envelopes atomically
+  (tmp + mv) — agents never hand-craft JSON. Usage:
+  `send.sh <to> <body-file> [--type=request] [--correlation-id=<id>]`.
+- Backward compat: raw (non-envelope) files in the exchange ROOT stay
+  legacy prompts (R5); envelopes live in `inbox/`.
+- Tests: envelope parsing/serialization round-trip; malformed → failed/;
+  send.sh atomicity; raw-file compat.
+
+### Step 5 — Maildir state machine (R10)
+
+- Subdirs: `inbox/ working/ pending/ processed/ failed/` (created on
+  session start, idempotent).
+- Claim: `mv inbox/<msg> working/<msg>` (atomic rename, exactly one
+  consumer); completion: `mv working/<msg> processed/<msg>` after the
+  reply; failure: `mv working/<msg> failed/<msg>` + error record;
+  `MAX_ATTEMPTS` (3) enforced via the envelope's `attempts` counter.
+- Crash recovery: session-start scan replays `working/` (claimed but
+  unfinished).
+- Retention: `processed/` bounded (keep the last 100, prune on start).
+- Tests: claim atomicity (one claimer wins), recovery replay,
+  attempts escalation to failed/, retention pruning.
+
+### Step 6 — Ledger + replies (R11, R12)
+
+- `ledger.ndjson` (append-only, exchange root): consumed message ids;
+  checked before claiming — an already-handled id moves straight to
+  `processed/` (at-most-once across restarts and delete failures).
+- Reply emission: after a `request` turn settles, write a reply envelope
+  (type reply, correlation_id = request id, body = the turn's final
+  assistant text) to `/exchange/../<from>/inbox/` via the same atomic
+  tmp+mv discipline.
+- Reply dedupe: correlation_id already in the sender's ledger → drop.
+- Sender unreachable (no inbox dir): move to `failed/` + ledger note.
+- Tests: ledger at-most-once (double delivery attempt), reply content
+  correlation, dedupe, unreachable-sender handling.
+
+### Step 7 — Suite + CI upgrade
+
+- All new modules ≥ 90% lines+branches (the package's gate).
+- New workflow coverage: the sanity workflow's tarball check includes
+  `send.sh` + new sources; the unit-test workflow picks up the new
+  test files automatically.
+- Live check: two sandbox containers exchanging envelopes end-to-end
+  (request → reply → correlation) — mirrors pi-obs-otlp-live's pattern.
+
 ## Plan-level definition of done
 
-- All R1–R8 requirements satisfied and test-pinned.
+- v1.0.0 (shipped): all R1–R8 requirements satisfied and test-pinned.
+- v1.1.0 (to implement): all R9–R12 requirements satisfied and
+  test-pinned; two sandbox containers exchange envelopes end-to-end
+  (request → reply → correlation) in CI.
 - CI green: sanity + unit-test workflows.
 - npm package publishable (`npm pack` produces exactly the declared files).
 - Extension loads via `pi -e` and answers (live-load smoke test in CI).
@@ -108,3 +171,4 @@ Single file `prompt-trigger.ts` (~196 lines) implementing:
 | Version | Date | Author | Change |
 |---|---|---|---|
 | 1.0.0 | 2026-11-25 | Didier Durand | retroactive plan from shipped v0.1.0; versioned per house convention |
+| 1.1.0 | 2026-11-25 | Didier Durand | mailbox protocol steps 4–7 (envelope+send.sh, maildir, ledger+replies, suite/CI) specified ahead of implementation — closes the divergences from pi-mailbox-arch.json levels 1–2 |

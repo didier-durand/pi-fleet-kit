@@ -1,13 +1,16 @@
 # prompt-trigger — file-triggered prompts for a running pi TUI
 
-Specification version: 1.0.0 (semver — matches the tag `specs-prompt-trigger-1.0.0`)
+Specification version: 1.1.0 (semver — matches the tag `specs-prompt-trigger-1.1.0`)
 Author: Didier Durand
 Date: 2026-11-25
 
-> **Status:** implemented — the extension ships as v0.1.0 (see
-> `package.json`). This spec documents the contract the extension was
-> built to (written retroactively from the shipped code, after the
-> hermetic test suite of 0.1.0).
+> **Status:** partially implemented — v0.1.0 ships R1–R8 (the
+> prompt-dropper layer, live in the fleet). This revision adds
+> **R9–R12: the mailbox protocol** (envelope, maildir state machine,
+> ledger, replies), aligning the extension with the fleet's
+> agent-to-agent mailbox architecture (`pi-mailbox-arch.json`, levels
+> 1–2) — specified ahead of implementation, so coding agents can
+> execute it against this contract.
 
 ## Objective
 
@@ -69,16 +72,20 @@ checks, directives, queuing) fits in one readable file.
 
 ## Requirements
 
-| ID | Name | Summary | Priority |
-|---|---|---|---|
-| R1 | Safety | Never harms or alters the agent; failures are silent (dormant) | 1 |
-| R2 | Zero-harm idle | Zero token cost while idle; tokens only on actual delivery | 2 |
-| R3 | Atomic-write safety | Only stable files are consumed; partial writes never reach the agent | 3 |
-| R4 | One file = one prompt | Each file is consumed (deleted) exactly once | 4 |
-| R5 | Directives | `/new [kickoff]` starts a fresh session; plain content is a prompt | 5 |
-| R6 | Queuing | Mid-run prompts queue as followUp instead of interrupting | 6 |
-| R7 | Dormancy | Unset `PI_TRIGGER_DIR` leaves the extension dormant | 7 |
-| R8 | Privacy | Dotfiles are never consumed; no agent can see another agent's files | 8 |
+| ID | Name | Summary | Priority | Status |
+|---|---|---|---|---|
+| R1 | Safety | Never harms or alters the agent; failures are silent (dormant) | 1 | shipped 0.1.0 |
+| R2 | Zero-harm idle | Zero token cost while idle; tokens only on actual delivery | 2 | shipped 0.1.0 |
+| R3 | Atomic-write safety | Only stable files are consumed; partial writes never reach the agent | 3 | shipped 0.1.0 |
+| R4 | One file = one prompt | Each file is consumed (deleted) exactly once | 4 | shipped 0.1.0 |
+| R5 | Directives | `/new [kickoff]` starts a fresh session; plain content is a prompt | 5 | shipped 0.1.0 |
+| R6 | Queuing | Mid-run prompts queue as followUp instead of interrupting | 6 | shipped 0.1.0 |
+| R7 | Dormancy | Unset `PI_TRIGGER_DIR` leaves the extension dormant | 7 | shipped 0.1.0 |
+| R8 | Privacy | Dotfiles are never consumed; no agent can see another agent's files | 8 | shipped 0.1.0 |
+| R9 | Envelope | Mailbox messages carry the standard envelope; `send.sh` builds them | 9 | **to implement** |
+| R10 | Maildir | inbox/working/pending/processed/failed + atomic claim | 10 | **to implement** |
+| R11 | Ledger | append-only handled-ids: at-most-once work; startup replay | 11 | **to implement** |
+| R12 | Replies | auto-reply envelope echoing correlation_id to the sender's inbox | 12 | **to implement** |
 
 ### R1 — Never harms the agent
 
@@ -137,6 +144,84 @@ catches and returns).
   `$PI_FLEET_KIT_HOME/pi-exchange/<agent>` as `/exchange` — no agent
   sees another agent's files.
 
+### R9 — Envelope protocol (mailbox level 1)
+
+Aligned with the fleet's agent-to-agent mailbox architecture
+(`pi-mailbox-arch.json`, level 1), the flat prompt-file format evolves
+into the standard envelope:
+
+- Every mailbox message is a JSON object with exactly these fields:
+  `id` (unique: `msg-<ts>-<pid>`), `from` (sender agent id), `to`
+  (recipient agent id), `type` (`request` | `reply` | `error`),
+  `correlation_id` (echoes the request `id` on replies), `created`
+  (ISO timestamp), `body` (the prompt text), `attempts` (retry counter,
+  maintained by the extension).
+- A `send.sh` helper (in the extension dir) builds and drops envelopes —
+  **agents never hand-craft JSON**; malformed messages are impossible
+  through the helper.
+- **Backward compatibility (transition rule)**: a file in the exchange
+  dir whose content is NOT a valid envelope JSON is treated as a legacy
+  raw prompt (R5 behavior, consumed as today). Files in `inbox/` MUST be
+  envelopes; a malformed envelope there is moved to `failed/` with the
+  parse error recorded — never consumed, never silently dropped.
+
+### R10 — Maildir state machine (mailbox level 1)
+
+The exchange dir evolves from a flat drop zone into the maildir layout
+(same root, subdirs added — the compose mount does not change):
+
+```text
+/exchange/
+├── <legacy raw prompt files>   # backward compat: consumed as R4/R5
+├── inbox/                      # envelopes awaiting consumption
+├── working/                    # claimed, being processed
+├── pending/                    # (reserved) scheduled/deferred messages
+├── processed/                  # handled, reply written (bounded retention)
+└── failed/                     # MAX_ATTEMPTS exhausted or malformed
+```
+
+- **Claim is atomic**: `mv inbox/<msg> working/<msg>` — same filesystem,
+  atomic rename; exactly one consumer per inbox.
+- **Completion**: after the reply is written, `mv working/<msg>
+  processed/<msg>`.
+- **Failure**: a processing error (or malformed envelope) moves the
+  message to `failed/` — with the error recorded; after
+  `MAX_ATTEMPTS` (3) failed delivery attempts, it stays in `failed/`
+  and an error reply is sent to the sender (R12).
+- **Crash recovery**: on session start, files found in `working/` are
+  replayed (claimed but unfinished) — back to the head of processing.
+
+### R11 — Ledger: at-most-once work (mailbox level 2)
+
+- An append-only ledger file (`ledger.ndjson` in the exchange root)
+  records every consumed message id.
+- Before claiming a message, the extension checks the ledger: an
+  already-handled id is moved straight to `processed/` (never
+  re-executed) — at-most-once work, even across restarts and delete
+  failures. The ledger replaces the delete-failure duplicate-delivery
+  risk documented in v1.0.0's Risks section.
+
+### R12 — Replies: task delegation (the architecture's key insight)
+
+Prompting becomes asynchronous task delegation — every request gets a
+reply, and replies are matchable:
+
+- After a `request`-type envelope is handled (the agent's turn
+  settles), the extension writes a **reply envelope** to the SENDER's
+  inbox: `type: "reply"`, `correlation_id` = the request's `id`,
+  `body` = the agent's answer (the turn's final assistant text).
+- Replies are themselves mailbox messages — consumed by the sender's
+  own prompt-trigger instance and injected as user messages (resume
+  prompts).
+- `error`-type replies carry the failure reason (after MAX_ATTEMPTS or
+  a malformed body). A reply whose `correlation_id` is already in the
+  sender's ledger is dropped (dedupe).
+- Reply path: the exchange dirs share a common parent
+  (`$PI_FLEET_KIT_HOME/pi-exchange/`), so a reply to agent `from` is
+  written to `/exchange/../<from>/inbox/` — resolved against the fleet
+  layout. A request whose sender's inbox is unreachable is moved to
+  `failed/` with a ledger note (an error reply has nowhere to go).
+
 ## Explicit non-goals
 
 - **Watching (inotify/FSEvents)** — the extension polls on a timer, not
@@ -176,3 +261,4 @@ catches and returns).
 | Version | Date | Author | Change |
 |---|---|---|---|
 | 1.0.0 | 2026-11-25 | Didier Durand | retroactive spec from shipped v0.1.0; versioned per house convention |
+| 1.1.0 | 2026-11-25 | Didier Durand | mailbox protocol: R9 envelope + send.sh, R10 maildir state machine, R11 ledger (at-most-once), R12 replies with correlation — aligned with pi-mailbox-arch.json levels 1–2; per-requirement status column added |
