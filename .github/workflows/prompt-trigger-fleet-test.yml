@@ -11,10 +11,21 @@ name: prompt-trigger-fleet-test
 # that carries the `otlp-jaeger` network alias. Activating it is one
 # compose-native env var (COMPOSE_PROFILES=ci): agents keep exporting to
 # http://otlp-jaeger:4318 with the STORED compose.yml unmodified — no
-# override file, no runtime heredocs, no -f flag juggling. The collector
-# exports all three signals (traces, metrics, logs) to a named volume:
-# push-based, deterministic assertions on raw OTLP — no query-API polling,
-# no storage semantics. Jaeger stays the operator's UI; CI wants files.
+# runtime heredocs, no -f flag juggling. The collector exports all three
+# signals (traces, metrics, logs) to a named volume: push-based,
+# deterministic assertions on raw OTLP — no query-API polling, no storage
+# semantics. Jaeger stays the operator's UI; CI wants files.
+#
+# Mailbox scenario: the same compose-native mechanism activates the
+# prompt-trigger bridge on the two coding agents via the COMMITTED
+# compose.mailbox.yml override (COMPOSE_FILE=compose.yml:compose.mailbox.yml)
+# — the only override in the kit, versioned and reviewed, for the one
+# scenario the dormant base config cannot express (partial-service wiring).
+# The test runs a real 2-way exchange: send.sh drops a request into
+# pi-coding-2's inbox; its LLM answers; the settled reply lands in
+# pi-coding-1's inbox and its LLM reads it — proven three ways: mailbox
+# files (correlation_id chain), and OTLP spans (the PONG answer on
+# pi-coding-2's model span; pi-coding-1's turn on the delivered reply).
 #
 # Mechanism: with piped stdin and no TTY (docker compose run -T), pi uses
 # print mode automatically and prepends the piped content as the first
@@ -51,11 +62,18 @@ jobs:
       - name: Point PI_FLEET_KIT_HOME at the checkout
         run: echo "PI_FLEET_KIT_HOME=$(dirname "$GITHUB_WORKSPACE")" >> "$GITHUB_ENV"
 
-      # One compose-native env var activates the CI backend: the `ci` profile
-      # starts `otlp-collector` (which carries the `otlp-jaeger` alias) and
-      # leaves everything else byte-identical to the host's compose usage.
-      - name: Activate the ci compose profile
-        run: echo "COMPOSE_PROFILES=ci" >> "$GITHUB_ENV"
+      # Compose-native activation, one env var each: the `ci` profile starts
+      # `otlp-collector` (which carries the `otlp-jaeger` alias); the mailbox
+      # override (committed) wires the prompt-trigger bridge into the two
+      # coding agents. Everything else stays byte-identical to host usage.
+      - name: Activate the ci compose profile + mailbox override
+        run: |
+          echo "COMPOSE_PROFILES=ci" >> "$GITHUB_ENV"
+          echo "COMPOSE_FILE=compose.yml:compose.mailbox.yml" >> "$GITHUB_ENV"
+          # exchange dirs pre-exist and are RUNNER-OWNED: docker otherwise
+          # auto-creates missing bind-mount sources as root, which would lock
+          # send.sh (and the agents) out of the maildirs
+          mkdir -p "$PI_FLEET_KIT_HOME/pi-exchange/pi-coding-1" "$PI_FLEET_KIT_HOME/pi-exchange/pi-coding-2"
 
       - name: Start the collector (the CI telemetry backend)
         run: |
@@ -89,6 +107,62 @@ jobs:
             fi
             sleep 4   # exporter flush window; avoid rate bursts
           done
+
+      # 2-way mailbox exchange (SPECS v1.1.0 R9-R12): send.sh drops a request
+      # into pi-coding-2's inbox; the extension delivers it on a tick (1.5s),
+      # the LLM answers, agent_end settles the reply into pi-coding-1's inbox;
+      # pi-coding-1 then consumes it. print-mode runs shorter than the first
+      # tick simply miss the delivery — the crash-recovery path puts a claimed
+      # envelope back into the inbox, so a bounded retry loop converges
+      # deterministically on the END STATE (files + spans), which is what the
+      # assertions check.
+      - name: Two-way mailbox exchange (pi-coding-1 ⇄ pi-coding-2)
+        run: |
+          EXCHANGE="$PI_FLEET_KIT_HOME/pi-exchange"
+          echo "| ℹ️ | prompt-trigger bridge | activated on pi-coding-1 + pi-coding-2 via committed compose.mailbox.yml |" >> /tmp/fleet-rows.md
+
+          # 1. the request: pi-coding-1 asks pi-coding-2 for a fixed answer
+          REQ_OUT=$(printf 'Reply with exactly: PONG' \
+            | PI_TRIGGER_DIR="$EXCHANGE/pi-coding-1" PI_AGENT_ID=pi-coding-1 \
+              bash extensions/prompt-trigger/send.sh pi-coding-2 -)
+          REQ_ID=$(echo "$REQ_OUT" | sed -n 's/.*\/\(msg-[0-9-]*\.json\).*/\1/p')
+          [ -n "$REQ_ID" ] || { echo "send.sh produced no id: $REQ_OUT" >&2; exit 1; }
+          echo "request $REQ_ID dropped into pi-coding-2's inbox"
+
+          # 2. pi-coding-2 consumes it: kick the session; the tick delivers
+          #    the request, the LLM answers, agent_end settles the reply
+          for i in 1 2 3; do
+            echo "Reply with exactly: READY" | timeout 180 docker compose run -T --rm pi-coding-2 2>&1 | tail -3 || true
+            [ -f "$EXCHANGE/pi-coding-2/processed/$REQ_ID" ] && break
+            echo "attempt $i: request not yet processed; retrying (crash recovery requeues it)"
+            sleep 2
+          done
+          [ -f "$EXCHANGE/pi-coding-2/processed/$REQ_ID" ] || { echo "pi-coding-2 never processed $REQ_ID" >&2; exit 1; }
+          echo "| ✅ | mailbox: request consumed | pi-coding-2 processed $REQ_ID (inbox → working → processed) |" >> /tmp/fleet-rows.md
+
+          # 3. the settled reply must sit in pi-coding-1's inbox, correlated
+          REPLY=$(ls "$EXCHANGE/pi-coding-1/inbox/"msg-*.json 2>/dev/null | head -1)
+          [ -n "$REPLY" ] || { echo "no reply in pi-coding-1's inbox" >&2; exit 1; }
+          REPLY_ID=$(basename "$REPLY")
+          node -e '
+          const env = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+          const ok = env.type === "reply" && env.correlation_id === process.argv[2]
+            && env.from === "pi-coding-2" && env.to === "pi-coding-1" && /PONG/.test(env.body);
+          console.log("reply envelope:", JSON.stringify(env));
+          if (!ok) { console.error("reply envelope failed validation"); process.exit(1); }' "$REPLY" "$REQ_ID"
+          echo "| ✅ | mailbox: reply correlated | $REPLY_ID echoes correlation_id=$REQ_ID, body: PONG |" >> /tmp/fleet-rows.md
+
+          # 4. pi-coding-1 consumes the reply (type=reply → processed, no reply-of-reply)
+          for i in 1 2 3; do
+            echo "Reply with exactly: READY" | timeout 180 docker compose run -T --rm pi-coding-1 2>&1 | tail -3 || true
+            [ -f "$EXCHANGE/pi-coding-1/processed/$REPLY_ID" ] && break
+            echo "attempt $i: reply not yet processed; retrying"
+            sleep 2
+          done
+          [ -f "$EXCHANGE/pi-coding-1/processed/$REPLY_ID" ] || { echo "pi-coding-1 never processed $REPLY_ID" >&2; exit 1; }
+          echo "| ✅ | mailbox: reply consumed | pi-coding-1 processed $REPLY_ID (closed without a reply-of-reply) |" >> /tmp/fleet-rows.md
+          echo "REQ_ID=$REQ_ID" >> "$GITHUB_ENV"
+          echo "REPLY_ID=$REPLY_ID" >> "$GITHUB_ENV"
 
       - name: Validate the OTLP capture (collector file export)
         run: |
@@ -146,6 +220,37 @@ jobs:
             fi
           done
           echo "| ℹ️ | pi-fleet-kit exports nothing (PI_OBS_ENABLED=0, by design) | |" >> /tmp/fleet-rows.md
+          # the 2-way exchange, proven in the spans: pi-coding-2's model span
+          # carries the LLM-generated PONG (its answer to the delivered
+          # request); pi-coding-1 has model spans for its turn on the
+          # delivered reply. (print mode emits no pi.user.input spans — the
+          # model spans ARE the LLM-interaction record.)
+          node -e '
+          const fs = require("fs");
+          const lines = fs.readFileSync(process.argv[1], "utf8").split("\n").filter(Boolean);
+          const models = {};
+          for (const line of lines) {
+            let rec; try { rec = JSON.parse(line); } catch { continue; }
+            for (const b of [rec.body].flat()) {
+              const doc = typeof b === "string" ? JSON.parse(b) : b;
+              for (const rs of doc.resourceSpans ?? []) {
+                const svc = (rs.resource?.attributes ?? []).find(a => a.key === "service.name")?.value?.stringValue ?? "?";
+                for (const ss of rs.scopeSpans ?? []) for (const s of ss.spans ?? []) {
+                  if (s.name !== "pi.model") continue;
+                  const text = (s.attributes ?? []).find(a => a.key === "pi.content.text")?.value?.stringValue ?? "";
+                  (models[svc] = models[svc] ?? []).push(text);
+                }
+              }
+            }
+          }
+          const pong2 = (models["pi-agent-pi-coding-2"] ?? []).filter(t => t.includes("PONG")).length;
+          const models1 = (models["pi-agent-pi-coding-1"] ?? []).length;
+          const stats = JSON.parse(fs.readFileSync("/tmp/otel-stats.json", "utf8"));
+          const row = (ok, label, detail) => console.log(`| ${ok ? "✅" : "❌"} | ${label} | ${detail} |`);
+          row(pong2 >= 1, "exchange via OTLP spans: pi-coding-2", `model span carries the LLM answer \"PONG\" (${pong2} such span(s))`);
+          row(models1 >= 1, "exchange via OTLP spans: pi-coding-1", `${models1} model span(s) — LLM turn on the delivered reply`);
+          if (pong2 < 1 || models1 < 1) process.exit(1);
+          ' "$CAPTURE" >> /tmp/fleet-rows.md || { cat /tmp/fleet-rows.md | tail -4; echo "OTLP span analysis failed" >&2; exit 1; }
 
       - name: Teardown
         if: always()

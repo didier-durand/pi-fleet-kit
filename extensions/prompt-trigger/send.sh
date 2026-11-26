@@ -39,6 +39,8 @@ while [ $# -gt 0 ]; do
 		--correlation-id=*) CORRELATION="${1#--correlation-id=}" ;;
 		--from=*) FROM="${1#--from=}" ;;
 		-h|--help) usage 0 ;;
+		-)                          # body from stdin (must precede the option pattern)
+			if [ -z "$BODY_FILE" ]; then BODY_FILE="-"; else echo "send.sh: unexpected argument $1" >&2; exit 2; fi ;;
 		-*) echo "send.sh: unknown option $1 (try --help)" >&2; exit 2 ;;
 		*) if [ -z "$TO" ]; then TO="$1"; elif [ -z "$BODY_FILE" ]; then BODY_FILE="$1"; else echo "send.sh: unexpected argument $1" >&2; exit 2; fi ;;
 	esac

@@ -1,0 +1,49 @@
+# Mailbox-scenario override: activates the prompt-trigger bridge on the two
+# coding agents so the fleet test can exercise a real 2-way exchange.
+#
+# The base compose.yml keeps the bridge dormant fleet-wide (no --extension,
+# no PI_TRIGGER_DIR, no exchange mounts). This committed override — used ONLY
+# by the prompt-trigger-fleet-test workflow (compose -f compose.yml -f
+# compose.mailbox.yml) — wires pi-coding-1 and pi-coding-2 exactly as the
+# SPECS v1.1.0 layout prescribes:
+#   - the fleet exchange tree mounted at /exchange (send.sh reaches sibling
+#     inboxes via PI_TRIGGER_DIR/../<to>/inbox — hence the WHOLE tree, RW)
+#   - PI_TRIGGER_DIR=/exchange/<agent> (the agent's own exchange dir; its
+#     basename doubles as the agent's mail id)
+#   - the prompt-trigger extension appended to the base command
+#     (compose replaces `command` wholesale, so it is repeated here — keep
+#     the two in sync when the base command changes; the fleet test fails
+#     loudly if the bridge does not come up).
+#
+# The exchange tree itself (pi-exchange/<agent>/{inbox,working,pending,
+# processed,failed}) is created by setupMaildir at session start; only the
+# agent dirs must pre-exist for the bind mounts.
+
+services:
+  pi-coding-1:
+    volumes:
+      - ${PI_FLEET_KIT_HOME:-$HOME}/pi-exchange:/exchange
+    environment:
+      - PI_TRIGGER_DIR=/exchange/pi-coding-1
+    command:
+      ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
+       "--extension", "/repo-extensions/pi-obs/index.ts",
+       "--extension", "/repo-extensions/git-status/git-status.ts",
+       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
+       "--skill", "/repo-skills/github-best-practices",
+       "--skill", "/repo-skills/write-code",
+       "--skill", "/repo-skills/write-pull-request"]
+
+  pi-coding-2:
+    volumes:
+      - ${PI_FLEET_KIT_HOME:-$HOME}/pi-exchange:/exchange
+    environment:
+      - PI_TRIGGER_DIR=/exchange/pi-coding-2
+    command:
+      ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
+       "--extension", "/repo-extensions/pi-obs/index.ts",
+       "--extension", "/repo-extensions/git-status/git-status.ts",
+       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
+       "--skill", "/repo-skills/github-best-practices",
+       "--skill", "/repo-skills/write-code",
+       "--skill", "/repo-skills/write-pull-request"]
