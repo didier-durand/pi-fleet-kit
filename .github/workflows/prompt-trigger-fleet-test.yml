@@ -67,6 +67,7 @@ jobs:
               path: /data/otel-capture.jsonl
           extensions:
             health_check:
+              endpoint: 0.0.0.0:13133   # default binds the container's loopback — unreachable via the mapped port
           service:
             extensions: [health_check]
             telemetry:
@@ -102,13 +103,15 @@ jobs:
       - name: Start the collector (as the otlp-jaeger service)
         run: |
           docker compose $COMPOSE_FILES up -d otlp-jaeger
+          echo "=== collector state: $(docker inspect otlp-jaeger --format '{{.State.Status}} exit={{.State.ExitCode}}' 2>/dev/null)"
+          docker logs otlp-jaeger --tail 30 2>&1 | head -25 || true
           # the collector's own health check — proves it RUNS, not just exists
           for i in $(seq 1 20); do
             CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:13133 || echo 000)
             [ "$CODE" = "200" ] && break
             sleep 1
           done
-          [ "$CODE" = "200" ] || { docker logs otlp-jaeger --tail 20 >&2; echo "collector health check failed (last: $CODE)" >&2; exit 1; }
+          [ "$CODE" = "200" ] || { echo "collector health check failed (last: $CODE)" >&2; exit 1; }
           echo "| ✅ | OTel Collector up (replaces otlp-jaeger in CI via compose override) | health check 200 on :13133 |" >> /tmp/fleet-rows.md
 
       - name: Bring up every agent and validate its LLM round-trip
