@@ -102,19 +102,28 @@ jobs:
 
       # Identical checks on both platforms: entrypoint + pi version, and
       # the toolchain agents depend on (git / gh / node).
+      # Identical checks on both platforms: entrypoint + pi version, then
+      # one line per tool (git / gh / node) in the job summary.
       - name: Smoke-run the pulled image (amd64)
         run: |
           IMG=ghcr.io/${{ github.repository_owner }}/pi-sandbox@${{ steps.build.outputs.digest }}
           PI_OUT=$(docker run --rm --platform linux/amd64 "$IMG" --version)
           echo "pi --version -> $PI_OUT"
           test -n "$PI_OUT"
-          TOOLS=$(docker run --rm --platform linux/amd64 --entrypoint bash "$IMG" -c 'git --version && gh --version && node --version')
+          # gh prints 3 lines (version, commit, url) — keep the first, trimmed;
+          # node's --version prints only the version — prefix the tool name
+          TOOLS=$(docker run --rm --platform linux/amd64 --entrypoint bash "$IMG" -c '
+            git --version
+            gh --version | head -1 | cut -d" " -f1-3
+            echo "node $(node --version)"
+          ')
           echo "$TOOLS"
-          echo "$TOOLS" | grep -q "git version"
-          {
-            echo "| ✅ | Entrypoint smoke run (\`pi --version\`) | linux/amd64 | $PI_OUT |"
-            echo "| ✅ | Toolchain present (git/gh/node) | linux/amd64 | $(echo "$TOOLS" | tr '\n' ' · ') |"
-          } >> /tmp/job-summary.md
+          [ "$(echo "$TOOLS" | wc -l)" = "3" ] || { echo "toolchain check failed: expected 3 tools" >&2; exit 1; }
+          echo "| ✅ | Entrypoint smoke run (\`pi --version\`) | linux/amd64 | $PI_OUT |" >> /tmp/job-summary.md
+          echo "$TOOLS" | while IFS= read -r line; do
+            TOOL=$(echo "$line" | awk '{print $1}')
+            echo "| ✅ | Tool: $TOOL | linux/amd64 | $line |" >> /tmp/job-summary.md
+          done
 
       - name: Smoke-run the pulled image (arm64, emulated)
         run: |
@@ -122,13 +131,18 @@ jobs:
           PI_OUT=$(docker run --rm --platform linux/arm64 "$IMG" --version)
           echo "pi --version (arm64) -> $PI_OUT"
           test -n "$PI_OUT"
-          TOOLS=$(docker run --rm --platform linux/arm64 --entrypoint bash "$IMG" -c 'git --version && gh --version && node --version')
+          TOOLS=$(docker run --rm --platform linux/arm64 --entrypoint bash "$IMG" -c '
+            git --version
+            gh --version | head -1 | cut -d" " -f1-3
+            echo "node $(node --version)"
+          ')
           echo "$TOOLS"
-          echo "$TOOLS" | grep -q "git version"
-          {
-            echo "| ✅ | Entrypoint smoke run (\`pi --version\`) | linux/arm64 (QEMU) | $PI_OUT |"
-            echo "| ✅ | Toolchain present (git/gh/node) | linux/arm64 (QEMU) | $(echo "$TOOLS" | tr '\n' ' · ') |"
-          } >> /tmp/job-summary.md
+          [ "$(echo "$TOOLS" | wc -l)" = "3" ] || { echo "toolchain check failed: expected 3 tools" >&2; exit 1; }
+          echo "| ✅ | Entrypoint smoke run (\`pi --version\`) | linux/arm64 (QEMU) | $PI_OUT |" >> /tmp/job-summary.md
+          echo "$TOOLS" | while IFS= read -r line; do
+            TOOL=$(echo "$line" | awk '{print $1}')
+            echo "| ✅ | Tool: $TOOL | linux/arm64 (QEMU) | $line |" >> /tmp/job-summary.md
+          done
 
       - name: Write the verification report to the job summary
         if: always()
