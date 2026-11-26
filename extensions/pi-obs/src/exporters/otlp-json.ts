@@ -38,9 +38,15 @@ import { PI_OBS_VERSION } from "../semconv.ts";
  * (an optional Bearer/Basic/Digest scheme word is kept, the credential
  * after it is redacted), OpenAI-style `sk-` keys, raw `Bearer` tokens,
  * and AWS access-key ids. Matched bytes are replaced by `[REDACTED]`.
+ *
+ * The assignment pattern tolerates JSON quoting between the key, the
+ * separator and the value — compact `JSON.stringify` output (tool-input
+ * captures: `"api_key":"sk-…"`) and JSON-in-JSON escaped quotes
+ * (`\"api_key\": \"sk-…\"`) both redact, not just shell/YAML
+ * `key=value` shapes.
  */
 export const DEFAULT_REDACTIONS: readonly RegExp[] = [
-	/((?:api[_-]?key|secret|token|password|passwd|authorization|credential)[a-z0-9_-]*\s*[:=]\s*(?:(?:bearer|basic|digest)\s+)?)[^\s,;"']+/gi,
+	/((?:api[_-]?key|secret|token|password|passwd|authorization|credential)[a-z0-9_-]*\\?["']?\s*[:=]\s*\\?["']?(?:(?:bearer|basic|digest)\s+)?)[^\s,;"']+/gi,
 	/\bsk-[a-zA-Z0-9_-]{8,}\b/g,
 	/\b(bearer\s+)[a-zA-Z0-9._~+/=-]{8,}/gi,
 	/\bAKIA[0-9A-Z]{16}\b/g,

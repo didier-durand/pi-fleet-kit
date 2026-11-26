@@ -298,6 +298,17 @@ test("R2 redaction before write: canary value never reaches the file (nor any �
 	assert.equal(redact("Authorization: Bearer Zm9vYmFyMTIzNDU2"), "Authorization: Bearer [REDACTED]");
 	assert.equal(redact("password=hunter2secret"), "password=[REDACTED]");
 	assert.equal(redact("plain text stays"), "plain text stays");
+
+	// JSON-shaped assignments (compact JSON.stringify output — the tool-input
+	// capture shape): quoted keys/values and JSON-in-JSON escaped quotes
+	// redact, not just shell/YAML key=value shapes
+	assert.equal(redact('{"api_key":"sk-AbCdEf123456"}'), '{"api_key":"[REDACTED]"}');
+	assert.equal(redact('{"api_key": "sk-AbCdEf123456"}'), '{"api_key": "[REDACTED]"}');
+	assert.equal(redact('{"Authorization":"Bearer Zm9vYmFyMTIzNDU2"}'), '{"Authorization":"Bearer [REDACTED]"}');
+	// escaped-quote nesting: the value class swallows the trailing backslash,
+	// the outer closing quote survives — the secret itself never does
+	assert.equal(redact('\\"api_key\\": \\"sk-AbCdEf123456\\"'), '\\"api_key\\": \\"[REDACTED]"');
+	assert.ok(!redact(String.raw`{"password": "hunter2secret"}`).includes("hunter2secret"));
 });
 
 test("concurrent appends from the queue drain stay line-atomic", async () => {
