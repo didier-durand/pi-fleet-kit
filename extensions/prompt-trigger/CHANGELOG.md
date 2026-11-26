@@ -25,8 +25,9 @@ task delegation with answers.
   assistant text) is written to the sender's inbox; error replies
   after max attempts or interruption; dedupe by correlation_id;
   unreachable sender → failed/ + ledger note.
-- 47 unit tests (22 legacy + 15 envelope + 10 mailbox lifecycle),
-  all hermetic.
+- 63 unit tests (22 legacy + 15 envelope + 26 mailbox lifecycle),
+  all hermetic; coverage 98.9% statements / 96.2% branches / 100%
+  functions — the house ≥95% bar met on every reported metric.
 
 ## [0.1.0] - 2026-11-23
 

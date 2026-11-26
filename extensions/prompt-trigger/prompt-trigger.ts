@@ -82,12 +82,12 @@ export default function (pi: ExtensionAPI) {
 
 	// --- ledger (R11) ---------------------------------------------------------
 
-	const ledgerPath = (): string => path.join(dir ?? "", "ledger.ndjson");
+	const ledgerPath = (d: string): string => path.join(d, "ledger.ndjson");
 
-	function loadLedger(): void {
+	function loadLedger(d: string): void {
 		ledgerIds = new Set();
 		try {
-			for (const line of fs.readFileSync(ledgerPath(), "utf-8").split("\n")) {
+			for (const line of fs.readFileSync(ledgerPath(d), "utf-8").split("\n")) {
 				if (!line.trim()) continue;
 				try {
 					const doc = JSON.parse(line) as { id?: unknown };
@@ -97,27 +97,26 @@ export default function (pi: ExtensionAPI) {
 		} catch { /* no ledger yet — empty set */ }
 	}
 
-	function ledgerAppend(id: string, note: string): void {
+	function ledgerAppend(d: string, id: string, note: string): void {
 		try {
-			fs.appendFileSync(ledgerPath(), `${JSON.stringify({ id, at: new Date().toISOString(), note })}\n`);
+			fs.appendFileSync(ledgerPath(d), `${JSON.stringify({ id, at: new Date().toISOString(), note })}\n`);
 			ledgerIds.add(id);
 		} catch { /* ledger write failures never block the agent (R1) */ }
 	}
 
 	// --- maildir layout (R10) ---------------------------------------------------
 
-	function setupMaildir(): void {
-		if (!dir) return;
+	function setupMaildir(d: string): void {
 		for (const sub of ["inbox", "working", "pending", "processed", "failed"]) {
 			try {
-				fs.mkdirSync(path.join(dir, sub), { recursive: true });
+				fs.mkdirSync(path.join(d, sub), { recursive: true });
 			} catch { /* existing dir or unwritable: dormant-safe (R1) */ }
 		}
 	}
 
 	/** processed/ retention: keep the last PROCESSED_KEEP files (by name/time). */
-	function pruneProcessed(): void {
-		const processed = path.join(dir ?? "", "processed");
+	function pruneProcessed(d: string): void {
+		const processed = path.join(d, "processed");
 		let names: string[] = [];
 		try {
 			names = fs.readdirSync(processed).filter((n) => !n.startsWith(".")).sort();
@@ -131,8 +130,8 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	/** R10 crash recovery: replay claimed-but-unfinished work/ at startup. */
-	function recoverWorking(pi: ExtensionAPI, ctx: ExtensionContext): void {
-		const working = path.join(dir ?? "", "working");
+	function recoverWorking(pi: ExtensionAPI, ctx: ExtensionContext, d: string): void {
+		const working = path.join(d, "working");
 		let names: string[] = [];
 		try {
 			names = fs.readdirSync(working).filter((n) => !n.startsWith("."));
@@ -148,9 +147,9 @@ export default function (pi: ExtensionAPI) {
 				// (at-most-once work, R11).
 				const env = parseEnvelope(safeRead(claimed));
 				if (env && env.type === "request") {
-					writeReply(env, `processing was interrupted by a restart; the result was lost — please resend the request`, "error");
+					writeReply(d, selfId, env, `processing was interrupted by a restart; the result was lost — please resend the request`, "error");
 				}
-				moveTo(claimed, path.join(dir ?? "", "processed", name));
+				moveTo(claimed, path.join(d, "processed", name));
 				continue;
 			}
 			// un-ledgered: the claim happened but delivery never did — re-deliver
@@ -175,9 +174,9 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	/** R12: write a reply/error envelope to the sender's inbox (atomic). */
-	function writeReply(request: Envelope, body: string, type: EnvelopeType = "reply"): boolean {
-		const reply = buildReply(request, selfId || request.to, body, type);
-		const senderInbox = path.join(dir ?? "", "..", request.from, "inbox");
+	function writeReply(d: string, self: string, request: Envelope, body: string, type: EnvelopeType = "reply"): boolean {
+		const reply = buildReply(request, self || request.to, body, type);
+		const senderInbox = path.join(d, "..", request.from, "inbox");
 		if (!fs.existsSync(senderInbox)) return false;
 		const tmp = path.join(senderInbox, `.tmp-${reply.id}`);
 		try {
@@ -191,39 +190,39 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	/** R10/R12 completion: reply written → processed; unreachable → failed + ledger note. */
-	function settleReply(pi: ExtensionAPI, claimed: string, request: Envelope, answer: string | undefined): void {
+	function settleReply(pi: ExtensionAPI, d: string, self: string, claimed: string, request: Envelope, answer: string | undefined): void {
 		if (answer === undefined || answer === "") {
 			// no answer text (turn produced nothing usable): error reply, retry logic applies
 			if (request.attempts + 1 >= MAX_ATTEMPTS) {
-				writeReply(request, `no answer was produced after ${request.attempts + 1} attempts`, "error");
-				moveTo(claimed, path.join(dir ?? "", "failed", path.basename(claimed)));
-				ledgerAppend(request.id, "failed: no answer after max attempts");
+				writeReply(d, self, request, `no answer was produced after ${request.attempts + 1} attempts`, "error");
+				moveTo(claimed, path.join(d, "failed", path.basename(claimed)));
+				ledgerAppend(d, request.id, "failed: no answer after max attempts");
 			} else {
-				requeueOrFail(claimed, { ...request, attempts: request.attempts + 1 });
+				requeueOrFail(d, claimed, { ...request, attempts: request.attempts + 1 });
 			}
 			return;
 		}
-		const sent = writeReply(request, answer);
+		const sent = writeReply(d, self, request, answer);
 		if (sent) {
-			moveTo(claimed, path.join(dir ?? "", "processed", path.basename(claimed)));
-			ledgerAppend(request.id, "handled: reply sent");
+			moveTo(claimed, path.join(d, "processed", path.basename(claimed)));
+			ledgerAppend(d, request.id, "handled: reply sent");
 		} else {
 			// sender unreachable: nowhere to deliver the answer — failed + ledger note
-			moveTo(claimed, path.join(dir ?? "", "failed", path.basename(claimed)));
-			ledgerAppend(request.id, `failed: sender inbox unreachable (${request.from})`);
+			moveTo(claimed, path.join(d, "failed", path.basename(claimed)));
+			ledgerAppend(d, request.id, `failed: sender inbox unreachable (${request.from})`);
 		}
 	}
 
 	/** R10: delivery failed — re-queue with attempts+1, or give up in failed/. */
-	function requeueOrFail(claimed: string, env: Envelope): void {
+	function requeueOrFail(d: string, claimed: string, env: Envelope): void {
 		if (env.attempts + 1 >= MAX_ATTEMPTS) {
-			writeReply(env, `delivery failed after ${MAX_ATTEMPTS} attempts`, "error");
-			moveTo(claimed, path.join(dir ?? "", "failed", path.basename(claimed)));
-			ledgerAppend(env.id, `failed: delivery failed after max attempts`);
+			writeReply(d, selfId, env, `delivery failed after ${MAX_ATTEMPTS} attempts`, "error");
+			moveTo(claimed, path.join(d, "failed", path.basename(claimed)));
+			ledgerAppend(d, env.id, `failed: delivery failed after max attempts`);
 			return;
 		}
 		// back to the inbox with the incremented counter (fresh stability cycle)
-		const dst = path.join(dir ?? "", "inbox", path.basename(claimed));
+		const dst = path.join(d, "inbox", path.basename(claimed));
 		if (moveTo(claimed, dst)) {
 			try {
 				fs.writeFileSync(dst, serializeEnvelope(env));
@@ -232,15 +231,15 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	/** Process one claimed envelope: deliver + schedule the reply. */
-	function processEnvelope(pi: ExtensionAPI, ctx: ExtensionContext, claimed: string, env: Envelope): void {
+	function processEnvelope(pi: ExtensionAPI, ctx: ExtensionContext, d: string, claimed: string, env: Envelope): void {
 		const deliver = (text: string): void => {
 			try {
 				queueOrSend(pi, text);
-				ledgerAppend(env.id, env.type === "request" ? "delivered: awaiting reply" : `delivered: ${env.type}`);
+				ledgerAppend(d, env.id, env.type === "request" ? "delivered: awaiting reply" : `delivered: ${env.type}`);
 				if (env.type === "request") workingReplies.set(claimed, env);
-				else moveTo(claimed, path.join(dir ?? "", "processed", path.basename(claimed)));
+				else moveTo(claimed, path.join(d, "processed", path.basename(claimed)));
 			} catch {
-				requeueOrFail(claimed, { ...env, attempts: env.attempts + 1 });
+				requeueOrFail(d, claimed, { ...env, attempts: env.attempts + 1 });
 			}
 		};
 		// directives apply to the body, same as legacy (R5)
@@ -252,12 +251,12 @@ export default function (pi: ExtensionAPI) {
 					if (ctx.hasUI) ctx.ui.notify(`[prompt-trigger] fresh session started (mailbox ${env.id})`, "info");
 					if (kickoff) deliver(kickoff);
 					else {
-						moveTo(claimed, path.join(dir ?? "", "processed", path.basename(claimed)));
-						ledgerAppend(env.id, "handled: fresh session started");
+						moveTo(claimed, path.join(d, "processed", path.basename(claimed)));
+						ledgerAppend(d, env.id, "handled: fresh session started");
 					}
 				} catch (err) {
 					if (ctx.hasUI) ctx.ui.notify(`[prompt-trigger] /new failed: ${String(err)}`, "error");
-					requeueOrFail(claimed, { ...env, attempts: env.attempts + 1 });
+					requeueOrFail(d, claimed, { ...env, attempts: env.attempts + 1 });
 				}
 			})();
 			return;
@@ -267,9 +266,8 @@ export default function (pi: ExtensionAPI) {
 
 	// --- mailbox pass (R9–R12) -------------------------------------------------
 
-	function mailboxPass(pi: ExtensionAPI, ctx: ExtensionContext): void {
-		if (!dir) return;
-		const inbox = path.join(dir, "inbox");
+	function mailboxPass(pi: ExtensionAPI, ctx: ExtensionContext, d: string): void {
+		const inbox = path.join(d, "inbox");
 		let names: string[] = [];
 		try {
 			names = fs.readdirSync(inbox).filter((n) => !n.startsWith("."));
@@ -278,23 +276,23 @@ export default function (pi: ExtensionAPI) {
 		}
 		for (const name of names.sort()) {
 			const full = path.join(inbox, name);
-			const claimed = path.join(dir, "working", name);
+			const claimed = path.join(d, "working", name);
 			// atomic claim (R10): mv inbox → working — one consumer wins
 			if (!moveTo(full, claimed)) continue;
 			const id = name.replace(/\.json$/, "");
 			// at-most-once (R11): an already-handled id goes straight to processed
 			if (ledgerIds.has(id)) {
-				moveTo(claimed, path.join(dir, "processed", name));
+				moveTo(claimed, path.join(d, "processed", name));
 				continue;
 			}
 			const env = parseEnvelope(safeRead(claimed), (reason) => {
-				ledgerAppend(id, `malformed envelope: ${reason}`);
+				ledgerAppend(d, id, `malformed envelope: ${reason}`);
 			});
 			if (!env) {
-				moveTo(claimed, path.join(dir, "failed", name));
+				moveTo(claimed, path.join(d, "failed", name));
 				continue;
 			}
-			processEnvelope(pi, ctx, claimed, env);
+			processEnvelope(pi, ctx, d, claimed, env);
 		}
 	}
 
@@ -368,7 +366,7 @@ export default function (pi: ExtensionAPI) {
 		if (!dir) return;
 		const now = Date.now();
 
-		mailboxPass(pi, ctx);
+		mailboxPass(pi, ctx, dir);
 
 		let names: string[] = [];
 		try {
@@ -433,10 +431,10 @@ export default function (pi: ExtensionAPI) {
 		dir = process.env.PI_TRIGGER_DIR;
 		if (!dir) return; // dormant: no trigger dir configured for this agent
 		selfId = path.basename(dir);
-		setupMaildir();
-		loadLedger();
-		pruneProcessed();
-		recoverWorking(pi, ctx);
+		setupMaildir(dir);
+		loadLedger(dir);
+		pruneProcessed(dir);
+		recoverWorking(pi, ctx, dir);
 		if (timer) clearInterval(timer);
 		timer = setInterval(() => tick(pi, ctx), POLL_MS);
 		if (ctx.hasUI) {
@@ -461,7 +459,7 @@ export default function (pi: ExtensionAPI) {
 		const answer = finalAssistantText(ctx);
 		for (const [claimed, env] of [...workingReplies]) {
 			workingReplies.delete(claimed);
-			settleReply(pi, claimed, env, answer ?? undefined);
+			settleReply(pi, dir, selfId, claimed, env, answer ?? undefined);
 		}
 	});
 }

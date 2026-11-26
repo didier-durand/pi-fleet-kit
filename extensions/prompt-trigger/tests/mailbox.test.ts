@@ -46,6 +46,7 @@ function envelope(to: string, body: string, overrides: Record<string, unknown> =
 }
 
 interface Harness {
+	pi: { sendUserMessage: (text: string, opts?: unknown) => void };
 	sent: Array<{ text: string; opts?: unknown }>;
 	notified: string[];
 	handlers: Record<string, (e?: unknown, c?: unknown) => Promise<void>>;
@@ -55,6 +56,7 @@ interface Harness {
 function activate(): Harness {
 	const sent: Array<{ text: string; opts?: unknown }> = [];
 	const notified: string[] = [];
+	const newSessions: Array<Record<string, unknown>> = [];
 	const handlers: Record<string, (e?: unknown, c?: unknown) => Promise<void>> = {};
 	const pi = {
 		on: (event: string, handler: unknown) => { handlers[event] = handler as never; },
@@ -64,6 +66,7 @@ function activate(): Harness {
 		hasUI: true,
 		notified,
 		ui: { notify: (msg: string, _level?: string) => notified.push(msg) },
+		newSession: (o: Record<string, unknown>) => { newSessions.push(o); return Promise.resolve(); },
 		// the branch: one user entry + one assistant entry — the reply body
 		sessionManager: { getBranch: () => [
 			{ type: "message", message: { role: "user", content: [{ type: "text", text: "the question" }] } },
@@ -71,7 +74,7 @@ function activate(): Harness {
 		] },
 	};
 	activatePromptTrigger(pi as never);
-	return { sent, notified, handlers, ctx: ctx as never };
+	return { pi: pi as never, sent, notified, newSessions, handlers, ctx: ctx as never };
 }
 
 // the two-tick lifecycle: mailbox envelopes are consumed on the FIRST tick
@@ -336,3 +339,361 @@ test("transition rule: a raw (non-envelope) file in the exchange ROOT is still a
 	}
 });
 
+
+// --- branch-coverage tests (the remaining reachable paths) --------------------
+
+test("ledger with corrupt lines: load skips them (R1 — one bad line never breaks the ledger)", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirA, dirB } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	try {
+		fs.mkdirSync(path.join(dirB, "inbox"), { recursive: true });
+		fs.writeFileSync(path.join(dirB, "ledger.ndjson"), "{corrupt json\n" + `${JSON.stringify({ id: "msg-1-1", at: "x", note: "ok" })}\n` + "}}}\n");
+		await h.handlers.session_start(null, h.ctx);
+		await SETTLE();
+		// the good id IS loaded: re-dropping it goes straight to processed
+		const req = envelope("pi-b", "dup", { id: "msg-1-1" });
+		fs.writeFileSync(path.join(dirB, "inbox", `${req.id}.json`), JSON.stringify(req));
+		await runTicks(t, 1);
+		assert.equal(h.sent.length, 0, "the ledgered id was honored despite corrupt lines");
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("exchange root removed mid-flight: reply still lands; ledger/prune failures absorbed", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirA, dirB } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		fs.mkdirSync(path.join(dirA, "inbox"), { recursive: true });
+		const req = envelope("pi-b", "ask");
+		fs.writeFileSync(path.join(dirB, "inbox", `${req.id}.json`), JSON.stringify(req));
+		await runTicks(t, 1);
+		assert.equal(h.sent.length, 1);
+		// the CONSUMING agent's exchange root vanishes (volume unmounted)
+		fs.rmSync(dirB, { recursive: true, force: true });
+		await h.handlers.agent_end(null, h.ctx); // reply written; ledger append + moveTo fail silently
+		const replies = fs.readdirSync(path.join(dirA, "inbox")).filter((n) => !n.startsWith("."));
+		assert.equal(replies.length, 1, "the reply reached the sender despite the local fs loss");
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("recovery: a ledgered working/ file with unparseable content closes as processed (no reply possible)", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirB } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	try {
+		fs.mkdirSync(path.join(dirB, "working"), { recursive: true });
+		fs.writeFileSync(path.join(dirB, "working", "msg-9-9.json"), "");  // empty → unparseable
+		fs.writeFileSync(path.join(dirB, "ledger.ndjson"), `${JSON.stringify({ id: "msg-9-9", at: "x", note: "delivered" })}\n`);
+		await h.handlers.session_start(null, h.ctx);
+		await SETTLE();
+		assert.equal(h.sent.length, 0);
+		assert.ok(fs.existsSync(path.join(dirB, "processed", "msg-9-9.json")), "closed without a reply (no envelope to answer)");
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("no session manager: the no-answer path requeues with attempts+1 (retry, not failure)", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirA, dirB } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	(h.ctx as { sessionManager?: unknown }) = {}; // no sessionManager: no answer text
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		fs.mkdirSync(path.join(dirA, "inbox"), { recursive: true });
+		const req = envelope("pi-b", "ask");
+		fs.writeFileSync(path.join(dirB, "inbox", `${req.id}.json`), JSON.stringify(req));
+		await runTicks(t, 1);
+		await h.handlers.agent_end(null, h.ctx); // answer undefined → attempts 0+1 < 3 → requeue
+		assert.ok(fs.existsSync(path.join(dirB, "inbox", `${req.id}.json`)), "back in the inbox for a retry");
+		const retry = JSON.parse(fs.readFileSync(path.join(dirB, "inbox", `${req.id}.json`), "utf-8"));
+		assert.equal(retry.attempts, 1, "attempts incremented");
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("getBranch throwing: absorbed (R1) — same no-answer retry path", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirA, dirB } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	(h.ctx as { sessionManager: { getBranch: () => never } }).sessionManager = { getBranch: () => { throw new Error("boom"); } };
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		fs.mkdirSync(path.join(dirA, "inbox"), { recursive: true });
+		const req = envelope("pi-b", "ask");
+		fs.writeFileSync(path.join(dirB, "inbox", `${req.id}.json`), JSON.stringify(req));
+		await runTicks(t, 1);
+		await h.handlers.agent_end(null, h.ctx); // getBranch throws → absorbed → requeue
+		assert.ok(fs.existsSync(path.join(dirB, "inbox", `${req.id}.json`)), "requeued, not failed");
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("error-type envelope: delivered, closed as processed (no reply-of-reply)", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirB } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		const err = envelope("pi-b", "delivery failed upstream", { type: "error", correlation_id: "msg-1-1", from: "pi-a" });
+		fs.writeFileSync(path.join(dirB, "inbox", `${err.id}.json`), JSON.stringify(err));
+		await runTicks(t, 1);
+		assert.deepEqual(h.sent, [{ text: "delivery failed upstream", opts: undefined }]);
+		assert.ok(fs.existsSync(path.join(dirB, "processed", `${err.id}.json`)), "closed immediately (no reply expected)");
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("sendUserMessage throwing: the delivery-failure path (attempts+1 → requeue; then failed/)", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirA, dirB } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	let throwIt = true;
+	h.pi.sendUserMessage = (text: string, opts?: unknown) => {
+		if (throwIt) throw new Error("session closed");
+		(h.sent as Array<{ text: string }>).push({ text, opts });
+	};
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		fs.mkdirSync(path.join(dirA, "inbox"), { recursive: true });
+		const req = envelope("pi-b", "will fail twice");
+		fs.writeFileSync(path.join(dirB, "inbox", `${req.id}.json`), JSON.stringify(req));
+		await runTicks(t, 1); // delivery throws → attempts 1 → requeued
+		assert.ok(fs.existsSync(path.join(dirB, "inbox", `${req.id}.json`)), "requeued after the first failure");
+		throwIt = false;
+		await runTicks(t, 1); // retry succeeds → delivered, working/
+		assert.equal(h.sent.length, 1);
+		await h.handlers.agent_end(null, h.ctx); // settled → reply → processed
+		assert.ok(fs.existsSync(path.join(dirB, "processed", `${req.id}.json`)));
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("/new directive inside an envelope body: fresh session + kickoff delivered", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirA, dirB } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		fs.mkdirSync(path.join(dirA, "inbox"), { recursive: true }); // the reply lands in A's inbox
+		const req = envelope("pi-b", "/new start with this");
+		fs.writeFileSync(path.join(dirB, "inbox", `${req.id}.json`), JSON.stringify(req));
+		await runTicks(t, 1);
+		assert.deepEqual(h.sent, [{ text: "start with this", opts: undefined }]);
+		await h.handlers.agent_end(null, h.ctx); // the kickoff turn settles → reply → processed
+		assert.ok(fs.existsSync(path.join(dirB, "processed", `${req.id}.json`)));
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("claim race: a working/ DIRECTORY shadowing the claim target → the inbox file is skipped this tick", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirB } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		fs.mkdirSync(path.join(dirB, "working", "claimed-dir.json"), { recursive: true });
+		fs.writeFileSync(path.join(dirB, "inbox", "claimed-dir.json"), JSON.stringify(envelope("pi-b", "x")));
+		await runTicks(t, 1); // rename(file → existing dir) fails → skipped, no crash
+		assert.equal(h.sent.length, 0);
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("legacy pass: an mtime-only touch re-observes (the branch split of the stability check)", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirA } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirA;
+	const h = activate();
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		const raw = path.join(dirA, "touched.txt");
+		fs.writeFileSync(raw, "stable content");
+		const old = Date.now() / 1000 - 10;
+		fs.utimesSync(raw, old, old);
+		await tickOnce(t); await SETTLE();
+		fs.utimesSync(raw, Date.now() / 1000 - 10, Date.now() / 1000 - 10); // mtime only
+		await tickOnce(t); await SETTLE();
+		assert.equal(h.sent.length, 0, "re-observed (mtime changed), not consumed");
+		await sleep(STABLE_GAP);
+		await tickOnce(t); await SETTLE();
+		assert.equal(h.sent.length, 1, "consumed once stable");
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+// --- the last reachable branch outcomes ---------------------------------------
+
+test("ledger.ndjson as a DIRECTORY: append failures absorbed (R1)", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirA, dirB } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		fs.mkdirSync(path.join(dirA, "inbox"), { recursive: true });
+		fs.mkdirSync(path.join(dirB, "ledger.ndjson")); // the ledger is a DIR: every append fails
+		const req = envelope("pi-b", "ask");
+		fs.writeFileSync(path.join(dirB, "inbox", `${req.id}.json`), JSON.stringify(req));
+		await runTicks(t, 1); // ledgerAppend fails → absorbed
+		await h.handlers.agent_end(null, h.ctx); // reply + settle still work
+		const replies = fs.readdirSync(path.join(dirA, "inbox")).filter((n) => !n.startsWith("."));
+		assert.equal(replies.length, 1, "the reply path is unaffected by ledger failures");
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("processed/ retention: a directory among the oldest pruned names fails unlink — absorbed", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirA } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirA;
+	const h = activate();
+	try {
+		fs.mkdirSync(path.join(dirA, "processed"), { recursive: true });
+		fs.mkdirSync(path.join(dirA, "processed", "msg-00000-1.json")); // unlink(EISDIR) → catch
+		for (let i = 1; i < 105; i++) fs.writeFileSync(path.join(dirA, "processed", `msg-${String(i).padStart(5, "0")}-1.json`), "{}");
+		await h.handlers.session_start(null, h.ctx); // prune runs; the dir-name unlink fails silently
+		await SETTLE();
+		const left = fs.readdirSync(path.join(dirA, "processed")).filter((n) => !n.startsWith("."));
+		assert.ok(left.length <= 101, `retention ran (left: ${left.length})`);
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("attempts=2 + no answer → MAX_ATTEMPTS reached: failed/ + error reply", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirA, dirB } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	(h.ctx as { sessionManager?: unknown }) = {}; // no answer available
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		fs.mkdirSync(path.join(dirA, "inbox"), { recursive: true });
+		const req = envelope("pi-b", "last try", { attempts: 2 });
+		fs.writeFileSync(path.join(dirB, "inbox", `${req.id}.json`), JSON.stringify(req));
+		await runTicks(t, 1);
+		await h.handlers.agent_end(null, h.ctx);
+		assert.ok(fs.existsSync(path.join(dirB, "failed", `${req.id}.json`)), "failed/ after max attempts");
+		const replies = fs.readdirSync(path.join(dirA, "inbox")).filter((n) => !n.startsWith("."));
+		assert.equal(replies.length, 1);
+		const reply = JSON.parse(fs.readFileSync(path.join(dirA, "inbox", replies[0]), "utf-8"));
+		assert.equal(reply.type, "error");
+		assert.match(reply.body, /no answer was produced after 3 attempts/);
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("attempts=2 + delivery throwing → MAX_ATTEMPTS: failed/ + error reply", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirA, dirB } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	h.pi.sendUserMessage = () => { throw new Error("session gone"); };
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		fs.mkdirSync(path.join(dirA, "inbox"), { recursive: true });
+		const req = envelope("pi-b", "doomed", { attempts: 2 });
+		fs.writeFileSync(path.join(dirB, "inbox", `${req.id}.json`), JSON.stringify(req));
+		await runTicks(t, 1); // delivery throws → 2+1 >= 3 → failed/
+		assert.ok(fs.existsSync(path.join(dirB, "failed", `${req.id}.json`)));
+		const replies = fs.readdirSync(path.join(dirA, "inbox")).filter((n) => !n.startsWith("."));
+		assert.equal(replies.length, 1);
+		assert.equal(JSON.parse(fs.readFileSync(path.join(dirA, "inbox", replies[0]), "utf-8")).type, "error");
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("bare /new in an envelope body: fresh session, no kickoff, straight to processed", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirB } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		const req = envelope("pi-b", "/new");
+		fs.writeFileSync(path.join(dirB, "inbox", `${req.id}.json`), JSON.stringify(req));
+		await runTicks(t, 1);
+		assert.equal(h.sent.length, 0, "no kickoff to deliver");
+		assert.ok(h.newSessions.length === 1, "fresh session started");
+		assert.ok(fs.existsSync(path.join(dirB, "processed", `${req.id}.json`)), "completed without a reply");
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("newSession throwing on an envelope /new: notify + requeue (attempts+1)", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirB } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	(h.ctx as { newSession: () => Promise<void> }).newSession = () => Promise.reject(new Error("no session control"));
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		const req = envelope("pi-b", "/new kickoff");
+		fs.writeFileSync(path.join(dirB, "inbox", `${req.id}.json`), JSON.stringify(req));
+		await runTicks(t, 1);
+		assert.equal(h.sent.length, 0, "kickoff not delivered on /new failure");
+		assert.ok(fs.existsSync(path.join(dirB, "inbox", `${req.id}.json`)), "requeued with attempts+1");
+		assert.equal(JSON.parse(fs.readFileSync(path.join(dirB, "inbox", `${req.id}.json`), "utf-8")).attempts, 1);
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
