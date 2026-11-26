@@ -1,0 +1,87 @@
+# OTel Collector config — HOST watchdog backend (compose service
+# `otlp-collector`, default config — see compose.yml).
+#
+# First-level telemetry backend on the operator's machine: the collector
+# carries the `otlp-jaeger` network alias (the agents' byte-identical
+# export target), processes all three signals in real time and fans out:
+#
+#   traces/metrics/logs ──► otlp/jaeger    Jaeger v2 keeps the operator's UI
+#                                          (renamed service `jaeger`; it now
+#                                          receives FROM this collector)
+#   traces/metrics/logs ──► file/archive   PERMANENT raw OTLP/JSONL archive —
+#                                          push-based, replayable with the
+#                                          /pi-obs report machinery; rotation
+#                                          at 512 MB per segment, no age or
+#                                          count limit (lumberjack: 0 = keep
+#                                          everything)
+#
+# The `otel-watchdog` compose service tails the archive and alerts on
+# pi-obs fault log records, error spans and stream silence (stdout +
+# /data/watchdog-alerts.jsonl).
+#
+# CI does NOT use this file: the fleet-test workflow selects
+# OTELCOL_CONFIG=otelcol-capture.yaml (file-only capture, the deterministic
+# assertion backend). The exporter fan-out is per-pipeline isolated — even
+# with Jaeger down, the archive keeps receiving (R1 philosophy).
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch:
+    send_batch_size: 64
+    timeout: 2s
+
+exporters:
+  # Jaeger v2 downstream — the UI and trace storage backend. Retries
+  # forever (max_elapsed_time 0) with a bounded queue: a Jaeger restart
+  # buffers telemetry instead of dropping it.
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+    sending_queue:
+      enabled: true
+      queue_size: 4096
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 30s
+      max_elapsed_time: 0
+
+  # Permanent raw archive — the watchdog's input and the fleet's durable
+  # record. Same OTLP/JSONL format as the CI capture (one export request
+  # per line; ingestible by otelcol, jq, or the pi-obs replay tooling).
+  file/archive:
+    path: /data/otel-archive.jsonl
+    rotation:
+      max_megabytes: 512
+      max_days: 0      # lumberjack semantics: 0 = never age out
+      max_backups: 0   # 0 = keep every rotated segment
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133   # binds 0.0.0.0 so the mapped port is reachable (see CI history)
+
+service:
+  extensions: [health_check]
+  telemetry:
+    logs:
+      level: warn
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/jaeger, file/archive]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/jaeger, file/archive]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/jaeger, file/archive]

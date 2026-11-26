@@ -413,16 +413,18 @@ services:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
 
-  # Jaeger v2 (all-in-one): OTel collector + query + UI in one container.
-  # Agents export traces/metrics/logs via OTLP/HTTP to http://otlp-jaeger:4318
-  # (compose network). The UI is mapped to host port 16686 for browser
-  # access. In-memory storage: data is lost on restart — sufficient for
-  # the fleet's live-observability use case (not a persistence backend).
-  # Start with: docker compose -f $PI_FLEET_KIT_HOME/pi-fleet-kit/compose.yml up -d otlp-jaeger
+  # Jaeger v2 (all-in-one): OTel receiver + query + UI in one container.
+  # SECOND-LEVEL backend: it no longer faces the agents directly — the
+  # otlp-collector (first-level, carries the `otlp-jaeger` network alias)
+  # exports to it via OTLP/gRPC (service name `jaeger`). The UI is mapped
+  # to host port 16686 for browser access. In-memory storage: traces are
+  # lost on restart — permanence lives in the collector's file archive
+  # (/data/otel-archive.jsonl, unrotated retention) instead.
+  # Start with: docker compose -f $PI_FLEET_KIT_HOME/pi-fleet-kit/compose.yml up -d jaeger
   # UI: http://localhost:16686
-  otlp-jaeger:
+  jaeger:
     image: jaegertracing/jaeger:latest
-    container_name: otlp-jaeger
+    container_name: jaeger
     # Restart on crash (not on explicit stop): the OTLP backend should be
     # self-healing — if it crashes, Docker brings it back within seconds.
     restart: unless-stopped
@@ -448,28 +450,37 @@ services:
     # NOT labeled pi.agent.fleet=1: this is infrastructure, not an agent.
     # docker compose run --rm otlp-jaeger would be wrong (it is a daemon).
 
-  # otlp-collector: the CI-only telemetry backend (profile `ci`). On GitHub
-  # runners it REPLACES otlp-jaeger as the agents' OTLP sink — a standard
-  # OpenTelemetry Collector exporting all three signals to a file (push-based,
-  # deterministic assertions on raw OTLP; Jaeger stays the operator's UI).
+  # otlp-collector: the FIRST-LEVEL telemetry backend, on the host AND in CI.
   # It carries the `otlp-jaeger` NETWORK ALIAS on the compose network, so
   # agents keep exporting to http://otlp-jaeger:4318 with a byte-identical
-  # compose config — the fleet test needs no override file and no env edits.
-  # Dormant by default (profiles: [ci]): `docker compose up -d` on the host
-  # never starts it; CI activates it via COMPOSE_PROFILES=ci. Do not start it
-  # alongside otlp-jaeger on the host: the shared alias would split DNS.
+  # compose config — no agent drift, ever.
+  #
+  # One service, two configs, env-selected (the collector binary takes a
+  # single --config; compose interpolates the path):
+  #   host (default) → otelcol-watchdog.yaml: fan-out to Jaeger (UI/storage,
+  #     via OTLP/gRPC to `jaeger:4317`, bounded queue + retry forever) AND a
+  #     permanent raw OTLP/JSONL archive (/data/otel-archive.jsonl, 512 MB
+  #     rotation, no age/count limit) — the otel-watchdog service tails it
+  #     and alerts on faults, error spans and stream silence.
+  #   CI (fleet test)  → otelcol-capture.yaml: file-only capture to
+  #     /data/otel-capture.jsonl — push-based, deterministic assertions on
+  #     raw OTLP; Jaeger is not running there, no fan-out noise.
   otlp-collector:
     image: otel/opentelemetry-collector-contrib:latest
     container_name: otlp-collector
-    profiles: [ci]
-    command: ["--config", "/etc/otelcol/config.yaml"]
+    restart: unless-stopped
+    command: ["--config", "/etc/otelcol/${OTELCOL_CONFIG:-otelcol-watchdog.yaml}"]
     volumes:
-      - ./config/otelcol-capture.yaml:/etc/otelcol/config.yaml:ro
+      - ./config/otelcol-watchdog.yaml:/etc/otelcol/otelcol-watchdog.yaml:ro
+      - ./config/otelcol-capture.yaml:/etc/otelcol/otelcol-capture.yaml:ro
       - otel-capture:/data
     ports:
       # The collector's own health check — CI polls it to prove the backend
       # RUNS (not just exists) before any agent is brought up.
       - "13133:13133"
+      # OTLP/HTTP — uncomment to expose to the host (e.g. for pi sessions
+      # running outside Docker that want the same telemetry backend):
+      # - "4318:4318"
     networks:
       default:
         aliases: [otlp-jaeger]
@@ -478,7 +489,38 @@ services:
     # regardless of who owns the file.
     user: "0"
 
+  # otel-watchdog: real-time alerting over the permanent archive — the host
+  # operator's watchdog. Tails /data/otel-archive.jsonl (the collector's
+  # file leg) and raises alerts on: pi-obs fault log records (severity
+  # ERROR), error spans (failed tools, aborted turns), agent arrivals and
+  # stream silence (collector up but nothing flowing). Alerts go to stdout
+  # (docker compose logs -f otel-watchdog) and durably to
+  # /data/watchdog-alerts.jsonl. Dependency-free (fs + timers only).
+  # Not started in CI: nothing `compose up`s default-profile services there
+  # (the fleet test runs agents via `compose run`, which starts only the
+  # target service), so the watchdog only ever lives on the host.
+  otel-watchdog:
+    image: node:24-alpine
+    container_name: otel-watchdog
+    restart: unless-stopped
+    command: ["node", "/watchdog/watchdog.mjs"]
+    volumes:
+      - ./utils/watchdog:/watchdog:ro
+      - otel-capture:/data
+    environment:
+      - WATCHDOG_ARCHIVE=/data/otel-archive.jsonl
+      - WATCHDOG_STATE=/data/watchdog-state.json
+      - WATCHDOG_ALERTS=/data/watchdog-alerts.jsonl
+      # silence alarm after 6h without any OTLP data (agents are idle most
+      # of the time — silence alone is normal; a full quiet window is not):
+      - WATCHDOG_QUIET_HOURS=6
+      - WATCHDOG_POLL_MS=5000
+    depends_on:
+      - otlp-collector
+
 volumes:
+  # shared /data for the telemetry backend: CI capture file + host archive
+  # + watchdog state/alerts (one volume — docker cp reads it in CI)
   otel-capture:
   pi-fleet-kit-home:
   pi-developer-home:
