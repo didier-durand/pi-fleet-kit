@@ -158,8 +158,10 @@ jobs:
           const ok = env.type === "reply" && env.correlation_id === process.argv[2]
             && env.from === "pi-developer" && env.to === "pi-fleet-kit" && /5/.test(env.body);
           console.log("reply envelope:", JSON.stringify(env));
-          if (!ok) { console.error("reply envelope failed validation"); process.exit(1); }' "$REPLY" "$REQ_ID"
-          echo "| ✅ | simple exchange: reply correlated | $REPLY_ID echoes correlation_id=$REQ_ID, body contains the answer (3+2=5) |" >> /tmp/fleet-rows.md
+          if (!ok) { console.error("reply envelope failed validation"); process.exit(1); }' "$REPLY" "${REQ_ID%.json}"
+          # NB: correlation_id is the envelope id WITHOUT the .json suffix
+          # (REQ_ID keeps it — the processed/ file checks need the suffix)
+          echo "| ✅ | simple exchange: reply correlated | $REPLY_ID echoes correlation_id=${REQ_ID%.json}, body contains the answer (3+2=5) |" >> /tmp/fleet-rows.md
 
       # 2-way mailbox exchange (SPECS v1.1.0 R9-R12): send.sh drops a request
       # into pi-coding-2's inbox; the extension delivers it on a tick (1.5s),
@@ -220,8 +222,9 @@ jobs:
           const ok = env.type === "reply" && env.correlation_id === process.argv[2]
             && env.from === "pi-coding-2" && env.to === "pi-coding-1" && /PONG/.test(env.body);
           console.log("reply envelope:", JSON.stringify(env));
-          if (!ok) { console.error("reply envelope failed validation"); process.exit(1); }' "$REPLY" "$REQ_ID"
-          echo "| ✅ | mailbox: reply correlated | $REPLY_ID echoes correlation_id=$REQ_ID, body: PONG |" >> /tmp/fleet-rows.md
+          if (!ok) { console.error("reply envelope failed validation"); process.exit(1); }' "$REPLY" "${REQ_ID%.json}"
+          # NB: correlation_id is the envelope id WITHOUT the .json suffix
+          echo "| ✅ | mailbox: reply correlated | $REPLY_ID echoes correlation_id=${REQ_ID%.json}, body: PONG |" >> /tmp/fleet-rows.md
 
           # 4. pi-coding-1 consumes the reply (type=reply → processed, no reply-of-reply)
           for i in 1 2 3; do
