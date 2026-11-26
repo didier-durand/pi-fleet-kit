@@ -141,6 +141,7 @@ mirroring the host's setup.
 | `extensions/` | Shared Pi extensions (`git-status`, `prompt-trigger` — also published as standalone npm Pi Packages, `pi-git-status` / `pi-prompt-trigger`) plus `pi-obs` (OpenTelemetry observability: live token/cost footer, `/pi-obs` reports, OTLP export to Jaeger) — see [extensions/README.md](extensions/README.md). |
 | `fleet/` | Fleet-level files shared with agents: `agent-registry.md` (the generated who-does-what table), mounted read-only at `/fleet` in every container. |
 | `docs/` | Supplementary docs (e.g. registering the agents' SSH signing key on GitHub). |
+| `CI.md` | The CI map: all workflows, their triggers, and their success-gated dependency chains. |
 | `sources/` | Summaries of external sources informing the fleet's practices (e.g. `vuln-to-pr/` — a dataset of vulnerability-introducing pull requests). |
 | `LICENSE` | MIT license text. |
 | `warp/` | Warp editor config: Tab Configs for the agents (`tab_configs/`), a launcher (`agent_run.sh`), an all-agents launcher (`agents_start.sh`), a config installer (`tabs_install.sh`), a fleet diagnostic (`fleet_doctor.sh`), a macOS Dock app builder (`build_fleet_app.sh`), and feature-request drafts (`issues/`). |
