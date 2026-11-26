@@ -256,6 +256,12 @@ export const PI_ATTRIBUTES: readonly AttributeSpec[] = [
 		meaning: "Command line observed (user bash or tool invocation).",
 	},
 	{
+		name: "pi.tool.input",
+		type: "string",
+		hook: "tool_call",
+		meaning: "Tool input JSON — ONLY under PI_OBS_CAPTURE_TOOL_IO=1 (R2 opt-in, redacted before the queue).",
+	},
+	{
 		name: "pi.tool.result",
 		type: "string",
 		hook: "tool_result",

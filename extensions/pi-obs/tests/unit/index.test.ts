@@ -282,6 +282,33 @@ test("fault isolation: one stderr report, one OTel log record, emission disabled
 	assert.equal(pi.appendEntryCalls.length, 0, "R1 holds even on the fault path");
 });
 
+test("tool IO capture: tool_call records the input JSON as pi.tool.input (R2 opt-in, redacted, no fault)", async () => {
+	// regression: pi.tool.input was emitted without a semconv row — the R4
+	// fail-closed validation threw and the tool_call handler was disabled
+	// for the whole session (the CI fleet test surfaced the fault record)
+	activate({ PI_OBS_CAPTURE_TOOL_IO: "1" });
+	const ctx = mockContext({ sessionId: "sess-0001", sessionFile: "/work/demo/.pi/sessions/sess-0001.jsonl" });
+	await pi.emit("session_start", { reason: "startup" }, ctx);
+	await pi.emit("before_agent_start", { messageType: "user" }, ctx);
+	await pi.emit("turn_start", { turnIndex: 0 }, ctx);
+	await pi.emit("tool_execution_start", { toolCallId: "call-1", toolName: "bash" }, ctx);
+	await pi.emit("tool_call", { toolCallId: "call-1", toolName: "bash", input: { command: "send.sh pi-developer -", api_key: "hushhussupersecret-99" } }, ctx);
+	await pi.emit("tool_result", { toolCallId: "call-1", toolName: "bash", content: "sent: /exchange/pi-developer/inbox/msg-1.json", isError: false }, ctx);
+	await pi.emit("tool_execution_end", { toolCallId: "call-1", toolName: "bash", isError: false, durationMs: 12 }, ctx);
+	await pi.emit("turn_end", { turnIndex: 0 }, ctx);
+	await pi.emit("agent_settled", { aborted: false }, ctx);
+	await pi.emit("session_shutdown", { reason: "quit" }, ctx);
+	assert.equal(stderr.length, 0, "no handler fault — pi.tool.input is registered (R4)");
+	const tool = spans().find((s) => String(s.name) === "pi.tool bash");
+	assert.ok(tool, "the bash tool span exists");
+	const outcome = (tool!.events as { name: string; attributes: { key: string; value: Record<string, unknown> }[] }[]).flat().find((e) => e.name === "pi.tool.outcome");
+	assert.ok(outcome, "the pi.tool.outcome event exists (the handler was not disabled)");
+	const input = outcome.attributes.find((a) => a.key === "pi.tool.input")?.value?.stringValue ?? "";
+	assert.ok(input.includes("send.sh pi-developer -"), "the input JSON is captured");
+	assert.ok(!input.includes("hushhussupersecret-99"), "R2 redaction applied before the queue");
+	assert.ok(input.includes("[REDACTED]"), "the credential became [REDACTED]");
+});
+
 test("R2 canary: the secret never reaches the export under ANY capture setting", async () => {
 	const canary = "zlX9.trap-Canary_q7r8s9t0u1";
 
