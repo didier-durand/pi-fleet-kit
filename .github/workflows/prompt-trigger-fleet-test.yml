@@ -130,14 +130,19 @@ jobs:
           echo "request $REQ_ID dropped into pi-coding-2's inbox"
 
           # 2. pi-coding-2 consumes it: kick the session; the tick delivers
-          #    the request, the LLM answers, agent_end settles the reply
+          #    the request, the LLM answers, agent_end settles the reply.
+          #    The kick prompt forces a LONG first turn (llm latency >> the
+          #    1.5s tick) so the delivery lands inside the run — a fast kick
+          #    ("READY") can exit before the first tick and the envelope
+          #    merely oscillates inbox ↔ working across retries.
+          KICK="Count slowly from 1 to 40, one number per line, then stop."
           for i in 1 2 3; do
-            echo "Reply with exactly: READY" | timeout 180 docker compose run -T --rm pi-coding-2 2>&1 | tail -3 || true
+            echo "$KICK" | timeout 240 docker compose run -T --rm pi-coding-2 2>&1 | tail -3 || true
             [ -f "$EXCHANGE/pi-coding-2/processed/$REQ_ID" ] && break
             echo "attempt $i: request not yet processed; retrying (crash recovery requeues it)"
             sleep 2
           done
-          [ -f "$EXCHANGE/pi-coding-2/processed/$REQ_ID" ] || { echo "pi-coding-2 never processed $REQ_ID" >&2; exit 1; }
+          [ -f "$EXCHANGE/pi-coding-2/processed/$REQ_ID" ] || { echo "pi-coding-2 never processed $REQ_ID" >&2; ls -R "$EXCHANGE/pi-coding-2" >&2; exit 1; }
           echo "| ✅ | mailbox: request consumed | pi-coding-2 processed $REQ_ID (inbox → working → processed) |" >> /tmp/fleet-rows.md
 
           # 3. the settled reply must sit in pi-coding-1's inbox, correlated
@@ -154,12 +159,12 @@ jobs:
 
           # 4. pi-coding-1 consumes the reply (type=reply → processed, no reply-of-reply)
           for i in 1 2 3; do
-            echo "Reply with exactly: READY" | timeout 180 docker compose run -T --rm pi-coding-1 2>&1 | tail -3 || true
+            echo "$KICK" | timeout 240 docker compose run -T --rm pi-coding-1 2>&1 | tail -3 || true
             [ -f "$EXCHANGE/pi-coding-1/processed/$REPLY_ID" ] && break
             echo "attempt $i: reply not yet processed; retrying"
             sleep 2
           done
-          [ -f "$EXCHANGE/pi-coding-1/processed/$REPLY_ID" ] || { echo "pi-coding-1 never processed $REPLY_ID" >&2; exit 1; }
+          [ -f "$EXCHANGE/pi-coding-1/processed/$REPLY_ID" ] || { echo "pi-coding-1 never processed $REPLY_ID" >&2; ls -R "$EXCHANGE/pi-coding-1" >&2; exit 1; }
           echo "| ✅ | mailbox: reply consumed | pi-coding-1 processed $REPLY_ID (closed without a reply-of-reply) |" >> /tmp/fleet-rows.md
           echo "REQ_ID=$REQ_ID" >> "$GITHUB_ENV"
           echo "REPLY_ID=$REPLY_ID" >> "$GITHUB_ENV"
