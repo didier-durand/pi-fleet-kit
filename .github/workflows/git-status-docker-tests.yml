@@ -1,0 +1,80 @@
+name: git-status-docker-tests
+
+# Runs the git-status unit tests INSIDE the sandbox container pulled from
+# GHCR — validating that the extension's code runs correctly in the exact
+# environment the agents use (the image's Node 24 with native TS type
+# stripping, non-root pi user, Debian bookworm userland), not just on the
+# runner. Chained after build-sandbox-image succeeds.
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [build-sandbox-image]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  docker-tests:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # arm64 containers run under QEMU emulation on the amd64 runner
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Pull the sandbox image from GHCR (both platforms)
+        run: |
+          IMG=ghcr.io/${{ github.repository_owner }}/pi-sandbox:latest
+          echo "IMG=$IMG" >> "$GITHUB_ENV"
+          docker pull "$IMG"
+          docker pull --platform linux/arm64 "$IMG"
+
+      # --entrypoint bash: the image's entrypoint execs pi (docker run args
+      # would become pi args). The extension dir is mounted read-only; the
+      # tests are hermetic (scriptable pi.exec fakes — no live git, no LLM)
+      # and run as the container's non-root pi user.
+      - name: Run the git-status unit tests in the sandbox (amd64)
+        run: |
+          OUT=$(docker run --rm --platform linux/amd64 \
+            -v "$GITHUB_WORKSPACE/extensions/git-status:/tests:ro" \
+            --entrypoint bash "$IMG" \
+            -c "cd /tests && node --test git-status.test.ts 2>&1")
+          echo "$OUT" | tail -10
+          PASS=$(echo "$OUT" | grep -oE '^ℹ pass [0-9]+' | awk '{print $3}')
+          FAIL=$(echo "$OUT" | grep -oE '^ℹ fail [0-9]+' | awk '{print $3}')
+          PASS=${PASS:-0}; FAIL=${FAIL:-0}
+          echo "| ✅ | Unit tests in the sandbox (node $(docker run --rm --platform linux/amd64 --entrypoint node "$IMG" --version)) | linux/amd64 | $PASS passed, $FAIL failed |" >> /tmp/docker-test-rows.md
+          [ "$FAIL" = "0" ] || { echo "tests failed inside the sandbox" >&2; exit 1; }
+
+      - name: Run the git-status unit tests in the sandbox (arm64, emulated)
+        run: |
+          OUT=$(docker run --rm --platform linux/arm64 \
+            -v "$GITHUB_WORKSPACE/extensions/git-status:/tests:ro" \
+            --entrypoint bash "$IMG" \
+            -c "cd /tests && node --test git-status.test.ts 2>&1")
+          echo "$OUT" | tail -10
+          PASS=$(echo "$OUT" | grep -oE '^ℹ pass [0-9]+' | awk '{print $3}')
+          FAIL=$(echo "$OUT" | grep -oE '^ℹ fail [0-9]+' | awk '{print $3}')
+          PASS=${PASS:-0}; FAIL=${FAIL:-0}
+          echo "| ✅ | Unit tests in the sandbox | linux/arm64 (QEMU) | $PASS passed, $FAIL failed |" >> /tmp/docker-test-rows.md
+          [ "$FAIL" = "0" ] || { echo "tests failed inside the sandbox (arm64)" >&2; exit 1; }
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## 🐳 git-status — unit tests inside the sandbox image"
+            echo
+            echo "**Image:** \`ghcr.io/${{ github.repository_owner }}/pi-sandbox:latest\` — the exact environment the agents run in"
+            echo
+            echo "| Result | Check | Platform | Detail |"
+            echo "|---|---|---|---|"
+            cat /tmp/docker-test-rows.md 2>/dev/null || echo "| ❌ | (workflow failed before any test completed) | see job logs |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
