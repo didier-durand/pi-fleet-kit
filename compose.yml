@@ -4,7 +4,9 @@
 # the host home, $HOME). Expected layout under it:
 #   pi-fleet-kit/          this repo (compose, skills, extensions, warp configs)
 #   pi-agents/<agent>/     agent workspace clones (bind-mounted as /workspace)
-#   pi-exchange/<agent>/   watchdog exchange dirs (bind-mounted as /exchange)
+#   pi-exchange/<agent>/   watchdog exchange dirs (NOT mounted: the
+#                          prompt-trigger bridge is disabled fleet-wide;
+#                          the dirs remain the future mailbox layout)
 #   .ssh/pi-agent-signing  the agents' SSH signing key
 # Export PI_FLEET_KIT_HOME on the host (or set it in .env) to relocate the
 # whole fleet; the default keeps the classic layout.
@@ -47,8 +49,6 @@ services:
       - pi-fleet-kit-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-agents/pi-fleet-kit:/workspace
-      # Watched dir for file-triggered prompts (extension prompt-trigger):
-      - ${PI_FLEET_KIT_HOME:-$HOME}/pi-exchange/pi-fleet-kit:/exchange
       # Skills for THIS agent only (/skill:build-skill, /skill:github-best-practices):
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/build-skill:/repo-skills/build-skill:ro
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/github-best-practices:/repo-skills/github-best-practices:ro
@@ -69,7 +69,6 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
-      - PI_TRIGGER_DIR=/exchange
       # pi-obs telemetry DISABLED for this agent: the config manager writes
       # the fleet's own code (compose, extensions, skills) — its turns contain
       # sensitive config content that should not be mirrored to the tracing
@@ -82,7 +81,6 @@ services:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/pi-obs/index.ts",
        "--extension", "/repo-extensions/git-status/git-status.ts",
-       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/build-skill",
        "--skill", "/repo-skills/github-best-practices"]
     # Uncomment to reach MCP servers or services running on the host:
@@ -103,8 +101,6 @@ services:
       - pi-developer-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-agents/pi-developer:/workspace
-      # Watched dir for file-triggered prompts (extension prompt-trigger):
-      - ${PI_FLEET_KIT_HOME:-$HOME}/pi-exchange/pi-developer:/exchange
       # Skills for THIS agent only:
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/github-best-practices:/repo-skills/github-best-practices:ro
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/write-specifications:/repo-skills/write-specifications:ro
@@ -128,14 +124,12 @@ services:
       - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-developer
       - PI_OBS_CAPTURE_PROMPTS=1
       - PI_OBS_CAPTURE_TOOL_IO=1
-      - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/pi-obs/index.ts",
        "--extension", "/repo-extensions/git-status/git-status.ts",
-       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/github-best-practices",
        "--skill", "/repo-skills/write-specifications",
        "--skill", "/repo-skills/write-implementation-plan"]
@@ -150,8 +144,6 @@ services:
       - pi-coding-1-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-agents/pi-coding-1:/workspace
-      # Watched dir for file-triggered prompts (extension prompt-trigger):
-      - ${PI_FLEET_KIT_HOME:-$HOME}/pi-exchange/pi-coding-1:/exchange
       # Skills for THIS agent only (/skill:github-best-practices):
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/github-best-practices:/repo-skills/github-best-practices:ro
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/write-code:/repo-skills/write-code:ro
@@ -177,14 +169,12 @@ services:
       - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-coding-1
       - PI_OBS_CAPTURE_PROMPTS=1
       - PI_OBS_CAPTURE_TOOL_IO=1
-      - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/pi-obs/index.ts",
        "--extension", "/repo-extensions/git-status/git-status.ts",
-       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/github-best-practices",
        "--skill", "/repo-skills/write-code",
        "--skill", "/repo-skills/write-pull-request"]
@@ -202,8 +192,6 @@ services:
       - pi-coding-2-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-agents/pi-coding-2:/workspace
-      # Watched dir for file-triggered prompts (extension prompt-trigger):
-      - ${PI_FLEET_KIT_HOME:-$HOME}/pi-exchange/pi-coding-2:/exchange
       # Skills for THIS agent only (/skill:github-best-practices):
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/github-best-practices:/repo-skills/github-best-practices:ro
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/write-code:/repo-skills/write-code:ro
@@ -229,14 +217,12 @@ services:
       - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-coding-2
       - PI_OBS_CAPTURE_PROMPTS=1
       - PI_OBS_CAPTURE_TOOL_IO=1
-      - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/pi-obs/index.ts",
        "--extension", "/repo-extensions/git-status/git-status.ts",
-       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/github-best-practices",
        "--skill", "/repo-skills/write-code",
        "--skill", "/repo-skills/write-pull-request"]
@@ -251,8 +237,6 @@ services:
       - pi-review-1-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-agents/pi-review-1:/workspace
-      # Watched dir for file-triggered prompts (extension prompt-trigger):
-      - ${PI_FLEET_KIT_HOME:-$HOME}/pi-exchange/pi-review-1:/exchange
       # Skills for THIS agent only (/skill:github-best-practices):
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/github-best-practices:/repo-skills/github-best-practices:ro
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/review-pull-request:/repo-skills/review-pull-request:ro
@@ -277,14 +261,12 @@ services:
       - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-review-1
       - PI_OBS_CAPTURE_PROMPTS=1
       - PI_OBS_CAPTURE_TOOL_IO=1
-      - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/pi-obs/index.ts",
        "--extension", "/repo-extensions/git-status/git-status.ts",
-       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/github-best-practices",
        "--skill", "/repo-skills/review-pull-request"]
     # Uncomment to reach MCP servers or services running on the host:
@@ -298,8 +280,6 @@ services:
       - pi-review-2-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-agents/pi-review-2:/workspace
-      # Watched dir for file-triggered prompts (extension prompt-trigger):
-      - ${PI_FLEET_KIT_HOME:-$HOME}/pi-exchange/pi-review-2:/exchange
       # Skills for THIS agent only (/skill:github-best-practices):
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/github-best-practices:/repo-skills/github-best-practices:ro
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/review-pull-request:/repo-skills/review-pull-request:ro
@@ -324,14 +304,12 @@ services:
       - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-review-2
       - PI_OBS_CAPTURE_PROMPTS=1
       - PI_OBS_CAPTURE_TOOL_IO=1
-      - PI_TRIGGER_DIR=/exchange
     # Default model (adjust the model ID to taste), and --continue to resume
     # the most recent session automatically (fresh start: /new inside pi):
     command:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/pi-obs/index.ts",
        "--extension", "/repo-extensions/git-status/git-status.ts",
-       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/github-best-practices",
        "--skill", "/repo-skills/review-pull-request"]
     # Uncomment to reach MCP servers or services running on the host:
@@ -349,8 +327,6 @@ services:
       - pi-research-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-agents/pi-research:/workspace
-      # Watched dir for file-triggered prompts (extension prompt-trigger):
-      - ${PI_FLEET_KIT_HOME:-$HOME}/pi-exchange/pi-research:/exchange
       # Watched dir for file-triggered prompts (extension prompt-trigger):
       # Skills for THIS agent only (/skill:publishing-best-practices, /skill:github-best-practices):
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/publishing-best-practices:/repo-skills/publishing-best-practices:ro
@@ -372,7 +348,6 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
-      - PI_TRIGGER_DIR=/exchange
       - PI_OBS_OTLP_ENDPOINT=http://otlp-jaeger:4318
       - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-research
       - PI_OBS_CAPTURE_PROMPTS=1
@@ -383,7 +358,6 @@ services:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/pi-obs/index.ts",
        "--extension", "/repo-extensions/git-status/git-status.ts",
-       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/publishing-best-practices",
        "--skill", "/repo-skills/github-best-practices",
        "--skill", "/repo-skills/web-research"]
@@ -401,8 +375,6 @@ services:
       - pi-personal-home:/home/pi/.pi/agent
       # The agent's working folder:
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-agents/pi-personal:/workspace
-      # Watched dir for file-triggered prompts (extension prompt-trigger):
-      - ${PI_FLEET_KIT_HOME:-$HOME}/pi-exchange/pi-personal:/exchange
       # Skills for THIS agent only (/skill:publishing-best-practices, /skill:hello-world, /skill:github-best-practices):
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/publishing-best-practices:/repo-skills/publishing-best-practices:ro
       - ${PI_FLEET_KIT_HOME:-$HOME}/pi-fleet-kit/skills/hello-world:/repo-skills/hello-world:ro
@@ -424,7 +396,6 @@ services:
       - GITHUB_USER_EMAIL
       # Pi Packages auto-installed into the agent home on first launch:
       - PI_PACKAGES=npm:pi-web-access
-      - PI_TRIGGER_DIR=/exchange
       - PI_OBS_OTLP_ENDPOINT=http://otlp-jaeger:4318
       - PI_OBS_RESOURCE_SERVICE=pi-agent-pi-personal
       - PI_OBS_CAPTURE_PROMPTS=1
@@ -435,7 +406,6 @@ services:
       ["--model", "openrouter/z-ai/glm-5.3-flash", "--continue",
        "--extension", "/repo-extensions/pi-obs/index.ts",
        "--extension", "/repo-extensions/git-status/git-status.ts",
-       "--extension", "/repo-extensions/prompt-trigger/prompt-trigger.ts",
        "--skill", "/repo-skills/publishing-best-practices",
        "--skill", "/repo-skills/hello-world",
        "--skill", "/repo-skills/github-best-practices"]
