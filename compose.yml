@@ -11,7 +11,7 @@
 #
 # Image: the agents run the CI-published multi-arch image from GHCR
 # (ghcr.io/didier-durand/pi-sandbox:latest — built, downloaded and
-# smoke-run on both amd64 and arm64 by the pi-sandbox image workflow on
+# smoke-run on both amd64 and arm64 by the build-sandbox-image workflow on
 # every push). The package is public: no docker login needed for pulls.
 # Override to use a locally built image instead:
 #   export PI_SANDBOX_IMAGE=pi-sandbox   # then: docker build -t pi-sandbox -f Dockerfile.pi .
