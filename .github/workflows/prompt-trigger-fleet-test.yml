@@ -196,6 +196,7 @@ jobs:
           echo "| ✅ | simple exchange: reply correlated | $REPLY_ID echoes correlation_id=${REQ_ID%.json}, body contains the answer (3+2=5) |" >> /tmp/fleet-rows-03.md
           # the consumed envelope (with its session_id) — the validation step asserts the trace link against it
           echo "SIMPLE_REQ_FILE=$EXCHANGE/pi-developer/processed/$REQ_ID" >> "$GITHUB_ENV"
+          echo "SIMPLE_REPLY_FILE=$REPLY" >> "$GITHUB_ENV"
 
       # Attachment exchange (R14 end to end): pi-fleet-kit's LLM creates a
       # file (the question), then sends a mailbox message that ATTACHES it
@@ -485,13 +486,17 @@ jobs:
           const row = (ok, label, detail) => console.log(`| ${ok ? "✅" : "❌"} | ${label} | ${detail} |`);
           const sent = fk.bashResults.some(t => t.includes("sent:"));
           const received = dv.userInputs.some(t => t.includes("3+2"));
-          const answered = dv.modelTexts.some(t => /3\s*\+\s*2/.test(t));
+          // the reply body IS the delivered turn final assistant text — the same
+          // string pi-obs captures on the model span: assert verbatim (robust to
+          // whatever the LLM answers, unlike pattern-matching the question)
+          const replyBody = JSON.parse(fs.readFileSync(process.argv[3], "utf8")).body;
+          const answered = dv.modelTexts.some(t => t === replyBody || t.includes(replyBody));
           row(fk.modelTexts.length >= 1 && sent, "simple exchange via OTLP: pi-fleet-kit",
               `${fk.modelTexts.length} model span(s) + a bash tool span whose captured result carries the "sent:" envelope write`);
           row(received, "simple exchange via OTLP: pi-developer received",
               "pi.user.input event carries the delivered request \"how much is 3+2 ?\"");
           row(answered, "simple exchange via OTLP: pi-developer processed",
-              "a pi.model span carries the LLM answer (3 + 2 = 5)");
+              `a pi.model span carries the reply body verbatim: ${JSON.stringify(replyBody.slice(0, 60))}`);
           // distributed traces (R13): the request envelope carries the sending
           // session id; the receiver session span links to the sender trace
           const senderSessionId = JSON.parse(fs.readFileSync(process.argv[2], "utf8")).session_id;
@@ -520,7 +525,7 @@ jobs:
           row(linked, "simple exchange via OTLP: distributed trace",
               `the pi-developer session span links to the sender trace (link attribute pi.mailbox.session_id = ${senderSessionId})`);
           if (fk.modelTexts.length < 1 || !sent || !received || !answered || !linked) process.exit(1);
-          ' "$CAPTURE" "$SIMPLE_REQ_FILE" >> /tmp/fleet-rows-03.md || { cat /tmp/fleet-rows-03.md | tail -4; echo "simple-exchange OTLP assertions failed" >&2; exit 1; }
+          ' "$CAPTURE" "$SIMPLE_REQ_FILE" "$SIMPLE_REPLY_FILE" >> /tmp/fleet-rows-03.md || { cat /tmp/fleet-rows-03.md | tail -4; echo "simple-exchange OTLP assertions failed" >&2; exit 1; }
           # the attachment dialog, step by step, proven in the spans:
           #   1. question file created   — pi-fleet-kit bash span writes /tmp/mailbox-question.txt
           #   2. request sent            — pi-fleet-kit bash span result carries "sent:"; header lists the file
