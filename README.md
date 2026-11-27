@@ -89,6 +89,13 @@ clone, and read-only mounts of this repo's skills/extensions; outside, the
 agents talk to the model API (OpenRouter), GitHub (HTTPS auth + SSH commit
 signing), and npm (Pi Packages, including this repo's published extensions).
 
+<!-- ts-audit:start -->
+## TypeScript audit
+
+Errors 118 · Warnings 62 · Files scanned 18 · Rules triggered 30
+
+Full report: [docs/audits/ts-audit.md](docs/audits/ts-audit.md) — refreshed daily at 05:00 by the `ts-audit` workflow.
+<!-- ts-audit:end -->
 ## Machine requirements (portability)
 
 No path in this repo is user-specific: all runtime paths derive from one
