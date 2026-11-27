@@ -87,8 +87,9 @@ Single file `prompt-trigger.ts` (~196 lines) implementing:
 
 ## Steps 4–7 — mailbox protocol (specified ahead of implementation)
 
-The divergences from the fleet's mailbox architecture
-(`pi-mailbox-arch.json`, levels 1–2) are closed in three steps, ordered
+The divergences from the fleet's mailbox architecture (summarized
+normatively in SPECS §Context and grounding, item 4) are closed in
+three steps, ordered
 by dependency: the envelope defines what a message IS, the maildir
 defines where messages LIVE, the ledger defines what has been DONE, and
 replies close the loop (task delegation with answers).
@@ -228,3 +229,4 @@ Additive protocol extension (0.3.x envelopes remain valid; ship as
 | 1.1.0 | 2026-11-25 | Didier Durand | mailbox protocol steps 4–7 (envelope+send.sh, maildir, ledger+replies, suite/CI) specified ahead of implementation — closes the divergences from pi-mailbox-arch.json levels 1–2 |
 | 1.1.1 | 2026-11-26 | Didier Durand | steps 4–7 executed and shipped in v0.2.0 (47 tests, all gates green) |
 | 1.2.0 | 2026-11-27 | Didier Durand | R13 trace identity shipped in v0.3.0 (session_id in envelopes, .sender identity file, mailbox session entries, pi-obs span links); Step 8 — attachments (R14) specified ahead of implementation: header-listed files under attachments/<msg-id>/, send.sh --attach with copy-before-commit, delivery manifest line |
+| 1.2.1 | 2026-11-27 | Didier Durand | mailbox architecture summary inlined in SPECS (normative); step-4 divergence references repointed |

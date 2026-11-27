@@ -8,9 +8,9 @@ Date: 2026-11-25
 > prompt-dropper layer, live in the fleet). This revision adds
 > **R9–R12: the mailbox protocol** (envelope, maildir state machine,
 > ledger, replies), aligning the extension with the fleet's
-> agent-to-agent mailbox architecture (`pi-mailbox-arch.json`, levels
-> 1–2) — specified ahead of implementation, so coding agents can
-> execute it against this contract.
+> agent-to-agent mailbox architecture (summarized normatively in
+> §Context and grounding, item 4) — specified ahead of implementation,
+> so coding agents can execute it against this contract.
 
 ## Objective
 
@@ -36,6 +36,32 @@ up without the operator typing.
 3. **Fleet context.** Each agent has its own exchange dir
    (`$PI_FLEET_KIT_HOME/pi-exchange/<agent>`, mounted as `/exchange`),
    so no agent sees another agent's files.
+4. **The fleet mailbox (architecture summary, inlined).** The fleet
+   exchanges work through per-agent maildirs under
+   `pi-exchange/<agent>/`. Levels, as implemented:
+
+   - **Level 1 — the message.** Agent-to-agent messages are JSON
+     envelopes (`msg-<ts>-<pid>` id, `from`, `to`, `session_id`, `type`
+     request|reply|error, `correlation_id`, `created`, `body`,
+     `attempts`, optional attachments) built exclusively by `send.sh`
+     and dropped atomically into the RECIPIENT's `inbox/`. The sending
+     session's identity rides in the envelope (R13) so telemetry can
+     tie the two agents' traces together.
+   - **Level 2 — the work ledger.** The recipient's extension claims
+     envelopes (atomic rename inbox → working), records handled ids in
+     an append-only `ledger.ndjson` (at-most-once), delivers the body
+     as a prompt, and auto-replies: a `reply` envelope echoing
+     `correlation_id` lands in the ORIGINAL sender's inbox when the
+     turn settles — task delegation with answers.
+   - **Cross-cutting.** The maildir IS the state machine (inbox →
+     working → processed/failed, plus pending); dotfiles are never
+     consumed as prompts; per-agent dirs are pairwise-isolated (R8);
+     the trace-identity chain (R13) makes every exchange a distributed
+     trace; attachments (R14, planned) ride alongside the envelope
+     under `attachments/<msg-id>/`.
+
+   (The original architecture document, `pi-mailbox-arch.json`, was
+   removed from the repository — this summary is normative now.)
 
 ## Artifact structure
 
@@ -149,7 +175,7 @@ catches and returns).
 ### R9 — Envelope protocol (mailbox level 1)
 
 Aligned with the fleet's agent-to-agent mailbox architecture
-(`pi-mailbox-arch.json`, level 1), the flat prompt-file format evolves
+(§Context and grounding, item 4), the flat prompt-file format evolves
 into the standard envelope:
 
 - Every mailbox message is a JSON object with exactly these fields:
