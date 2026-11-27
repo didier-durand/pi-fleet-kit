@@ -288,9 +288,9 @@ jobs:
           #    so the kick turn must stream well past ~4s or the run exits
           #    before the first tick and the envelope is never claimed
           #    (crash recovery only requeues CLAIMED envelopes in working/;
-          #    an unclaimed inbox envelope converges nowhere). Count to 200
-          #    streams ~8-10s on the CI model — safe margin.
-          KICK="Count slowly from 1 to 200, one number per line, then stop."
+          #    an unclaimed inbox envelope converges nowhere). The essay kick
+          #    streams ~9s on the CI model — safe margin.
+          KICK="Write a 400-word essay about bridges. Do not use any tools."
           for i in 1 2 3; do
             echo "$KICK" | timeout 240 docker compose run -T --rm pi-coding-2 2>&1 | tail -3 || true
             [ -f "$EXCHANGE/pi-coding-2/processed/$REQ_ID" ] && break
@@ -591,6 +591,7 @@ jobs:
       - name: Job summary
         if: always()
         run: |
+          {
           section() {
             local file="/tmp/fleet-rows-$1.md"
             echo "### Test $1 — $2"
