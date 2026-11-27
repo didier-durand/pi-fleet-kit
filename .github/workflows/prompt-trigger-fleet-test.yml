@@ -177,64 +177,78 @@ jobs:
           EXCHANGE="$PI_FLEET_KIT_HOME/pi-exchange"
           echo "| ℹ️ | attachment exchange | bridge active on pi-fleet-kit + pi-developer |" >> /tmp/fleet-rows-03.md
 
-          # 1+2. pi-fleet-kit: CREATE the question file, then SEND a message
-          #      that attaches it — both inside one LLM turn (the bash tool
-          #      does the work; the body refers to the attachment)
-          printf '%s' 'You are agent pi-fleet-kit. Two steps, in this order:
-          Step 1 — create the file /tmp/mailbox-question.txt containing EXACTLY this line: how much is 7 + 8 ?
-          Step 2 — send a mailbox message to the agent pi-developer that ATTACHES that file:
-          bash /repo-extensions/prompt-trigger/send.sh pi-developer - --attach=/tmp/mailbox-question.txt <<< "return exact result of what is asked in the attachment"
-          Then reply with the envelope path that was written.' \
-            | timeout 180 docker compose run -T --rm pi-fleet-kit 2>&1 | tail -3
-          REQ=$(ls "$EXCHANGE/pi-developer/inbox/"msg-*.json 2>/dev/null | head -1)
-          [ -n "$REQ" ] || { echo "pi-fleet-kit produced no attachment request (LLM + bash send failed)" >&2; exit 1; }
-          REQ_ID=$(basename "$REQ")
-          # the header must list exactly the attachment: safe name, bytes, sha256
-          node -e '
-          const env = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
-          const ok = !!env.session_id && Array.isArray(env.attachments) && env.attachments.length === 1
-            && env.attachments[0].name === "mailbox-question.txt" && env.attachments[0].bytes > 0
-            && /^[0-9a-f]{64}$/.test(env.attachments[0].sha256);
-          console.log("request envelope:", JSON.stringify(env));
-          if (!ok) { console.error("attachment header failed validation"); process.exit(1); }' "$REQ"
-          echo "| ✅ | attachment exchange: request written | pi-fleet-kit attached mailbox-question.txt (header lists name + bytes + sha256) |" >> /tmp/fleet-rows-03.md
-
-          # 3. pi-developer consumes: kick with a LONG turn; the delivered
-          #    prompt carries the manifest line, its LLM reads the file via
-          #    the bash tool and answers 15
+          # R14 end to end, round-based: pi-fleet-kit creates a question file
+          # and ATTACHES it to a mailbox message; pi-developer reads the file
+          # from attachments/<msg-id>/ and answers. The answer comes from a
+          # live LLM (arithmetic is not deterministic on a flash model), so a
+          # round whose correlated reply does not say 15 is retried with a
+          # FRESH request — bounded at 3 rounds.
           DEVKICK="Write a 400-word essay about lighthouses. Do not use any tools."
-          for i in 1 2 3; do
-            echo "$DEVKICK" | timeout 240 docker compose run -T --rm pi-developer 2>&1 | tail -2 || true
-            [ -f "$EXCHANGE/pi-developer/processed/$REQ_ID" ] && break
-            echo "attempt $i: request not yet processed; retrying"
-            sleep 2
+          ATT_OK=""
+          for round in 1 2 3; do
+            echo "=== attachment exchange: round $round"
+
+            # 1+2. pi-fleet-kit: CREATE the question file, then SEND a message
+            #      that attaches it (both inside one LLM turn)
+            printf '%s' 'You are agent pi-fleet-kit. Two steps, in this order:
+            Step 1 — create the file /tmp/mailbox-question.txt containing EXACTLY this line: how much is 7 + 8 ?
+            Step 2 — send a mailbox message to the agent pi-developer that ATTACHES that file:
+            bash /repo-extensions/prompt-trigger/send.sh pi-developer - --attach=/tmp/mailbox-question.txt <<< "return exact result of what is asked in the attachment"
+            Then reply with the envelope path that was written.' \
+              | timeout 180 docker compose run -T --rm pi-fleet-kit 2>&1 | tail -3
+            REQ=$(ls "$EXCHANGE/pi-developer/inbox/"msg-*.json 2>/dev/null | head -1)
+            [ -n "$REQ" ] || { echo "round $round: pi-fleet-kit produced no attachment request" >&2; continue; }
+            REQ_ID=$(basename "$REQ")
+            # the header must list exactly the attachment: safe name, bytes, sha256
+            node -e '
+            const env = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            const ok = !!env.session_id && Array.isArray(env.attachments) && env.attachments.length === 1
+              && env.attachments[0].name === "mailbox-question.txt" && env.attachments[0].bytes > 0
+              && /^[0-9a-f]{64}$/.test(env.attachments[0].sha256);
+            console.log("request envelope:", JSON.stringify(env));
+            if (!ok) { console.error("attachment header failed validation"); process.exit(1); }' "$REQ" || { echo "round $round: header failed" >&2; continue; }
+
+            # 3. pi-developer consumes: kick with a LONG turn; the delivered
+            #    prompt carries the manifest line, its LLM reads the file and
+            #    answers
+            for i in 1 2 3; do
+              echo "$DEVKICK" | timeout 240 docker compose run -T --rm pi-developer 2>&1 | tail -2 || true
+              [ -f "$EXCHANGE/pi-developer/processed/$REQ_ID" ] && break
+              echo "attempt $i: request not yet processed; retrying"
+              sleep 2
+            done
+            [ -f "$EXCHANGE/pi-developer/processed/$REQ_ID" ] || { echo "round $round: pi-developer never processed $REQ_ID" >&2; continue; }
+
+            # the attachment crossed the mount: byte-identical to the header sha256
+            node -e '
+            const fs = require("fs"), crypto = require("crypto");
+            const env = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+            const a = env.attachments[0];
+            const body = fs.readFileSync(process.argv[2]);
+            const ok = body.length === a.bytes && crypto.createHash("sha256").update(body).digest("hex") === a.sha256;
+            console.log("attachment content:", JSON.stringify(body.toString()));
+            if (!ok) { console.error("attachment content does not match the header"); process.exit(1); }' \
+              "$EXCHANGE/pi-developer/processed/$REQ_ID" "$EXCHANGE/pi-developer/attachments/${REQ_ID%.json}/mailbox-question.txt" || { echo "round $round: attachment mismatch" >&2; continue; }
+
+            # 4. the settled reply must carry the numeric answer (15)
+            REPLY=$(grep -l "\"correlation_id\":\"${REQ_ID%.json}\"" "$EXCHANGE/pi-fleet-kit/inbox/"msg-*.json 2>/dev/null | head -1)
+            [ -n "$REPLY" ] || { echo "round $round: no reply correlating $REQ_ID" >&2; continue; }
+            if node -e '
+            const env = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            const ok = env.type === "reply" && /\b15\b/.test(env.body);
+            console.log("reply envelope:", JSON.stringify(env));
+            if (!ok) { console.error("the reply does not answer 15"); process.exit(1); }' "$REPLY"; then
+              echo "| ✅ | attachment exchange: request written | pi-fleet-kit attached mailbox-question.txt (header lists name + bytes + sha256) |" >> /tmp/fleet-rows-03.md
+              echo "| ✅ | attachment exchange: request consumed | pi-developer processed $REQ_ID (round $round) |" >> /tmp/fleet-rows-03.md
+              echo "| ✅ | attachment exchange: file crossed the mount | sha256 matches the header (content: how much is 7 + 8 ?) |" >> /tmp/fleet-rows-03.md
+              echo "| ✅ | attachment exchange: answer correlated | $(basename "$REPLY") answers 15 (round $round) |" >> /tmp/fleet-rows-03.md
+              echo "ATT_REQ_FILE=$EXCHANGE/pi-developer/processed/$REQ_ID" >> "$GITHUB_ENV"
+              ATT_OK=1
+              break
+            fi
+            echo "round $round: the reply did not answer 15 — resending a fresh request"
           done
-          [ -f "$EXCHANGE/pi-developer/processed/$REQ_ID" ] || { echo "pi-developer never processed $REQ_ID" >&2; exit 1; }
-          echo "| ✅ | attachment exchange: request consumed | pi-developer processed $REQ_ID |" >> /tmp/fleet-rows-03.md
-
-          # the attachment crossed the mount: byte-identical to the header sha256
-          node -e '
-          const fs = require("fs"), crypto = require("crypto");
-          const env = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-          const a = env.attachments[0];
-          const body = fs.readFileSync(process.argv[2]);
-          const ok = body.length === a.bytes && crypto.createHash("sha256").update(body).digest("hex") === a.sha256;
-          console.log("attachment content:", JSON.stringify(body.toString()));
-          if (!ok) { console.error("attachment content does not match the header"); process.exit(1); }' \
-            "$EXCHANGE/pi-developer/processed/$REQ_ID" "$EXCHANGE/pi-developer/attachments/${REQ_ID%.json}/mailbox-question.txt"
-          echo "| ✅ | attachment exchange: file crossed the mount | sha256 matches the header (content: how much is 7 + 8 ?) |" >> /tmp/fleet-rows-03.md
-
-          # 4. the settled reply must carry the numeric answer (15)
-          REPLY=$(grep -l "\"correlation_id\":\"${REQ_ID%.json}\"" "$EXCHANGE/pi-fleet-kit/inbox/"msg-*.json 2>/dev/null | head -1)
-          [ -n "$REPLY" ] || { echo "no reply correlating $REQ_ID in pi-fleet-kit inbox" >&2; exit 1; }
-          node -e '
-          const env = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
-          const ok = env.type === "reply" && /\b15\b/.test(env.body);
-          console.log("reply envelope:", JSON.stringify(env));
-          if (!ok) { console.error("the reply does not answer 15"); process.exit(1); }' "$REPLY"
-          echo "| ✅ | attachment exchange: answer correlated | $(basename "$REPLY") answers 15 |" >> /tmp/fleet-rows-03.md
-          # the consumed envelope (session_id + attachment metadata) for the validation step
-          echo "ATT_REQ_FILE=$EXCHANGE/pi-developer/processed/$REQ_ID" >> "$GITHUB_ENV"
+          [ -n "$ATT_OK" ] || { echo "the attachment dialog never produced a correct answer in 3 rounds" >&2; exit 1; }
 
       # 2-way mailbox exchange (SPECS v1.1.0 R9-R12): send.sh drops a request
       # into pi-coding-2's inbox; the extension delivers it on a tick (1.5s),
