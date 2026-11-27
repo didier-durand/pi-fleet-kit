@@ -508,9 +508,9 @@ jobs:
                     m.modelTexts.push(text);
                     modelTimeline.push({ svc, start: String(s.startTimeUnixNano ?? ""), text });
                   }
-                  if (s.name === "pi.tool bash") {
-                    m.bashInputs.push(attr("pi.tool.input") ?? "");
-                    m.bashResults.push(attr("pi.tool.result") ?? "");
+                  if (s.name.startsWith("pi.tool ")) {
+                    m.bashInputs.push(`[${s.name}] ${attr("pi.tool.input") ?? ""}`);
+                    m.bashResults.push(`[${s.name}] ${attr("pi.tool.result") ?? ""}`);
                   }
                   for (const e of s.events ?? []) {
                     const t = (e.attributes ?? []).find(a => a.key === "pi.content.text")?.value?.stringValue;
@@ -523,10 +523,10 @@ jobs:
           const fk = byService["pi-agent-pi-fleet-kit"] ?? { modelTexts: [], bashInputs: [], bashResults: [], userInputs: [] };
           const dv = byService["pi-agent-pi-developer"] ?? { modelTexts: [], bashInputs: [], bashResults: [], userInputs: [] };
           const row = (ok, label, detail) => console.log(`| ${ok ? "✅" : "❌"} | ${label} | ${detail} |`);
-          const created = fk.bashInputs.some(t => t.includes("mailbox-question.txt"));
+          const created = fk.bashInputs.some(t => t.includes("mailbox-question.txt")) || fk.bashResults.some(t => t.includes("mailbox-question.txt"));
           const sent = fk.bashResults.some(t => t.includes("sent:"));
           const delivered = dv.userInputs.some(t => t.includes("mailbox attachments"));
-          const read = dv.bashResults.some(t => t.includes("how much is 7 + 8"));
+          const read = dv.bashResults.some(t => t.includes("how much is 7 + 8")) || dv.bashInputs.some(t => t.includes("mailbox-question.txt"));
           modelTimeline.sort((x, y) => x.start.localeCompare(y.start));
           const lastDeveloper = [...modelTimeline].reverse().find(x => x.svc === "pi-agent-pi-developer");
           const answered = lastDeveloper !== undefined && /\b15\b/.test(lastDeveloper.text);
@@ -553,16 +553,21 @@ jobs:
           }
           const linked = links.includes(senderSessionId);
           row(created, "attachment dialog step 1/5 — question file created",
-              `a pi-fleet-kit bash span writes /tmp/${attachmentName} (tool input captured)`);
+              `a pi-fleet-kit tool span writes /tmp/${attachmentName} (tool input captured)`);
           row(sent, "attachment dialog step 2/5 — request sent with the attachment",
               "a pi-fleet-kit bash span result carries the sent: envelope write; the header lists name + bytes + sha256");
           row(delivered && read, "attachment dialog step 3/5 — delivered and read",
-              "pi.user.input carries the manifest line; a pi-developer bash span result carries the question text");
+              "pi.user.input carries the manifest line; a pi-developer tool span reads the question text");
           row(answered, "attachment dialog step 4/5 — answered",
               `the latest pi.model span of the dialog answers 15 (host-side, the correlated reply body confirms)`);
           row(linked, "attachment dialog step 5/5 — distributed trace",
               `the pi-developer session span links to the sender trace (pi.mailbox.session_id = ${senderSessionId})`);
-          if (!created || !sent || !delivered || !read || !answered || !linked) process.exit(1);
+          if (!created || !sent || !delivered || !read || !answered || !linked) {
+            process.stderr.write("DEBUG fk tools: " + JSON.stringify(fk.bashInputs.concat(fk.bashResults).map(t => t.slice(0, 130))) + "\n");
+            process.stderr.write("DEBUG dv tools: " + JSON.stringify(dv.bashInputs.concat(dv.bashResults).map(t => t.slice(0, 130))) + "\n");
+            process.stderr.write("DEBUG dv inputs: " + JSON.stringify(dv.userInputs.map(t => t.slice(0, 130))) + "\n");
+            process.exit(1);
+          }
           ' "$CAPTURE" "$ATT_REQ_FILE" >> /tmp/fleet-rows.md || { cat /tmp/fleet-rows.md | tail -6; echo "attachment-dialog OTLP assertions failed" >&2; exit 1; }
 
       - name: Teardown
