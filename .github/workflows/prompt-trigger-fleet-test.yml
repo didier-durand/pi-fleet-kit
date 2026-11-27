@@ -166,6 +166,76 @@ jobs:
           # the consumed envelope (with its session_id) — the validation step asserts the trace link against it
           echo "SIMPLE_REQ_FILE=$EXCHANGE/pi-developer/processed/$REQ_ID" >> "$GITHUB_ENV"
 
+      # Attachment exchange (R14 end to end): pi-fleet-kit's LLM creates a
+      # file (the question), then sends a mailbox message that ATTACHES it
+      # (the body refers to the attachment); pi-developer's LLM reads the
+      # file from attachments/<msg-id>/ via its bash tool and answers the
+      # question — 15. The validation step checks the answer AND the key
+      # spans of every step of the dialog.
+      - name: Attachment exchange (pi-fleet-kit → pi-developer)
+        run: |
+          EXCHANGE="$PI_FLEET_KIT_HOME/pi-exchange"
+          echo "| ℹ️ | attachment exchange | bridge active on pi-fleet-kit + pi-developer |" >> /tmp/fleet-rows.md
+
+          # 1+2. pi-fleet-kit: CREATE the question file, then SEND a message
+          #      that attaches it — both inside one LLM turn (the bash tool
+          #      does the work; the body refers to the attachment)
+          printf '%s' 'You are agent pi-fleet-kit. Two steps, in this order:
+          Step 1 — create the file /tmp/mailbox-question.txt containing EXACTLY this line: how much is 7 + 8 ?
+          Step 2 — send a mailbox message to the agent pi-developer that ATTACHES that file:
+          bash /repo-extensions/prompt-trigger/send.sh pi-developer - --attach=/tmp/mailbox-question.txt <<< "return exact result of what is asked in the attachment"
+          Then reply with the envelope path that was written.' \
+            | timeout 180 docker compose run -T --rm pi-fleet-kit 2>&1 | tail -3
+          REQ=$(ls "$EXCHANGE/pi-developer/inbox/"msg-*.json 2>/dev/null | head -1)
+          [ -n "$REQ" ] || { echo "pi-fleet-kit produced no attachment request (LLM + bash send failed)" >&2; exit 1; }
+          REQ_ID=$(basename "$REQ")
+          # the header must list exactly the attachment: safe name, bytes, sha256
+          node -e '
+          const env = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+          const ok = !!env.session_id && Array.isArray(env.attachments) && env.attachments.length === 1
+            && env.attachments[0].name === "mailbox-question.txt" && env.attachments[0].bytes > 0
+            && /^[0-9a-f]{64}$/.test(env.attachments[0].sha256);
+          console.log("request envelope:", JSON.stringify(env));
+          if (!ok) { console.error("attachment header failed validation"); process.exit(1); }' "$REQ"
+          echo "| ✅ | attachment exchange: request written | pi-fleet-kit attached mailbox-question.txt (header lists name + bytes + sha256) |" >> /tmp/fleet-rows.md
+
+          # 3. pi-developer consumes: kick with a LONG turn; the delivered
+          #    prompt carries the manifest line, its LLM reads the file via
+          #    the bash tool and answers 15
+          DEVKICK="Write a 400-word essay about lighthouses. Do not use any tools."
+          for i in 1 2 3; do
+            echo "$DEVKICK" | timeout 240 docker compose run -T --rm pi-developer 2>&1 | tail -2 || true
+            [ -f "$EXCHANGE/pi-developer/processed/$REQ_ID" ] && break
+            echo "attempt $i: request not yet processed; retrying"
+            sleep 2
+          done
+          [ -f "$EXCHANGE/pi-developer/processed/$REQ_ID" ] || { echo "pi-developer never processed $REQ_ID" >&2; exit 1; }
+          echo "| ✅ | attachment exchange: request consumed | pi-developer processed $REQ_ID |" >> /tmp/fleet-rows.md
+
+          # the attachment crossed the mount: byte-identical to the header sha256
+          node -e '
+          const fs = require("fs"), crypto = require("crypto");
+          const env = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+          const a = env.attachments[0];
+          const body = fs.readFileSync(process.argv[2]);
+          const ok = body.length === a.bytes && crypto.createHash("sha256").update(body).digest("hex") === a.sha256;
+          console.log("attachment content:", JSON.stringify(body.toString()));
+          if (!ok) { console.error("attachment content does not match the header"); process.exit(1); }' \
+            "$EXCHANGE/pi-developer/processed/$REQ_ID" "$EXCHANGE/pi-developer/attachments/$REQ_ID/mailbox-question.txt"
+          echo "| ✅ | attachment exchange: file crossed the mount | sha256 matches the header (content: how much is 7 + 8 ?) |" >> /tmp/fleet-rows.md
+
+          # 4. the settled reply must carry the numeric answer (15)
+          REPLY=$(grep -l "\"correlation_id\":\"${REQ_ID%.json}\"" "$EXCHANGE/pi-fleet-kit/inbox/"msg-*.json 2>/dev/null | head -1)
+          [ -n "$REPLY" ] || { echo "no reply correlating $REQ_ID in pi-fleet-kit inbox" >&2; exit 1; }
+          node -e '
+          const env = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+          const ok = env.type === "reply" && /\b15\b/.test(env.body);
+          console.log("reply envelope:", JSON.stringify(env));
+          if (!ok) { console.error("the reply does not answer 15"); process.exit(1); }' "$REPLY"
+          echo "| ✅ | attachment exchange: answer correlated | $(basename "$REPLY") answers 15 |" >> /tmp/fleet-rows.md
+          # the consumed envelope (session_id + attachment metadata) for the validation step
+          echo "ATT_REQ_FILE=$EXCHANGE/pi-developer/processed/$REQ_ID" >> "$GITHUB_ENV"
+
       # 2-way mailbox exchange (SPECS v1.1.0 R9-R12): send.sh drops a request
       # into pi-coding-2's inbox; the extension delivers it on a tick (1.5s),
       # the LLM answers, agent_end settles the reply into pi-coding-1's inbox;
@@ -406,6 +476,94 @@ jobs:
               `the pi-developer session span links to the sender trace (link attribute pi.mailbox.session_id = ${senderSessionId})`);
           if (fk.modelTexts.length < 1 || !sent || !received || !answered || !linked) process.exit(1);
           ' "$CAPTURE" "$SIMPLE_REQ_FILE" >> /tmp/fleet-rows.md || { cat /tmp/fleet-rows.md | tail -4; echo "simple-exchange OTLP assertions failed" >&2; exit 1; }
+          # the attachment dialog, step by step, proven in the spans:
+          #   1. question file created   — pi-fleet-kit bash span writes /tmp/mailbox-question.txt
+          #   2. request sent            — pi-fleet-kit bash span result carries "sent:"; header lists the file
+          #   3. delivered + file read   — pi.user.input carries the manifest line; pi-developer bash result carries the question
+          #   4. answered                — the latest pi.model span answers 15 (the correlated reply confirms host-side)
+          #   5. distributed trace       — pi-developer session span links to the sender trace (pi.mailbox.session_id)
+          node -e '
+          const fs = require("fs");
+          const lines = fs.readFileSync(process.argv[1], "utf8").split("\n").filter(Boolean);
+          const env = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const senderSessionId = env.session_id;
+          const attachmentName = env.attachments[0].name;
+          const byService = {};
+          const modelTimeline = []; // {service, start, text} — for the chronological latest answer
+          for (const line of lines) {
+            let rec; try { rec = JSON.parse(line); } catch { continue; }
+            const docs = [rec];
+            if (rec && rec.body !== undefined) docs.push(rec.body);
+            for (const doc of docs) {
+              let d = doc;
+              if (typeof d === "string") { try { d = JSON.parse(d); } catch { continue; } }
+              if (!d || typeof d !== "object") continue;
+              for (const rs of d.resourceSpans ?? []) {
+                const svc = (rs.resource?.attributes ?? []).find(a => a.key === "service.name")?.value?.stringValue ?? "?";
+                for (const ss of rs.scopeSpans ?? []) for (const s of ss.spans ?? []) {
+                  const m = byService[svc] = byService[svc] ?? { modelTexts: [], bashInputs: [], bashResults: [], userInputs: [] };
+                  const attr = k => (s.attributes ?? []).find(a => a.key === k)?.value?.stringValue;
+                  if (s.name === "pi.model") {
+                    const text = attr("pi.content.text") ?? "";
+                    m.modelTexts.push(text);
+                    modelTimeline.push({ svc, start: String(s.startTimeUnixNano ?? ""), text });
+                  }
+                  if (s.name === "pi.tool bash") {
+                    m.bashInputs.push(attr("pi.tool.input") ?? "");
+                    m.bashResults.push(attr("pi.tool.result") ?? "");
+                  }
+                  for (const e of s.events ?? []) {
+                    const t = (e.attributes ?? []).find(a => a.key === "pi.content.text")?.value?.stringValue;
+                    if (e.name === "pi.user.input" && t) m.userInputs.push(t);
+                  }
+                }
+              }
+            }
+          }
+          const fk = byService["pi-agent-pi-fleet-kit"] ?? { modelTexts: [], bashInputs: [], bashResults: [], userInputs: [] };
+          const dv = byService["pi-agent-pi-developer"] ?? { modelTexts: [], bashInputs: [], bashResults: [], userInputs: [] };
+          const row = (ok, label, detail) => console.log(`| ${ok ? "✅" : "❌"} | ${label} | ${detail} |`);
+          const created = fk.bashInputs.some(t => t.includes("mailbox-question.txt"));
+          const sent = fk.bashResults.some(t => t.includes("sent:"));
+          const delivered = dv.userInputs.some(t => t.includes("mailbox attachments"));
+          const read = dv.bashResults.some(t => t.includes("how much is 7 + 8"));
+          modelTimeline.sort((x, y) => x.start.localeCompare(y.start));
+          const lastDeveloper = [...modelTimeline].reverse().find(x => x.svc === "pi-agent-pi-developer");
+          const answered = lastDeveloper !== undefined && /\b15\b/.test(lastDeveloper.text);
+          const links = [];
+          for (const line of lines) {
+            let rec; try { rec = JSON.parse(line); } catch { continue; }
+            const docs = [rec];
+            if (rec && rec.body !== undefined) docs.push(rec.body);
+            for (const doc of docs) {
+              let d = doc;
+              if (typeof d === "string") { try { d = JSON.parse(d); } catch { continue; } }
+              if (!d || typeof d !== "object") continue;
+              for (const rs of d.resourceSpans ?? []) {
+                const svc = (rs.resource?.attributes ?? []).find(a => a.key === "service.name")?.value?.stringValue ?? "?";
+                for (const ss of rs.scopeSpans ?? []) for (const s of ss.spans ?? []) {
+                  if (s.name !== "pi.session" || svc !== "pi-agent-pi-developer") continue;
+                  for (const link of s.links ?? []) {
+                    const sid = (link.attributes ?? []).find(a => a.key === "pi.mailbox.session_id")?.value?.stringValue;
+                    if (sid !== undefined) links.push(sid);
+                  }
+                }
+              }
+            }
+          }
+          const linked = links.includes(senderSessionId);
+          row(created, "attachment dialog step 1/5 — question file created",
+              `a pi-fleet-kit bash span writes /tmp/${attachmentName} (tool input captured)`);
+          row(sent, "attachment dialog step 2/5 — request sent with the attachment",
+              "a pi-fleet-kit bash span result carries the sent: envelope write; the header lists name + bytes + sha256");
+          row(delivered && read, "attachment dialog step 3/5 — delivered and read",
+              "pi.user.input carries the manifest line; a pi-developer bash span result carries the question text");
+          row(answered, "attachment dialog step 4/5 — answered",
+              `the latest pi.model span of the dialog answers 15 (host-side, the correlated reply body confirms)`);
+          row(linked, "attachment dialog step 5/5 — distributed trace",
+              `the pi-developer session span links to the sender trace (pi.mailbox.session_id = ${senderSessionId})`);
+          if (!created || !sent || !delivered || !read || !answered || !linked) process.exit(1);
+          ' "$CAPTURE" "$ATT_REQ_FILE" >> /tmp/fleet-rows.md || { cat /tmp/fleet-rows.md | tail -6; echo "attachment-dialog OTLP assertions failed" >&2; exit 1; }
 
       - name: Teardown
         if: always()
