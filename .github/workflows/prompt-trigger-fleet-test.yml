@@ -106,15 +106,46 @@ jobs:
           for agent in $AGENTS; do
             echo "=== $agent"
             OUT=$(echo "Reply with exactly: OK" | timeout 180 \
-              docker compose run -T --rm "$agent" 2>&1 | tail -5)
+              // NO --rm: the container persists as Exited (0) — the docker-state section reads it as proof the agent ran
+              docker compose run -T "$agent" 2>&1 | tail -5)
             echo "$OUT"
             if echo "$OUT" | grep -q "OK"; then
-              echo "| ✅ | \`$agent\` | compose config loaded (extensions + skills + model) — LLM answered OK |" >> /tmp/fleet-rows-01.md
+              echo "| ✅ | \`$agent\` | compose config loaded (extensions + skills + model) — LLM answered OK |" >> /tmp/fleet-rows-02.md
             else
-              echo "| ❌ | \`$agent\` | no OK in response: $(echo "$OUT" | tail -1) |" >> /tmp/fleet-rows-01.md
+              echo "| ❌ | \`$agent\` | no OK in response: $(echo "$OUT" | tail -1) |" >> /tmp/fleet-rows-02.md
             fi
             sleep 4   # exporter flush window; avoid rate bursts
           done
+
+      # Docker-level proof that the whole fleet actually ran: the bring-up
+      # containers persist as Exited (0) (no --rm), so docker compose ps -a
+      # is captured verbatim into the summary and asserted per agent.
+      - name: Fleet state (docker compose ps -a)
+        run: |
+          FILE=/tmp/fleet-rows-01.md
+          docker compose ps -a > /tmp/compose-ps.txt 2>&1 || true
+          # per-agent rows: the container was created AND ran to completion
+          for agent in $(docker compose config --services | grep '^pi-' | sort); do
+            if grep -q "$agent" /tmp/compose-ps.txt && grep "$agent" /tmp/compose-ps.txt | grep -q "Exited (0)"; then
+              echo "| ✅ | docker: `$agent` | container created and ran to completion (Exited (0)) |" >> "$FILE"
+            else
+              echo "| ❌ | docker: `$agent` | no completed container found in docker compose ps -a |" >> "$FILE"
+            fi
+          done
+          # the telemetry backend is the one long-running service
+          if grep -q "otlp-collector" /tmp/compose-ps.txt && grep "otlp-collector" /tmp/compose-ps.txt | grep -q "Up"; then
+            echo "| ✅ | docker: `otlp-collector` | Up — the telemetry backend is live |" >> "$FILE"
+          else
+            echo "| ❌ | docker: `otlp-collector` | not Up in docker compose ps -a |" >> "$FILE"
+          fi
+          # the verbatim docker output as raw evidence (after the rows)
+          {
+            echo
+            echo 'raw ```docker compose ps -a```:'
+            echo '```'
+            cat /tmp/compose-ps.txt
+            echo '```'
+          } >> "$FILE"
 
       # Simple mailbox exchange (the minimal request/response pair): the
       # pi-fleet-kit LLM itself calls the bash tool to run send.sh (no tick
@@ -125,7 +156,7 @@ jobs:
       - name: Simple mailbox exchange (pi-fleet-kit → pi-developer)
         run: |
           EXCHANGE="$PI_FLEET_KIT_HOME/pi-exchange"
-          echo "| ℹ️ | simple exchange | bridge active on pi-fleet-kit + pi-developer (committed compose.mailbox.yml) |" >> /tmp/fleet-rows-02.md
+          echo "| ℹ️ | simple exchange | bridge active on pi-fleet-kit + pi-developer (committed compose.mailbox.yml) |" >> /tmp/fleet-rows-03.md
 
           # 1. pi-fleet-kit SENDS: the LLM must run send.sh through its bash
           #    tool — a plain script call would not prove the LLM+tool path
@@ -134,7 +165,7 @@ jobs:
           REQ=$(ls "$EXCHANGE/pi-developer/inbox/"msg-*.json 2>/dev/null | head -1)
           [ -n "$REQ" ] || { echo "pi-fleet-kit produced no request envelope (LLM + bash send failed)" >&2; exit 1; }
           REQ_ID=$(basename "$REQ")
-          echo "| ✅ | simple exchange: request written | pi-fleet-kit (LLM + bash tool) wrote $REQ_ID |" >> /tmp/fleet-rows-02.md
+          echo "| ✅ | simple exchange: request written | pi-fleet-kit (LLM + bash tool) wrote $REQ_ID |" >> /tmp/fleet-rows-03.md
 
           # 2. pi-developer consumes it: kick with a LONG turn (the mailbox
           #    tick fires 1.5s after session start and container startup eats
@@ -148,7 +179,7 @@ jobs:
             sleep 2
           done
           [ -f "$EXCHANGE/pi-developer/processed/$REQ_ID" ] || { echo "pi-developer never processed $REQ_ID" >&2; ls -R "$EXCHANGE/pi-developer" >&2; exit 1; }
-          echo "| ✅ | simple exchange: request consumed | pi-developer processed $REQ_ID (inbox → processed) |" >> /tmp/fleet-rows-02.md
+          echo "| ✅ | simple exchange: request consumed | pi-developer processed $REQ_ID (inbox → processed) |" >> /tmp/fleet-rows-03.md
 
           # 3. the settled reply must sit in pi-fleet-kit's inbox, correlated
           REPLY=$(ls "$EXCHANGE/pi-fleet-kit/inbox/"msg-*.json 2>/dev/null | head -1)
@@ -162,7 +193,7 @@ jobs:
           if (!ok) { console.error("reply envelope failed validation"); process.exit(1); }' "$REPLY" "${REQ_ID%.json}"
           # NB: correlation_id is the envelope id WITHOUT the .json suffix
           # (REQ_ID keeps it — the processed/ file checks need the suffix)
-          echo "| ✅ | simple exchange: reply correlated | $REPLY_ID echoes correlation_id=${REQ_ID%.json}, body contains the answer (3+2=5) |" >> /tmp/fleet-rows-02.md
+          echo "| ✅ | simple exchange: reply correlated | $REPLY_ID echoes correlation_id=${REQ_ID%.json}, body contains the answer (3+2=5) |" >> /tmp/fleet-rows-03.md
           # the consumed envelope (with its session_id) — the validation step asserts the trace link against it
           echo "SIMPLE_REQ_FILE=$EXCHANGE/pi-developer/processed/$REQ_ID" >> "$GITHUB_ENV"
 
@@ -175,7 +206,7 @@ jobs:
       - name: Attachment exchange (pi-fleet-kit → pi-developer)
         run: |
           EXCHANGE="$PI_FLEET_KIT_HOME/pi-exchange"
-          echo "| ℹ️ | attachment exchange | bridge active on pi-fleet-kit + pi-developer |" >> /tmp/fleet-rows-03.md
+          echo "| ℹ️ | attachment exchange | bridge active on pi-fleet-kit + pi-developer |" >> /tmp/fleet-rows-04.md
 
           # R14 end to end, round-based: pi-fleet-kit creates a question file
           # and ATTACHES it to a mailbox message; pi-developer reads the file
@@ -238,10 +269,10 @@ jobs:
             const ok = env.type === "reply" && /\b15\b/.test(env.body);
             console.log("reply envelope:", JSON.stringify(env));
             if (!ok) { console.error("the reply does not answer 15"); process.exit(1); }' "$REPLY"; then
-              echo "| ✅ | attachment exchange: request written | pi-fleet-kit attached mailbox-question.txt (header lists name + bytes + sha256) |" >> /tmp/fleet-rows-03.md
-              echo "| ✅ | attachment exchange: request consumed | pi-developer processed $REQ_ID (round $round) |" >> /tmp/fleet-rows-03.md
-              echo "| ✅ | attachment exchange: file crossed the mount | sha256 matches the header (content: how much is 7 + 8 ?) |" >> /tmp/fleet-rows-03.md
-              echo "| ✅ | attachment exchange: answer correlated | $(basename "$REPLY") answers 15 (round $round) |" >> /tmp/fleet-rows-03.md
+              echo "| ✅ | attachment exchange: request written | pi-fleet-kit attached mailbox-question.txt (header lists name + bytes + sha256) |" >> /tmp/fleet-rows-04.md
+              echo "| ✅ | attachment exchange: request consumed | pi-developer processed $REQ_ID (round $round) |" >> /tmp/fleet-rows-04.md
+              echo "| ✅ | attachment exchange: file crossed the mount | sha256 matches the header (content: how much is 7 + 8 ?) |" >> /tmp/fleet-rows-04.md
+              echo "| ✅ | attachment exchange: answer correlated | $(basename "$REPLY") answers 15 (round $round) |" >> /tmp/fleet-rows-04.md
               echo "ATT_REQ_FILE=$EXCHANGE/pi-developer/processed/$REQ_ID" >> "$GITHUB_ENV"
               ATT_OK=1
               break
@@ -261,7 +292,7 @@ jobs:
       - name: Two-way mailbox exchange (pi-coding-1 ⇄ pi-coding-2)
         run: |
           EXCHANGE="$PI_FLEET_KIT_HOME/pi-exchange"
-          echo "| ℹ️ | prompt-trigger bridge | activated on pi-coding-1 + pi-coding-2 via committed compose.mailbox.yml |" >> /tmp/fleet-rows-04.md
+          echo "| ℹ️ | prompt-trigger bridge | activated on pi-coding-1 + pi-coding-2 via committed compose.mailbox.yml |" >> /tmp/fleet-rows-05.md
 
           # diagnostics: identity, mount and permission reality inside the
           # container (the exchange tree is shared between the runner user
@@ -298,7 +329,7 @@ jobs:
             sleep 2
           done
           [ -f "$EXCHANGE/pi-coding-2/processed/$REQ_ID" ] || { echo "pi-coding-2 never processed $REQ_ID" >&2; ls -R "$EXCHANGE/pi-coding-2" >&2; exit 1; }
-          echo "| ✅ | mailbox: request consumed | pi-coding-2 processed $REQ_ID (inbox → working → processed) |" >> /tmp/fleet-rows-04.md
+          echo "| ✅ | mailbox: request consumed | pi-coding-2 processed $REQ_ID (inbox → working → processed) |" >> /tmp/fleet-rows-05.md
 
           # 3. the settled reply must sit in pi-coding-1's inbox, correlated
           REPLY=$(ls "$EXCHANGE/pi-coding-1/inbox/"msg-*.json 2>/dev/null | head -1)
@@ -311,7 +342,7 @@ jobs:
           console.log("reply envelope:", JSON.stringify(env));
           if (!ok) { console.error("reply envelope failed validation"); process.exit(1); }' "$REPLY" "${REQ_ID%.json}"
           # NB: correlation_id is the envelope id WITHOUT the .json suffix
-          echo "| ✅ | mailbox: reply correlated | $REPLY_ID echoes correlation_id=${REQ_ID%.json}, body: PONG |" >> /tmp/fleet-rows-04.md
+          echo "| ✅ | mailbox: reply correlated | $REPLY_ID echoes correlation_id=${REQ_ID%.json}, body: PONG |" >> /tmp/fleet-rows-05.md
 
           # 4. pi-coding-1 consumes the reply (type=reply → processed, no reply-of-reply)
           for i in 1 2 3; do
@@ -321,7 +352,7 @@ jobs:
             sleep 2
           done
           [ -f "$EXCHANGE/pi-coding-1/processed/$REPLY_ID" ] || { echo "pi-coding-1 never processed $REPLY_ID" >&2; ls -R "$EXCHANGE/pi-coding-1" >&2; exit 1; }
-          echo "| ✅ | mailbox: reply consumed | pi-coding-1 processed $REPLY_ID (closed without a reply-of-reply) |" >> /tmp/fleet-rows-04.md
+          echo "| ✅ | mailbox: reply consumed | pi-coding-1 processed $REPLY_ID (closed without a reply-of-reply) |" >> /tmp/fleet-rows-05.md
           echo "REQ_ID=$REQ_ID" >> "$GITHUB_ENV"
           echo "REPLY_ID=$REPLY_ID" >> "$GITHUB_ENV"
 
@@ -372,12 +403,12 @@ jobs:
             S="$SP spans · $MN metrics · $LG logs"
             if [ "${SP:-0}" -gt 0 ] && [ "${MN:-0}" -gt 0 ]; then
               if [ "${LG:-0}" -eq 0 ]; then
-                echo "| ✅ | OTLP capture: \`pi-agent-$agent\` | $S (0 logs = no faults — healthy) |" >> /tmp/fleet-rows-05.md
+                echo "| ✅ | OTLP capture: \`pi-agent-$agent\` | $S (0 logs = no faults — healthy) |" >> /tmp/fleet-rows-06.md
               else
-                echo "| ⚠️ | OTLP capture: \`pi-agent-$agent\` | $S ($LG fault log record(s) — see capture) |" >> /tmp/fleet-rows-05.md
+                echo "| ⚠️ | OTLP capture: \`pi-agent-$agent\` | $S ($LG fault log record(s) — see capture) |" >> /tmp/fleet-rows-06.md
               fi
             else
-              echo "| ❌ | OTLP capture: \`pi-agent-$agent\` | incomplete: $S |" >> /tmp/fleet-rows-05.md
+              echo "| ❌ | OTLP capture: \`pi-agent-$agent\` | incomplete: $S |" >> /tmp/fleet-rows-06.md
             fi
           done
           # the 2-way exchange, proven in the spans: pi-coding-2's model span
@@ -416,7 +447,7 @@ jobs:
           row(pong2 >= 1, "exchange via OTLP spans: pi-coding-2", `model span carries the LLM answer \"PONG\" (${pong2} such span(s))`);
           row(models1 >= 1, "exchange via OTLP spans: pi-coding-1", `${models1} model span(s) — LLM turn on the delivered reply`);
           if (pong2 < 1 || models1 < 1) process.exit(1);
-          ' "$CAPTURE" >> /tmp/fleet-rows-04.md || { cat /tmp/fleet-rows-04.md | tail -4; echo "OTLP span analysis failed" >&2; exit 1; }
+          ' "$CAPTURE" >> /tmp/fleet-rows-05.md || { cat /tmp/fleet-rows-05.md | tail -4; echo "OTLP span analysis failed" >&2; exit 1; }
           # the simple exchange, proven in the spans: pi-fleet-kit has model
           # spans AND a bash tool span whose captured result carries the
           # "sent:" envelope write (the LLM ran send.sh through the tool);
@@ -489,7 +520,7 @@ jobs:
           row(linked, "simple exchange via OTLP: distributed trace",
               `the pi-developer session span links to the sender trace (link attribute pi.mailbox.session_id = ${senderSessionId})`);
           if (fk.modelTexts.length < 1 || !sent || !received || !answered || !linked) process.exit(1);
-          ' "$CAPTURE" "$SIMPLE_REQ_FILE" >> /tmp/fleet-rows-02.md || { cat /tmp/fleet-rows-02.md | tail -4; echo "simple-exchange OTLP assertions failed" >&2; exit 1; }
+          ' "$CAPTURE" "$SIMPLE_REQ_FILE" >> /tmp/fleet-rows-03.md || { cat /tmp/fleet-rows-03.md | tail -4; echo "simple-exchange OTLP assertions failed" >&2; exit 1; }
           # the attachment dialog, step by step, proven in the spans:
           #   1. question file created   — pi-fleet-kit bash span writes /tmp/mailbox-question.txt
           #   2. request sent            — pi-fleet-kit bash span result carries "sent:"; header lists the file
@@ -589,7 +620,7 @@ jobs:
             process.stderr.write("DEBUG dv inputs: " + JSON.stringify(dv.userInputs.map(t => t.slice(0, 130))) + "\n");
             process.exit(1);
           }
-          ' "$CAPTURE" "$ATT_REQ_FILE" >> /tmp/fleet-rows-03.md || { cat /tmp/fleet-rows-03.md | tail -6; echo "attachment-dialog OTLP assertions failed" >&2; exit 1; }
+          ' "$CAPTURE" "$ATT_REQ_FILE" >> /tmp/fleet-rows-04.md || { cat /tmp/fleet-rows-04.md | tail -6; echo "attachment-dialog OTLP assertions failed" >&2; exit 1; }
 
       - name: Teardown
         if: always()
@@ -612,15 +643,18 @@ jobs:
           }
           section 00 "Set up — the telemetry backend" \
             "The OTel Collector (the fleet first-level telemetry backend, file-only capture config in CI) starts first and is health-checked; no agent runs until it proves ready."
-          section 01 "Bring-up — every agent validates its LLM round-trip" \
+          section 01 "Docker fleet state — every agent ran" \
+            "Verbatim docker compose ps -a evidence: every agent container was created and ran to completion (Exited (0)) during the bring-up round-trips; the telemetry backend is Up."
+          section 02 "Bring-up — every agent validates its LLM round-trip" \
             "All pi-* services come up from the stored compose config (model, extensions, skills); each agent answers exactly: OK over a real OpenRouter round-trip."
-          section 02 "Simple mailbox exchange (pi-fleet-kit → pi-developer)" \
+          section 03 "Simple mailbox exchange (pi-fleet-kit → pi-developer)" \
             "pi-fleet-kit LLM runs send.sh through its bash tool; pi-developer tick delivers the request, its LLM answers 3 + 2 = 5 and the correlated reply settles back. Proven on mailbox files AND OTLP spans, including the distributed-trace link."
-          section 03 "Attachment exchange (pi-fleet-kit → pi-developer)" \
+          section 04 "Attachment exchange (pi-fleet-kit → pi-developer)" \
             "R14 end to end: pi-fleet-kit LLM creates a question file and ATTACHES it to the message; pi-developer LLM reads the file from attachments/<msg-id>/ via a tool and answers 15. The dialog key spans are reported step by step."
-          section 04 "Two-way mailbox exchange (pi-coding-1 ⇄ pi-coding-2)" \
+          section 05 "Two-way mailbox exchange (pi-coding-1 ⇄ pi-coding-2)" \
             "send.sh drops a request into pi-coding-2 inbox; its tick delivers it, its LLM answers PONG, and the settled reply is consumed by pi-coding-1 — the full request → reply → consume chain."
-          section 05 "OTLP capture — per-agent telemetry health" \
+          section 06 "OTLP capture — per-agent telemetry health" \
+            "The collector file export is validated: every telemetry-active agent carries spans AND metrics (0 fault logs = healthy)."
             "The collector file export is validated: every telemetry-active agent carries spans AND metrics (0 fault logs = healthy)."
           } >> "$GITHUB_STEP_SUMMARY"
           cat "$GITHUB_STEP_SUMMARY"
