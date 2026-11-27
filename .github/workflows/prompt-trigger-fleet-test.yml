@@ -127,16 +127,16 @@ jobs:
           # per-agent rows: the container was created AND ran to completion
           for agent in $(docker compose config --services | grep '^pi-' | sort); do
             if grep -q "$agent" /tmp/compose-ps.txt && grep "$agent" /tmp/compose-ps.txt | grep -q "Exited (0)"; then
-              echo "| ✅ | docker: `$agent` | container created and ran to completion (Exited (0)) |" >> "$FILE"
+              echo "| ✅ | docker: \`$agent\` | container created and ran to completion (Exited (0)) |" >> "$FILE"
             else
-              echo "| ❌ | docker: `$agent` | no completed container found in docker compose ps -a |" >> "$FILE"
+              echo "| ❌ | docker: \`$agent\` | no completed container found in docker compose ps -a |" >> "$FILE"
             fi
           done
           # the telemetry backend is the one long-running service
           if grep -q "otlp-collector" /tmp/compose-ps.txt && grep "otlp-collector" /tmp/compose-ps.txt | grep -q "Up"; then
-            echo "| ✅ | docker: `otlp-collector` | Up — the telemetry backend is live |" >> "$FILE"
+            echo "| ✅ | docker: \`otlp-collector\` | Up — the telemetry backend is live |" >> "$FILE"
           else
-            echo "| ❌ | docker: `otlp-collector` | not Up in docker compose ps -a |" >> "$FILE"
+            echo "| ❌ | docker: \`otlp-collector\` | not Up in docker compose ps -a |" >> "$FILE"
           fi
           # the verbatim docker output as raw evidence (after the rows)
           {
