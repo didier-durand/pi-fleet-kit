@@ -87,6 +87,7 @@ checks, directives, queuing) fits in one readable file.
 | R11 | Ledger | append-only handled-ids: at-most-once work; startup replay | 11 | shipped 0.2.0 |
 | R12 | Replies | auto-reply envelope echoing correlation_id to the sender's inbox | 12 | shipped 0.2.0 |
 | R13 | Trace identity | envelopes carry the sender session id; deliveries become session entries the receiver's telemetry links to the sender's trace (distributed traces) | 13 | shipped 0.3.0 |
+| R14 | Attachments | messages carry files in `attachments/<msg-id>/`, listed in the header; send.sh copies them before the envelope commit | 14 | planned 0.4.0 |
 
 ### R1 — Never harms the agent
 
@@ -156,7 +157,7 @@ into the standard envelope:
   (recipient agent id), `type` (`request` | `reply` | `error`),
   `session_id` (the SENDING session's pi session id — the receiver's telemetry links its spans to the sender's trace, R13), `correlation_id` (echoes the request `id` on replies), `created`
   (ISO timestamp), `body` (the prompt text), `attempts` (retry counter,
-  maintained by the extension).
+  maintained by the extension) — plus the optional `attachments` field (file metadata list, R14).
 - A `send.sh` helper (in the extension dir) builds and drops envelopes —
   **agents never hand-craft JSON**; malformed messages are impossible
   through the helper.
@@ -222,6 +223,64 @@ reply, and replies are matchable:
   written to `/exchange/../<from>/inbox/` — resolved against the fleet
   layout. A request whose sender's inbox is unreachable is moved to
   `failed/` with a ledger note (an error reply has nowhere to go).
+
+### R13 — Trace identity (distributed traces)
+
+Every envelope carries `session_id` — the SENDING session's pi session
+id (required, fail-closed). Chain of custody:
+
+- the prompt-trigger extension publishes its identity as
+  `<exchange-dir>/.sender` at session start (a dotfile: never consumed
+  as a legacy prompt, R8-adjacent);
+- `send.sh` reads it and fails closed without it — an untraceable
+  message is refused, not sent;
+- on delivery the extension appends a `mailbox` session entry
+  (`pi.appendEntry`, custom entries are not LLM-visible);
+- pi-obs derives live trace ids deterministically from the session id
+  (`deriveTraceId`, R3b parity) and turns the branch's mailbox entries
+  into OTLP span links on the receiver's session span
+  (`traceId = deriveTraceId(sender session_id)` + the
+  `pi.mailbox.session_id` link attribute) — Jaeger connects the two
+  agents' traces. Replies carry the replier's session id, so the chain
+  is traceable in both directions.
+
+### R14 — Attachments
+
+A message may carry files. They live in a per-recipient subdirectory
+keyed by message id — `pi-exchange/<agent>/attachments/<msg-id>/` — and
+are LISTED in the header:
+
+- the envelope gains an OPTIONAL `attachments` field: an array of
+  `{ name, bytes, sha256 }` (sorted by name); absent or empty means no
+  attachments — 0.3.x envelopes remain valid (additive change);
+- the path of each file is DERIVABLE (never stored):
+  `attachments/<msg-id>/<name>` relative to the recipient's exchange
+  dir (`/exchange/<agent>/attachments/<msg-id>/<name>` in-container);
+- name safety (fail-closed): `[A-Za-z0-9][A-Za-z0-9._-]*`, ≤ 255 chars,
+  no path separators, no leading dot (R8 adjacency: dotfiles are never
+  prompts and never listed);
+- caps at send (fail-closed in `send.sh`): ≤ 10 attachments and ≤ 20 MiB
+  total per message — exceeding is a loud send error, NOTHING is sent;
+- commit discipline: `send.sh --attach=<path>` (repeatable) COPIES each
+  source into `attachments/<msg-id>/` BEFORE writing the envelope — the
+  envelope is the commit point. An orphaned attachments dir (crash
+  before the envelope) is inert: the receiver never scans
+  `attachments/` without an envelope referencing it;
+- the state machine moves ONLY the envelope (inbox → working →
+  processed/failed): attachments stay in place, keyed by id — the
+  receiver reads them after processing too; retention/cleanup is
+  deferred to a later housekeeping step (non-goal for 0.4.0);
+- delivery: when the envelope lists attachments, the extension appends
+  ONE manifest line to the delivered prompt (so the receiving LLM knows
+  where the files are): `\n[mailbox attachments: /exchange/<to>/attachments/<id>/<name> …]` —
+  the body itself is never modified;
+- replies may carry attachments by the same mechanism (e.g. a generated
+  artifact flowing back);
+- integrity: `send.sh` records sha256 per file; verification before use
+  is the CONSUMER's responsibility (the mailbox is a transport, not a
+  validator);
+- telemetry: no new OTLP fields — the manifest line rides in the
+  delivered text, captured by the existing prompt machinery.
 
 ## Explicit non-goals
 

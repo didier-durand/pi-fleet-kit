@@ -6,7 +6,10 @@ Date: 2026-11-25
 
 > **Status:** executed — Steps 1–3 shipped in v0.1.0; Steps 4–7 (the
 > **mailbox protocol**: envelope, maildir, ledger, replies) shipped in
-> v0.2.0. Derived from `extensions/prompt-trigger/docs/SPECS.md`.
+> v0.2.0; R13 (trace identity: session_id in envelopes, distributed
+> traces via span links) shipped in v0.3.0. Step 8 (attachments, R14)
+> is specified ahead of implementation. Derived from
+> `extensions/prompt-trigger/docs/SPECS.md`.
 
 ## Ordering principle
 
@@ -142,6 +145,59 @@ replies close the loop (task delegation with answers).
 - Live check: two sandbox containers exchanging envelopes end-to-end
   (request → reply → correlation) — mirrors pi-obs-otlp-live's pattern.
 
+## Step 8 — Attachments (R14, specified ahead of implementation)
+
+Additive protocol extension (0.3.x envelopes remain valid; ship as
+0.4.0). Ordered by dependency:
+
+### Step 8a — Envelope metadata (src/envelope.ts)
+
+- `Envelope` gains an OPTIONAL `attachments?: AttachmentMeta[]` where
+  `AttachmentMeta = { name: string; bytes: number; sha256: string }` —
+  sorted by name; absent/empty means none.
+- `parseEnvelope` validates fail-closed: array of objects, name safe
+  (`[A-Za-z0-9][A-Za-z0-9._-]*`, ≤ 255 chars, no separators, no leading
+  dot), `bytes` a positive integer, `sha256` 64 lowercase hex chars, at
+  most 10 entries. A violation parses to `undefined` (→ `failed/`, as
+  every other envelope violation).
+- `buildReply` threads attachments through (replies may attach).
+
+### Step 8b — send.sh
+
+- `--attach=<path>` (repeatable): verifies the source exists, derives
+  the safe basename, computes sha256, COPIES into
+  `$INBOX/../attachments/<id>/<basename>` (mkdir -p) — BEFORE the
+  envelope is written (the envelope is the commit point).
+- Caps: > 10 files or > 20 MiB total → loud error, nothing sent (the
+  attachments dir for that id is removed).
+- Back-compat: no `--attach` → envelope exactly as today (no field).
+
+### Step 8c — Delivery (prompt-trigger.ts)
+
+- No state-machine changes: claim/reply/processed move ONLY the
+  envelope; attachments stay under `attachments/<msg-id>/`.
+- On delivery, if the envelope lists attachments, append ONE manifest
+  line to the delivered prompt:
+  `[mailbox attachments: /exchange/<to>/attachments/<id>/<name> …]` —
+  the body itself is never modified; the receiving LLM learns where the
+  files are.
+- `mailbox` session entries (R13) already carry the envelope metadata;
+  no telemetry changes.
+
+### Step 8d — Suite + CI upgrade
+
+- envelope tests: shape validation, name safety, caps; round-trip with
+  attachments; replies carrying attachments.
+- send.sh tests: copy-before-commit, caps fail closed and remove the
+  staged dir, orphaned dir is inert (envelope absent → never consumed).
+- delivery test: the manifest line reaches the LLM; body unchanged.
+- CI (fleet test): an attachment-carrying exchange end to end — the
+  sender attaches a file via its bash tool, the receiver reads it from
+  `attachments/<id>/` and answers with its content (proving the file
+  actually crossed the mount).
+- Version 0.4.0; SPECS R14 row → shipped; README usage section.
+
+
 ## Plan-level definition of done
 
 - v1.0.0 (shipped): all R1–R8 requirements satisfied and test-pinned.
@@ -171,3 +227,4 @@ replies close the loop (task delegation with answers).
 | 1.0.0 | 2026-11-25 | Didier Durand | retroactive plan from shipped v0.1.0; versioned per house convention |
 | 1.1.0 | 2026-11-25 | Didier Durand | mailbox protocol steps 4–7 (envelope+send.sh, maildir, ledger+replies, suite/CI) specified ahead of implementation — closes the divergences from pi-mailbox-arch.json levels 1–2 |
 | 1.1.1 | 2026-11-26 | Didier Durand | steps 4–7 executed and shipped in v0.2.0 (47 tests, all gates green) |
+| 1.2.0 | 2026-11-27 | Didier Durand | R13 trace identity shipped in v0.3.0 (session_id in envelopes, .sender identity file, mailbox session entries, pi-obs span links); Step 8 — attachments (R14) specified ahead of implementation: header-listed files under attachments/<msg-id>/, send.sh --attach with copy-before-commit, delivery manifest line |
