@@ -377,8 +377,8 @@ jobs:
               "pi.user.input event carries the delivered request \"how much is 3+2 ?\"");
           row(answered, "simple exchange via OTLP: pi-developer processed",
               "a pi.model span carries the LLM answer (3 + 2 = 5)");
-          // distributed traces (R13): the request envelope carries the sender's
-          // session id; the receiver's session span links to the sender's trace
+          // distributed traces (R13): the request envelope carries the sending
+          // session id; the receiver session span links to the sender trace
           const senderSessionId = JSON.parse(fs.readFileSync(process.argv[2], "utf8")).session_id;
           const sessionLinks = [];
           for (const line of lines) {
