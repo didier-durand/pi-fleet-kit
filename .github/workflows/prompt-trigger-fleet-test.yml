@@ -163,6 +163,8 @@ jobs:
           # NB: correlation_id is the envelope id WITHOUT the .json suffix
           # (REQ_ID keeps it — the processed/ file checks need the suffix)
           echo "| ✅ | simple exchange: reply correlated | $REPLY_ID echoes correlation_id=${REQ_ID%.json}, body contains the answer (3+2=5) |" >> /tmp/fleet-rows.md
+          # the consumed envelope (with its session_id) — the validation step asserts the trace link against it
+          echo "SIMPLE_REQ_FILE=$EXCHANGE/pi-developer/processed/$REQ_ID" >> "$GITHUB_ENV"
 
       # 2-way mailbox exchange (SPECS v1.1.0 R9-R12): send.sh drops a request
       # into pi-coding-2's inbox; the extension delivers it on a tick (1.5s),
@@ -401,9 +403,9 @@ jobs:
           }
           const linked = sessionLinks.includes(senderSessionId);
           row(linked, "simple exchange via OTLP: distributed trace",
-              `pi-developer's session span links to the sender's trace (link attribute pi.mailbox.session_id = ${senderSessionId})`);
+              `the pi-developer session span links to the sender trace (link attribute pi.mailbox.session_id = ${senderSessionId})`);
           if (fk.modelTexts.length < 1 || !sent || !received || !answered || !linked) process.exit(1);
-          ' "$CAPTURE" "$EXCHANGE/pi-developer/processed/$REQ_ID" >> /tmp/fleet-rows.md || { cat /tmp/fleet-rows.md | tail -4; echo "simple-exchange OTLP assertions failed" >&2; exit 1; }
+          ' "$CAPTURE" "$SIMPLE_REQ_FILE" >> /tmp/fleet-rows.md || { cat /tmp/fleet-rows.md | tail -4; echo "simple-exchange OTLP assertions failed" >&2; exit 1; }
 
       - name: Teardown
         if: always()
