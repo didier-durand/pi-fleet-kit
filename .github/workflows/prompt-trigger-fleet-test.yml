@@ -105,8 +105,8 @@ jobs:
           echo "agents from compose config: $AGENTS" | tr '\n' ' ' ; echo
           for agent in $AGENTS; do
             echo "=== $agent"
+            # NO --rm: the container persists as Exited (0) — the docker-state section below reads it as proof the agent ran
             OUT=$(echo "Reply with exactly: OK" | timeout 180 \
-              // NO --rm: the container persists as Exited (0) — the docker-state section reads it as proof the agent ran
               docker compose run -T "$agent" 2>&1 | tail -5)
             echo "$OUT"
             if echo "$OUT" | grep -q "OK"; then
@@ -654,7 +654,6 @@ jobs:
           section 05 "Two-way mailbox exchange (pi-coding-1 ⇄ pi-coding-2)" \
             "send.sh drops a request into pi-coding-2 inbox; its tick delivers it, its LLM answers PONG, and the settled reply is consumed by pi-coding-1 — the full request → reply → consume chain."
           section 06 "OTLP capture — per-agent telemetry health" \
-            "The collector file export is validated: every telemetry-active agent carries spans AND metrics (0 fault logs = healthy)."
             "The collector file export is validated: every telemetry-active agent carries spans AND metrics (0 fault logs = healthy)."
           } >> "$GITHUB_STEP_SUMMARY"
           cat "$GITHUB_STEP_SUMMARY"
