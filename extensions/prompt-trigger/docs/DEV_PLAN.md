@@ -8,7 +8,7 @@ Date: 2026-11-25
 > **mailbox protocol**: envelope, maildir, ledger, replies) shipped in
 > v0.2.0; R13 (trace identity: session_id in envelopes, distributed
 > traces via span links) shipped in v0.3.0. Step 8 (attachments, R14)
-> is specified ahead of implementation. Derived from
+> shipped in v0.4.0. Derived from
 > `extensions/prompt-trigger/docs/SPECS.md`.
 
 ## Ordering principle
@@ -185,7 +185,7 @@ Additive protocol extension (0.3.x envelopes remain valid; ship as
 - `mailbox` session entries (R13) already carry the envelope metadata;
   no telemetry changes.
 
-### Step 8d — Suite + CI upgrade
+### Step 8d — Suite + CI upgrade (shipped: unit suite; CI attachment scenario planned for a later stage)
 
 - envelope tests: shape validation, name safety, caps; round-trip with
   attachments; replies carrying attachments.
@@ -230,3 +230,4 @@ Additive protocol extension (0.3.x envelopes remain valid; ship as
 | 1.1.1 | 2026-11-26 | Didier Durand | steps 4–7 executed and shipped in v0.2.0 (47 tests, all gates green) |
 | 1.2.0 | 2026-11-27 | Didier Durand | R13 trace identity shipped in v0.3.0 (session_id in envelopes, .sender identity file, mailbox session entries, pi-obs span links); Step 8 — attachments (R14) specified ahead of implementation: header-listed files under attachments/<msg-id>/, send.sh --attach with copy-before-commit, delivery manifest line |
 | 1.2.1 | 2026-11-27 | Didier Durand | mailbox architecture summary inlined in SPECS (normative); step-4 divergence references repointed |
+| 1.3.0 | 2026-11-27 | Didier Durand | Step 8 executed and shipped in v0.4.0 (80 tests): envelope attachments validation, send.sh --attach staging with caps, delivery manifest line, orphan discipline tests |

@@ -145,3 +145,48 @@ test("buildReply: the replier's session id rides on the reply (the chain stays t
 	assert.equal(reply.session_id, "sess-b-1");
 	assert.equal(reply.correlation_id, req.id);
 });
+
+test("attachments (R14): a valid list round-trips; absent/empty stay field-free", () => {
+	const sha = (c: string) => Buffer.from(c).toString("hex").padEnd(64, "0").slice(0, 64);
+	const valid = { ...VALID, attachments: [{ name: "a.txt", bytes: 3, sha256: sha("aaa") }, { name: "b.bin", bytes: 1, sha256: sha("b") }] };
+	const e = parseEnvelope(JSON.stringify(valid))!;
+	assert.deepEqual(e.attachments, [{ name: "a.txt", bytes: 3, sha256: sha("aaa") }, { name: "b.bin", bytes: 1, sha256: sha("b") }]);
+	// absent: no field on the parsed envelope
+	const plain = parseEnvelope(JSON.stringify(VALID))!;
+	assert.equal("attachments" in plain, false);
+	// empty array: valid, but the field is omitted (no attachments)
+	const empty = parseEnvelope(JSON.stringify({ ...VALID, attachments: [] }))!;
+	assert.equal("attachments" in empty, false);
+});
+
+test("attachments (R14): malformed lists fail closed with a reason", () => {
+	const sha = (c: string) => c.padEnd(64, "a").slice(0, 64); // valid hex canaries
+	const withA = (attachments: unknown) => JSON.stringify({ ...VALID, attachments });
+	const reasons = (raw: string, fragment: RegExp) => {
+		let reason = "";
+		parseEnvelope(raw, (r) => { reason = r; });
+		assert.equal(parseEnvelope(raw), undefined, "fail-closed");
+		assert.match(reason, fragment);
+	};
+	reasons(withA("nope"), /must be an array/);
+	reasons(withA([{ name: "../evil", bytes: 1, sha256: sha("a") }]), /unsafe attachment name/);
+	reasons(withA([{ name: ".hidden", bytes: 1, sha256: sha("a") }]), /unsafe attachment name/);
+	reasons(withA([{ name: "a/b", bytes: 1, sha256: sha("a") }]), /unsafe attachment name/);
+	reasons(withA([{ name: "a.txt", bytes: 0, sha256: sha("a") }]), /bytes must be a positive integer/);
+	reasons(withA([{ name: "a.txt", bytes: 1.5, sha256: sha("a") }]), /bytes must be a positive integer/);
+	reasons(withA([{ name: "a.txt", bytes: 1, sha256: "ZZ" }]), /sha256 must be 64 lowercase hex/);
+	reasons(withA([{ name: "b.txt", bytes: 1, sha256: sha("a") }, { name: "a.txt", bytes: 1, sha256: sha("b") }]), /sorted strictly ascending/);
+	reasons(withA([{ name: "a.txt", bytes: 1, sha256: sha("a") }, { name: "a.txt", bytes: 1, sha256: sha("a") }]), /sorted strictly ascending/);
+	reasons(withA(Array.from({ length: 11 }, (_, i) => ({ name: `f${i}.txt`, bytes: 1, sha256: sha(String(i)) }))), /too many attachments/);
+});
+
+test("buildReply: attachments ride through (replies may carry files)", () => {
+	const req = parseEnvelope(JSON.stringify(VALID))!;
+	const sha = (c: string) => c.padEnd(64, "0").slice(0, 64);
+	const reply = buildReply(req, "pi-b", "the artifact is attached", "reply", Date.now(), process.pid, "sess-b-1",
+		[{ name: "result.json", bytes: 9, sha256: sha("result") }]);
+	assert.deepEqual(reply.attachments, [{ name: "result.json", bytes: 9, sha256: sha("result") }]);
+	// no attachments → no field (0.3.x wire format preserved)
+	const plain = buildReply(req, "pi-b", "the answer", "reply", Date.now(), process.pid, "sess-b-1");
+	assert.equal("attachments" in plain, false);
+});

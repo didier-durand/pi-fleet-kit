@@ -113,7 +113,7 @@ checks, directives, queuing) fits in one readable file.
 | R11 | Ledger | append-only handled-ids: at-most-once work; startup replay | 11 | shipped 0.2.0 |
 | R12 | Replies | auto-reply envelope echoing correlation_id to the sender's inbox | 12 | shipped 0.2.0 |
 | R13 | Trace identity | envelopes carry the sender session id; deliveries become session entries the receiver's telemetry links to the sender's trace (distributed traces) | 13 | shipped 0.3.0 |
-| R14 | Attachments | messages carry files in `attachments/<msg-id>/`, listed in the header; send.sh copies them before the envelope commit | 14 | planned 0.4.0 |
+| R14 | Attachments | messages carry files in `attachments/<msg-id>/`, listed in the header; send.sh copies them before the envelope commit | 14 | shipped 0.4.0 |
 
 ### R1 — Never harms the agent
 

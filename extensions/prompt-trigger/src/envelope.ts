@@ -17,6 +17,9 @@
  *   created        ISO timestamp
  *   body           the prompt text
  *   attempts       retry counter (maintained by the extension)
+ *   attachments    OPTIONAL list of { name, bytes, sha256 } — files live
+ *                  under attachments/<msg-id>/ in the recipient's
+ *                  exchange dir (paths derivable, never stored, R14)
  *
  * Fail-closed: an envelope that does not validate parses to `undefined` —
  * the extension moves it to failed/ with the parse error recorded; it is
@@ -36,6 +39,7 @@ export interface Envelope {
 	created: string;
 	body: string;
 	attempts: number;
+	attachments?: AttachmentMeta[];
 }
 
 const ENVELOPE_TYPES: readonly EnvelopeType[] = ["request", "reply", "error"];
@@ -48,6 +52,51 @@ export function newEnvelopeId(nowMs = Date.now(), pid = process.pid): string {
 /** A field is a usable string: non-empty after trim. */
 function str(v: unknown): string | undefined {
 	return typeof v === "string" && v.trim() !== "" ? v : undefined;
+}
+
+/** Metadata for one attachment file (R14): listed in the header, the file
+ *  itself lives at attachments/<msg-id>/<name> in the recipient's exchange dir. */
+export interface AttachmentMeta {
+	name: string;
+	bytes: number;
+	sha256: string;
+}
+
+const MAX_ATTACHMENTS = 10;
+const SAFE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const HEX64 = /^[0-9a-f]{64}$/;
+
+/**
+ * Validate the OPTIONAL attachments field (R14) — fail-closed: array of
+ * well-formed entries, strictly ascending by name (sorted + unique), at
+ * most MAX_ATTACHMENTS. Discriminated result: `undefined` = the field is
+ * absent (or an empty array — no attachments); a `string` = the violation
+ * reason; an array = the cleaned list.
+ */
+function parseAttachments(raw: unknown): AttachmentMeta[] | string | undefined {
+	if (raw === undefined) return undefined;
+	if (!Array.isArray(raw)) return "attachments must be an array";
+	if (raw.length > MAX_ATTACHMENTS) return `too many attachments (max ${MAX_ATTACHMENTS})`;
+	let previous = "";
+	const list: AttachmentMeta[] = [];
+	for (const entry of raw) {
+		if (typeof entry !== "object" || entry === null) return "attachment entries must be objects";
+		const e = entry as { name?: unknown; bytes?: unknown; sha256?: unknown };
+		const name = str(e.name);
+		if (!name || !SAFE_NAME.test(name) || name.length > 255) {
+			return `unsafe attachment name: ${JSON.stringify(e.name ?? null)} (expected [A-Za-z0-9][A-Za-z0-9._-]*, no separators, no leading dot)`;
+		}
+		if (previous !== "" && name <= previous) return "attachments must be sorted strictly ascending by name (unique)";
+		previous = name;
+		if (typeof e.bytes !== "number" || !Number.isInteger(e.bytes) || e.bytes <= 0) {
+			return `attachment "${name}": bytes must be a positive integer`;
+		}
+		if (typeof e.sha256 !== "string" || !HEX64.test(e.sha256)) {
+			return `attachment "${name}": sha256 must be 64 lowercase hex chars`;
+		}
+		list.push({ name, bytes: e.bytes, sha256: e.sha256 });
+	}
+	return list.length > 0 ? list : undefined;
 }
 
 /**
@@ -104,7 +153,13 @@ export function parseEnvelope(
 	const attemptsRaw = d.attempts ?? 0;
 	const attempts = typeof attemptsRaw === "number" && Number.isInteger(attemptsRaw) && attemptsRaw >= 0 ? attemptsRaw : undefined;
 	if (attempts === undefined) return bad("attempts must be a non-negative integer");
-	return { id, from, to, session_id: session, type, correlation_id: correlation, created, body, attempts };
+	const parsedAttachments = parseAttachments(d.attachments);
+	if (typeof parsedAttachments === "string") return bad(parsedAttachments);
+	const attachments = parsedAttachments;
+	return {
+		id, from, to, session_id: session, type, correlation_id: correlation, created, body, attempts,
+		...(attachments !== undefined ? { attachments } : {}),
+	};
 }
 
 /** Build a reply (or error) envelope answering a request. */
@@ -116,6 +171,7 @@ export function buildReply(
 	nowMs = Date.now(),
 	pid = process.pid,
 	sessionId = "",
+	attachments?: AttachmentMeta[],
 ): Envelope {
 	return {
 		id: newEnvelopeId(nowMs, pid),
@@ -127,6 +183,7 @@ export function buildReply(
 		created: new Date(nowMs).toISOString(),
 		body,
 		attempts: 0,
+		...(attachments !== undefined && attachments.length > 0 ? { attachments } : {}),
 	};
 }
 

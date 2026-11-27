@@ -1,3 +1,17 @@
+## [0.4.0] - 2026-11-27
+
+- R14 — attachments: the envelope carries an optional `attachments`
+  field (`[{name, bytes, sha256}]`, sorted by name, fail-closed
+  validation: safe names, positive integer sizes, 64-hex sha256, max 10
+  entries, strictly ascending). `send.sh --attach=<path>` (repeatable)
+  stages files under the recipient's `attachments/<msg-id>/` BEFORE the
+  envelope is written (copy-before-commit; the envelope is the commit
+  point; a failed send cleans the staged dir; caps: 10 files / 20 MiB
+  total). On delivery the extension appends ONE manifest line to the
+  prompt so the receiving LLM knows where the files are; the body is
+  never modified; orphaned staged dirs are inert. Additive: 0.3.x
+  envelopes remain valid.
+
 ## [0.3.0] - 2026-11-26
 
 - R13 — trace identity: envelopes carry a required `session_id` (the

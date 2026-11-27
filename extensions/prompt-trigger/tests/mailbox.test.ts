@@ -725,3 +725,69 @@ test("delivery records a mailbox session entry — pi-obs links the sender's tra
 		fs.rmSync(root, { recursive: true, force: true });
 	}
 });
+
+test("delivery with attachments: the manifest line tells the LLM where the files are (R14)", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirA, dirB } = makeFleet();
+	// the attachments the sender staged under the RECIPIENT dir
+	const id = "msg-1-1";
+	fs.mkdirSync(path.join(dirB, "attachments", id), { recursive: true });
+	fs.writeFileSync(path.join(dirB, "attachments", id, "report.txt"), "the report");
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		fs.mkdirSync(path.join(dirA, "inbox"), { recursive: true });
+		const req = envelope("pi-b", "summarize the attached report", { attachments: [
+			{ name: "report.txt", bytes: 10, sha256: "a".repeat(64) },
+		] });
+		fs.writeFileSync(path.join(dirB, "inbox", `${req.id}.json`), JSON.stringify(req));
+		await runTicks(t, 1);
+		assert.equal(h.sent.length, 1, "delivered");
+		assert.ok(h.sent[0].text.startsWith("summarize the attached report"), "the body is unchanged at the head");
+	assert.ok(h.sent[0].text.endsWith(`
+[mailbox attachments: /exchange/pi-b/attachments/${req.id}/report.txt]`), "one manifest line with the derivable path");
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("delivery without attachments: the body arrives bare (no manifest line)", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirA, dirB } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		fs.mkdirSync(path.join(dirA, "inbox"), { recursive: true });
+		const req = envelope("pi-b", "plain question");
+		fs.writeFileSync(path.join(dirB, "inbox", `${req.id}.json`), JSON.stringify(req));
+		await runTicks(t, 1);
+		assert.deepEqual(h.sent, [{ text: "plain question", opts: undefined }], "no manifest line");
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("an attachments/ dir without an envelope is inert (orphan discipline, R14)", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirA, dirB } = makeFleet();
+	fs.mkdirSync(path.join(dirB, "attachments", "msg-orphan"), { recursive: true });
+	fs.writeFileSync(path.join(dirB, "attachments", "msg-orphan", "file.txt"), "nobody references me");
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		await runTicks(t, 3); // several ticks: the orphan dir is never touched
+		assert.deepEqual(h.sent, [], "nothing delivered — no envelope references the dir");
+		assert.ok(fs.existsSync(path.join(dirB, "attachments", "msg-orphan", "file.txt")), "the orphan file survives");
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});

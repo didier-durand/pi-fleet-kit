@@ -186,6 +186,16 @@ export default function (pi: ExtensionAPI) {
 		return undefined;
 	}
 
+	/** R14: the attachment manifest line for a delivered envelope — tells the
+	 *  receiving LLM where the files live (paths derivable: the receiver's own
+	 *  exchange dir + the message id). `null` when the envelope carries none. */
+	function attachmentsManifest(env: Envelope): string | null {
+		const list = env.attachments;
+		if (!list || list.length === 0) return null;
+		const paths = list.map((a) => `/exchange/${selfId}/attachments/${env.id}/${a.name}`);
+		return `[mailbox attachments: ${paths.join(", ")}]`;
+	}
+
 	/** R12: write a reply/error envelope to the sender's inbox (atomic). */
 	function writeReply(d: string, self: string, request: Envelope, body: string, type: EnvelopeType = "reply"): boolean {
 		const reply = buildReply(request, self || request.to, body, type, Date.now(), process.pid, sessionId);
@@ -247,7 +257,8 @@ export default function (pi: ExtensionAPI) {
 	function processEnvelope(pi: ExtensionAPI, ctx: ExtensionContext, d: string, claimed: string, env: Envelope): void {
 		const deliver = (text: string): void => {
 			try {
-				queueOrSend(pi, text);
+				const manifest = attachmentsManifest(env);
+				queueOrSend(pi, manifest === null ? text : `${text}\n${manifest}`);
 				ledgerAppend(d, env.id, env.type === "request" ? "delivered: awaiting reply" : `delivered: ${env.type}`);
 				// distributed traces: record the delivery in the session so pi-obs
 				// links the receiver's spans back to the sender's trace (R13)
