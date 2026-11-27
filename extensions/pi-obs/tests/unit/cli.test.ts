@@ -168,7 +168,10 @@ test("runCli: the default IO and env stand when omitted (process-level defaults)
 test("runCli report: sessionsDir falls back to $HOME/.pi/agent/sessions when PI_HOME is unset", async () => {
 	const r = io();
 	assert.equal(await runCli(["report", "no-such-id"], r.io, {}), 1);
-	assert.match(r.err[0] ?? "", /no session with id no-such-id/);
+	// the sessionsDir derived from $HOME (not PI_HOME) is what the replay attempted:
+	// it either scanned the dir (no match) or failed to read it — both prove the fallback
+	assert.match(r.err[0] ?? "", /\.pi\/agent\/sessions/);
+	assert.match(r.err[0] ?? "", /no session with id no-such-id|cannot read session directory/);
 });
 
 test("runCli report --otlp: no endpoint exits 1 with guidance; env endpoint reaches the receiver", async () => {
