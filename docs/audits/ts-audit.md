@@ -1,6 +1,6 @@
 # TypeScript audit — security & efficiency
 
-Generated: 2026-11-27T09:22:52.242Z · commit: `19ed98f` · eslint: 10.15.0
+Generated: 2026-11-27T17:25:43.265Z · commit: `28b0bef` · eslint: 10.15.0
 
 Scope: `extensions/**/*.ts`. Rules: typescript-eslint (strict, type-checked),
 eslint-plugin-security, eslint-plugin-regexp (ReDoS), eslint-plugin-sonarjs.

@@ -53,6 +53,42 @@ function findingTable(messages, root, filePath) {
 }
 
 /**
+ * Compact variant for the GitHub job summary ($GITHUB_STEP_SUMMARY):
+ * headline + summary table + top rules — no per-finding tables (the full
+ * report stays in docs/audits/).
+ *
+ * @param results {Array} ESLint lint results
+ * @param meta {{generatedAt: string, commit: string, eslintVersion: string}}
+ * @returns {string} Markdown for the job summary
+ */
+export function toJobSummary(results, meta) {
+	const s = summarize(results);
+	const topRules =
+		s.rules
+			.slice(0, 10)
+			.map(({ rule, count }) => `- \`${rule}\`: ${count}`)
+			.join("\n") || "- none";
+	const lines = [
+		"## TypeScript audit — security & efficiency",
+		"",
+		`Generated: ${meta.generatedAt} · commit: \`${meta.commit}\` · eslint: ${meta.eslintVersion}`,
+		"",
+		"| Metric | Value |",
+		"|---|---|",
+		`| Errors | ${s.errors} |`,
+		`| Warnings | ${s.warnings} |`,
+		`| Files scanned | ${s.files} |`,
+		`| Files with findings | ${s.filesWithFindings} |`,
+		`| Rules triggered | ${s.rules.length} |`,
+		"",
+	];
+	if (s.errors === 0 && s.warnings === 0) lines.push("✅ **No findings.**", "");
+	lines.push("## Top rules", "", topRules, "");
+	lines.push("Full report: `docs/audits/ts-audit.md` (latest) · timestamped archives alongside.");
+	return lines.join("\n");
+}
+
+/**
  * @param results {Array} ESLint lint results
  * @param meta {{generatedAt: string, commit: string, eslintVersion: string, root: string}}
  * @returns {string} full Markdown report
