@@ -196,7 +196,8 @@ jobs:
           echo "| ✅ | simple exchange: reply correlated | $REPLY_ID echoes correlation_id=${REQ_ID%.json}, body contains the answer (3+2=5) |" >> /tmp/fleet-rows-03.md
           # the consumed envelope (with its session_id) — the validation step asserts the trace link against it
           echo "SIMPLE_REQ_FILE=$EXCHANGE/pi-developer/processed/$REQ_ID" >> "$GITHUB_ENV"
-          echo "SIMPLE_REPLY_FILE=$REPLY" >> "$GITHUB_ENV"
+          # the reply is fleet-kit mail: the NEXT fleet-kit kick (the attachment round) consumes it → processed/
+          echo "SIMPLE_REPLY_FILE=$EXCHANGE/pi-fleet-kit/processed/$REPLY_ID" >> "$GITHUB_ENV"
 
       # Attachment exchange (R14 end to end): pi-fleet-kit's LLM creates a
       # file (the question), then sends a mailbox message that ATTACHES it
