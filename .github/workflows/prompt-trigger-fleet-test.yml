@@ -523,8 +523,15 @@ jobs:
                     modelTimeline.push({ svc, start: String(s.startTimeUnixNano ?? ""), text });
                   }
                   if (s.name.startsWith("pi.tool ")) {
-                    m.bashInputs.push(`[${s.name}] ${attr("pi.tool.input") ?? ""}`);
-                    m.bashResults.push(`[${s.name}] ${attr("pi.tool.result") ?? ""}`);
+                    let input = attr("pi.tool.input") ?? "";
+                    let result = attr("pi.tool.result") ?? "";
+                    for (const e of s.events ?? []) {
+                      if (e.name !== "pi.tool.outcome") continue;
+                      const ea = (e.attributes ?? []).find(a => a.key === "pi.tool.input")?.value?.stringValue;
+                      if (ea !== undefined) input = input === "" ? ea : input + " | " + ea;
+                    }
+                    m.bashInputs.push(`[${s.name}] ${input}`);
+                    m.bashResults.push(`[${s.name}] ${result}`);
                   }
                   for (const e of s.events ?? []) {
                     const t = (e.attributes ?? []).find(a => a.key === "pi.content.text")?.value?.stringValue;
