@@ -221,7 +221,7 @@ jobs:
           const ok = body.length === a.bytes && crypto.createHash("sha256").update(body).digest("hex") === a.sha256;
           console.log("attachment content:", JSON.stringify(body.toString()));
           if (!ok) { console.error("attachment content does not match the header"); process.exit(1); }' \
-            "$EXCHANGE/pi-developer/processed/$REQ_ID" "$EXCHANGE/pi-developer/attachments/$REQ_ID/mailbox-question.txt"
+            "$EXCHANGE/pi-developer/processed/$REQ_ID" "$EXCHANGE/pi-developer/attachments/${REQ_ID%.json}/mailbox-question.txt"
           echo "| ✅ | attachment exchange: file crossed the mount | sha256 matches the header (content: how much is 7 + 8 ?) |" >> /tmp/fleet-rows.md
 
           # 4. the settled reply must carry the numeric answer (15)
