@@ -187,7 +187,7 @@ export class OtlpExporter implements Exporter {
 				lastError = new Error(message);
 			} catch (error) {
 				lastError = error; // timeout abort, connection refused, DNS — all retried alike
-				this.#lastError = error instanceof Error ? error.message : String(error);
+				this.#lastError = String(error);
 			}
 			if (attempt < this.#attempts) {
 				this.#retries += 1;

@@ -26,6 +26,7 @@ import {
 	SEVERITY,
 	addEvent,
 	startSpan,
+	contentText,
 	counter,
 	deriveSpanId,
 	deriveTraceId,
@@ -285,4 +286,26 @@ test("internal contract violations fail closed (SemconvError, never silent)", ()
 	assert.throws(() => startSessionSpan({ "pi.mystery": "x" }), /unknown attribute/);
 	assert.throws(() => startSessionSpan({ "pi.session.id": 7 }), /expects string/);
 	assert.throws(() => counter("pi.mystery", 1), SemconvError);
+});
+
+test("contentText: mixed arrays keep only text blocks (R1: external shapes are not trusted)", () => {
+	// the filter's two rejection arms: non-object blocks and non-text blocks
+	assert.equal(
+		contentText([42, null, { type: "image", url: "x" }, { type: "text", text: "hello" }, { type: "text" }]),
+		"hello",
+	);
+	// non-string text field on a text block is rejected too
+	assert.equal(contentText([{ type: "text", text: 7 }]), undefined);
+});
+
+test("genaiAttributes: usage.cost that is not an object yields no pi.cost.total", () => {
+	const base = { provider: "openrouter", model: "m/x", stopReason: "stop", usage: { input: 10, output: 5 } };
+	assert.equal(genaiAttributes({ ...base, usage: { ...base.usage, cost: 5 } })["pi.cost.total"], undefined);
+	assert.equal(genaiAttributes({ ...base, usage: { ...base.usage, cost: null } })["pi.cost.total"], undefined);
+});
+
+test("contentText: non-string non-array content and empty text arrays yield undefined", () => {
+	assert.equal(contentText(42), undefined);
+	assert.equal(contentText(null), undefined);
+	assert.equal(contentText([]), undefined);
 });

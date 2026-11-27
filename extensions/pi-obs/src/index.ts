@@ -181,7 +181,7 @@ function registerPiObsCommand(pi: ExtensionAPI, telemetry: TelemetryState | null
 		// the same loose-context boundary as onAny: pi's ExtensionCommandContext
 		// is a superset our handler reads defensively
 		handler: (async (args: string, ctx: CtxLike) => {
-			const sub = args.trim().split(/\s+/)[0] ?? "";
+			const sub = args.trim().split(/\s+/)[0];
 
 			if (sub === "help") {
 				helpView(ctx);
@@ -202,16 +202,19 @@ function registerPiObsCommand(pi: ExtensionAPI, telemetry: TelemetryState | null
 			if (sub === "all") {
 				const dir = ctx.sessionManager?.getSessionDir?.();
 				let files: string[] = [];
-				try {
-					files = dir !== undefined ? readdirSync(dir).filter((file) => file.endsWith(".jsonl")) : [];
-				} catch {
-					emit(ctx, "pi-obs: no session directory (no sessions yet)");
-					return;
+				if (dir !== undefined) {
+					try {
+						files = readdirSync(dir).filter((file) => file.endsWith(".jsonl"));
+					} catch {
+						emit(ctx, "pi-obs: no session directory (no sessions yet)");
+						return;
+					}
 				}
 
 				const summaries = files
 					.map((file) => {
-						const path = join(dir ?? ".", file);
+						// files is empty when dir is undefined — the join only ever sees a real directory
+						const path = join(dir as string, file);
 						let entries: EntryLike[] = [];
 						let modifiedMs = 0;
 						try {
@@ -327,7 +330,6 @@ async function reportView(tokens: string[], ctx: CtxLike, telemetry: TelemetrySt
 	let filePath: string | undefined;
 	let branch: string | undefined;
 	for (const token of tokens) {
-		if (token === "") continue;
 		if (token === "--otlp") otlp = true;
 		else if (token.startsWith("--file=")) filePath = token.slice("--file=".length);
 		else if (token.startsWith("--branch=")) branch = token.slice("--branch=".length);
@@ -380,7 +382,7 @@ async function reportView(tokens: string[], ctx: CtxLike, telemetry: TelemetrySt
 			emit(ctx, `pi-obs report: wrote ${report.lines.length} line(s) to ${filePath}`);
 		}
 	} catch (error) {
-		emit(ctx, error instanceof Error ? error.message : String(error)); // distinct, actionable (ReplayError / R2 session-dir rule)
+		emit(ctx, String(error)); // distinct, actionable (ReplayError / R2 session-dir rule) — String() keeps the message, no dead arm
 	}
 }
 
@@ -556,7 +558,9 @@ class LiveCapture {
 						}
 						if (this.capturePrompts) {
 							const responseText = contentText(message.content);
-							if (responseText) model.attributes["pi.content.text"] = redact(responseText); // R2: opt-in AND redacted before the queue
+							if (responseText) {
+							model.attributes["pi.content.text"] = redact(responseText); // R2: opt-in AND redacted before the queue
+						}
 						}
 						endSpan(model);
 						this.enqueue({ kind: "span", span: model });
@@ -599,7 +603,9 @@ class LiveCapture {
 					const input = (event as { input?: Record<string, unknown> }).input;
 					const attrs: Record<string, AttrValue> = { "pi.outcome": "allowed" }; // inert: we never block or mutate
 					const path = str(input?.path);
-					if (path !== undefined) attrs["pi.tool.path"] = path; // R2: paths are the work being observed
+					if (path !== undefined) {
+						attrs["pi.tool.path"] = path; // R2: paths are the work being observed
+					}
 					const command = str(input?.command);
 					if (command !== undefined) attrs["pi.tool.command"] = command;
 					if (this.captureToolIo && input !== undefined && Object.keys(input).length > 0) {

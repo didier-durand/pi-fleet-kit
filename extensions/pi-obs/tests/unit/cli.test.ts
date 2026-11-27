@@ -13,16 +13,19 @@
  */
 
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
+import { startReceiver, type OtlpReceiver } from "../otlp_receiver.ts";
 import { CliUsageError, HELP, parseArgs, runCli, type CliIo } from "../../src/cli.ts";
 
 const FIXTURES = join(import.meta.dirname, "..", "fixtures", "sessions");
 const dirs: string[] = [];
+const receivers: OtlpReceiver[] = [];
 afterEach(() => {
 	while (dirs.length > 0) rmSync(dirs.pop() ?? ".", { recursive: true, force: true });
+	while (receivers.length > 0) void receivers.pop()?.close();
 });
 
 const io = (): { out: string[]; err: string[]; io: CliIo } => {
@@ -147,4 +150,79 @@ test("runCli report: R6 precedence — env applies, flags override, defaults sta
 	const named = JSON.parse(flagOn.out[0] ?? "{}") as { resourceSpans: { resource: { attributes: { key: string; value: { stringValue?: string } }[] } }[] };
 	const resource = Object.fromEntries(named.resourceSpans[0].resource.attributes.map((a) => [a.key, a.value]));
 	assert.equal(resource["service.name"].stringValue, "my-fleet", "--service overrides the default");
+});
+
+test("grammar: unknown --key=value flags error distinctly from bare unknown flags", () => {
+	assert.throws(() => parseArgs(["report", "x", "--wat=1"]), (err: unknown) => {
+		assert.ok(err instanceof CliUsageError, String(err));
+		assert.match((err as Error).message, /unknown flag "--wat"/);
+		return true;
+	});
+});
+
+test("runCli: the default IO and env stand when omitted (process-level defaults)", async () => {
+	// writes the version banner to the real stdout — the default-io proof
+	assert.equal(await runCli(["version"]), 0);
+});
+
+test("runCli report: sessionsDir falls back to $HOME/.pi/agent/sessions when PI_HOME is unset", async () => {
+	const r = io();
+	assert.equal(await runCli(["report", "no-such-id"], r.io, {}), 1);
+	assert.match(r.err[0] ?? "", /no session with id no-such-id/);
+});
+
+test("runCli report --otlp: no endpoint exits 1 with guidance; env endpoint reaches the receiver", async () => {
+	// no endpoint anywhere: distinct error, exit 1
+	const none = io();
+	assert.equal(await runCli(["report", join(FIXTURES, "straight.jsonl"), "--otlp"], none.io, cleanEnv()), 1);
+	assert.match(none.err[0] ?? "", /--otlp needs an endpoint/);
+
+	// endpoint from the ENV (R6) — the export lands on a local receiver
+	const receiver = await startReceiver();
+	receivers.push(receiver);
+	const posted = io();
+	assert.equal(
+		await runCli(["report", join(FIXTURES, "straight.jsonl"), "--otlp"], posted.io, { ...cleanEnv(), PI_OBS_OTLP_ENDPOINT: receiver.url }),
+		0,
+	);
+	assert.match(posted.err[0] ?? "", /posted \d+ record\(s\) to/);
+	assert.ok(receiver.requests.length >= 1, "the OTLP export reached the receiver");
+});
+
+test("runCli report --file: the settings block supplies the file-rotation defaults", async () => {
+	const home = mkdtempSync(join(tmpdir(), "piobs-cli-home-"));
+	dirs.push(home);
+	mkdirSync(join(home, "agent"), { recursive: true });
+	writeFileSync(
+		join(home, "agent", "settings.json"),
+		JSON.stringify({ "pi-obs": { file: 1, fileMaxBytes: 1, fileMaxFiles: 7 } }),
+	);
+	const savedPiHome = process.env.PI_HOME;
+	process.env.PI_HOME = home; // readSettingsPiObsBlock reads the PROCESS env
+	const r = io();
+	const out = join(home, "report.jsonl");
+	assert.equal(await runCli(["report", join(FIXTURES, "straight.jsonl"), `--file=${out}`], r.io, { PI_HOME: home }), 0);
+	assert.match(r.err[0] ?? "", /wrote \d+ line\(s\) to/);
+	assert.ok(existsSync(out), "the report file exists (rotation config accepted)");
+});
+
+test("runCli report --file: partial settings file blocks fall back per field (R6)", async () => {
+	const fixture = join(FIXTURES, "straight.jsonl");
+	const savedPiHome = process.env.PI_HOME;
+	try {
+	for (const fileBlock of [{ fileMaxFiles: 7 }, { fileMaxBytes: 99 }] as Array<Record<string, number>>) {
+		const home = mkdtempSync(join(tmpdir(), "piobs-cli-home-"));
+		dirs.push(home);
+		mkdirSync(join(home, "agent"), { recursive: true });
+		writeFileSync(join(home, "agent", "settings.json"), JSON.stringify({ "pi-obs": { file: 1, ...fileBlock } }));
+		process.env.PI_HOME = home; // readSettingsPiObsBlock reads the PROCESS env, not runCli's env arg
+		const r = io();
+		const out = join(home, `report-${fileBlock.maxFiles ?? fileBlock.maxBytes}.jsonl`);
+		assert.equal(await runCli(["report", fixture, `--file=${out}`], r.io, { PI_HOME: home }), 0);
+		assert.ok(existsSync(out), `file written with block ${JSON.stringify(fileBlock)}`);
+	}
+	} finally {
+		if (savedPiHome === undefined) delete process.env.PI_HOME;
+		else process.env.PI_HOME = savedPiHome;
+	}
 });

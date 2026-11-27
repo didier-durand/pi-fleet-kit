@@ -131,7 +131,7 @@ export class FileExporter implements Exporter {
 				this.#lastExportAt = Date.now(); // lastError stays sticky: the last failure remains visible for /pi-obs status
 			} catch (error) {
 				this.#dropped += 1;
-				this.#lastError = error instanceof Error ? error.message : String(error);
+				this.#lastError = String(error);
 				this.#onError?.(error, this.#dropped);
 			}
 		}

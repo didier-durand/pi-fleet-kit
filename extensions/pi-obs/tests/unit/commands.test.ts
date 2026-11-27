@@ -27,7 +27,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, test } from "node:test";
 import piObs from "../../src/index.ts";
 import { FLUSH_TIMEOUT_MS } from "../../src/index.ts";
-import { mockPi, type MockPi } from "../harness.ts";
+import { mockContext, mockPi, type MockPi } from "../harness.ts";
 import { startReceiver, type OtlpReceiver } from "../otlp_receiver.ts";
 
 const FIXTURES = join(import.meta.dirname, "..", "fixtures", "sessions");
@@ -349,4 +349,50 @@ test("stats regression (R7 AC): /pi-obs, /pi-obs json, /pi-obs all are byte-iden
 	utimesSync(file, new Date("2024-12-03T14:02:00.000Z"), new Date("2024-12-03T14:02:00.000Z"));
 	pi.contextOptions = { cwd: "/work/demo", sessionId: "s", sessionDir: sessionsDir };
 	assert.equal(await run("all"), "pi-obs · 1 session · total 150 tok · $0.0020\n\n2024-12-03 14:02 · 150 tok · $0.0020 · golden.jsonl");
+});
+
+test("defensive context reads: stats commands survive a context without a session manager", async () => {
+	piObs(pi as never); // telemetry inactive — the stats surface works regardless
+	// a context whose sessionManager has neither getBranch nor getSessionDir:
+	// every read is optional-chained with a fallback (L206/L253/L355/L383 arms)
+	const handler = pi.commands.get("pi-obs")!.handler as (args: string, ctx: unknown) => Promise<void>;
+	const bare = mockContext({ hasUI: false }) as unknown as { sessionManager: Record<string, unknown> };
+	bare.sessionManager = {};
+
+	await handler("all", bare); // no dir → no files → "no sessions found"
+	assert.ok(stdout.some((l) => l.includes("no sessions found")), `stdout: ${stdout.join(" | ")}`);
+
+	await handler("json", bare); // no branch → stats over [] → valid JSON
+	assert.ok(stdout.some((l) => l.trim().startsWith("{")), "json output still emitted");
+
+	await handler("report  whatever-id", bare); // double space: the empty token is skipped (L330)
+	// → report resolves the session dir via the ?? fallback, replay errors,
+	//   and the command emits the message instead of throwing (L355 + L383)
+	assert.ok(stdout.some((l) => l.includes("cannot read session directory")), `stdout: ${stdout.join(" | ")}`);
+});
+
+test("report --file: an active file exporter supplies the rotation config (no fallback needed)", async () => {
+	pi = mockPi({ cwd: "/w", sessionId: "s", sessionDir: join(dir, "sessions") });
+	activate(); // PI_OBS_FILE=1 → telemetry.fileMaxBytes/fileMaxFiles are defined
+	const target = join(dir, "file-telemetry-report.jsonl");
+	const out = await run(`report ${join(FIXTURES, "straight.jsonl")} --file=${target}`);
+	assert.match(out, /wrote \d+ line\(s\) to/);
+	assert.ok(readFileSync(target, "utf8").length > 0, "the report landed on disk");
+});
+
+test("the status line: a UI without setStatus is tolerated (defensive read)", async () => {
+	piObs(pi as never);
+	const ctx = mockContext({ hasUI: true }) as unknown as { ui: { setStatus?: unknown } };
+	ctx.ui.setStatus = undefined; // the ??-guarded read takes its undefined arm
+	await pi.emit("session_start", { reason: "startup" }, ctx);
+	await pi.emit("session_shutdown", { reason: "quit" });
+	assert.ok(true, "no throw is the assertion");
+});
+
+test("report --file with telemetry fully inactive: the null telemetry fallback stands", async () => {
+	piObs(pi as never); // inactive → registerPiObsCommand received telemetry = null
+	const target = join(dir, "inactive-report.jsonl");
+	const out = await run(`report ${join(FIXTURES, "straight.jsonl")} --file=${target}`);
+	assert.match(out, /wrote \d+ line\(s\) to/);
+	assert.ok(readFileSync(target, "utf8").length > 0);
 });

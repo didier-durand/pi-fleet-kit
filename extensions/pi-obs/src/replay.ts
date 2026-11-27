@@ -123,7 +123,7 @@ export function loadSessionFile(path: string): SessionFile {
 	try {
 		raw = readFileSync(path, "utf8");
 	} catch (error) {
-		throw new ReplayError(`cannot read session file "${path}" (${error instanceof Error ? error.message : String(error)})`);
+		throw new ReplayError(`cannot read session file "${path}" (${String(error)})`);
 	}
 	const entries: ReplayEntry[] = [];
 	for (const line of raw.split("\n")) {
@@ -154,7 +154,7 @@ export function resolveSessionId(sessionDir: string, sessionId: string): string 
 	try {
 		files = readdirSync(sessionDir).filter((file) => file.endsWith(".jsonl"));
 	} catch (error) {
-		throw new ReplayError(`cannot read session directory "${sessionDir}" (${error instanceof Error ? error.message : String(error)})`);
+		throw new ReplayError(`cannot read session directory "${sessionDir}" (${String(error)})`);
 	}
 	const matches: string[] = [];
 	for (const file of files) {
@@ -172,7 +172,7 @@ export function resolveSessionId(sessionDir: string, sessionId: string): string 
 		throw new ReplayError(`no session with id ${sessionId} under ${sessionDir} (${files.length} session file(s) scanned by header)`);
 	}
 	if (matches.length > 1) {
-		throw new ReplayError(`ambiguous session id ${sessionId}: matches ${matches.length} files (${matches.map((m) => join("..", m.split(/[\\/]/).pop() ?? m)).join(", ")}) — pass a file path instead`);
+		throw new ReplayError(`ambiguous session id ${sessionId}: matches ${matches.length} files (${matches.map((m) => join("..", m.split(/[\\/]/).pop() as string)).join(", ")}) — pass a file path instead`);
 	}
 	return matches[0];
 }

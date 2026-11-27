@@ -18,10 +18,11 @@
 
 import { readFileSync } from "node:fs";
 
-function readVersion(): string {
+/** The package manifest path (overridable for tests — see version.test.ts). */
+export function readVersion(manifest: URL = new URL("../package.json", import.meta.url)): string {
 	try {
-		const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version?: unknown };
-		return typeof manifest.version === "string" && manifest.version.length > 0 ? manifest.version : "0.0.0-unknown";
+		const doc = JSON.parse(readFileSync(manifest, "utf8")) as { version?: unknown };
+		return typeof doc.version === "string" && doc.version.length > 0 ? doc.version : "0.0.0-unknown";
 	} catch {
 		return "0.0.0-unknown";
 	}

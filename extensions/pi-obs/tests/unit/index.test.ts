@@ -604,3 +604,83 @@ test("status: per-signal breakdown — spans vs metrics vs logs counted separate
 	const logs = Number(/logs (\d+)/.exec(text)?.[1] ?? 0);
 	assert.equal(spans + metrics + logs, Number(/(\d+) total/.exec(text)?.[1] ?? 0), "total == spans + metrics + logs");
 });
+
+test("event edge cases: hooks stay safe outside their normal lifecycle", async () => {
+	activate({ PI_OBS_CAPTURE_PROMPTS: "1" });
+	const ctx = mockContext({ sessionId: "sess-0001", sessionFile: "/x.jsonl", model: { provider: "openrouter", id: "m2" } });
+	await pi.emit("session_start", {}, ctx); // no reason → pi.session.reason "unknown"
+	await pi.emit("turn_start", { turnIndex: 0 }, ctx); // no run opened yet → inert
+	await pi.emit("tool_execution_start", { toolCallId: "t0", toolName: "bash" }, ctx); // no turn → metric only
+	await pi.emit("tool_call", { toolCallId: "t1", toolName: "read", input: { path: "/tmp/f" } }, ctx); // path attr arm
+	await pi.emit("tool_call", { toolCallId: "t2", toolName: "write" }, ctx); // no input at all
+	await pi.emit("tool_result", { toolCallId: "nope", isError: false }, ctx); // unknown tool id → inert
+	await pi.emit("tool_execution_end", { toolCallId: "nope", isError: false, durationMs: 1 }, ctx); // unknown tool id → inert
+	await pi.emit("model_select", { model: { provider: "openrouter", id: "m2" } }, ctx); // model_change entity
+	await pi.emit("before_agent_start", { messageType: "user" }, ctx);
+	await pi.emit("turn_start", { turnIndex: 0 }, ctx);
+	await pi.emit("before_provider_request", {}, ctx); // the model span opens here
+	await pi.emit("message_update", { message: { role: "assistant" } }, ctx);
+	await pi.emit("after_provider_response", { status: 200 }, ctx);
+	await pi.emit("message_end", { message: { role: "assistant", provider: "openrouter", model: "m2", content: "", usage: {}, stopReason: "stop" } }, ctx); // empty content → no captured text
+	await pi.emit("turn_end", { turnIndex: 0 }, ctx);
+	await pi.emit("agent_settled", { aborted: false }, ctx);
+	await pi.emit("session_shutdown", { reason: "quit" }, ctx);
+
+	const byName = new Map(spans().map((s) => [s.name, s]));
+	const session = byName.get("pi.session");
+	assert.ok(session !== undefined, "the session span exists");
+	const sessionAttrs = Object.fromEntries(session.attributes.map((a) => [a.key, a.value]));
+	assert.equal(sessionAttrs["pi.session.reason"].stringValue, "unknown", "a missing reason degrades, never crashes");
+	const sessionEvents = session.events.map((e) => e.name);
+	assert.ok(sessionEvents.includes("pi.session.model_change"), "model_select → pi.session.model_change");
+	const model = byName.get("pi.model");
+	assert.ok(model !== undefined, "the model span exists");
+	assert.ok(!("pi.content.text" in Object.fromEntries(model.attributes.map((a) => [a.key, a.value]))), "empty content captures nothing (R2)");
+});
+
+test("fault isolation: a non-Error throw reports the thrown VALUE (string fault)", async () => {
+	activate();
+	const ctx = mockContext({ sessionId: "sess-0001", sessionFile: "/x.jsonl" });
+	(ctx.sessionManager as unknown as { getSessionId: () => never }).getSessionId = () => {
+		throw "exploded as a string" as never;
+	};
+	const result = await pi.emit("session_start", { reason: "startup" }, ctx);
+	assert.equal(result, undefined, "pi never sees the throw");
+	assert.ok(
+		stderr.some((l) => l.includes("handler failed once") && l.includes("exploded as a string")),
+		`stderr: ${stderr.join(" | ")}`,
+	);
+	await pi.emit("session_shutdown", { reason: "quit" });
+});
+
+test("lifecycle edges: turnIndex/toolCallId missing and error tool outcomes", async () => {
+	activate({ PI_OBS_CAPTURE_TOOL_IO: "1" });
+	const ctx = mockContext({ sessionId: "sess-0001", sessionFile: "/x.jsonl" });
+	await pi.emit("session_start", { reason: "startup" }, ctx);
+	await pi.emit("before_agent_start", { messageType: "user" }, ctx);
+	await pi.emit("turn_start", {}, ctx); // no turnIndex → the 0 fallback
+	await pi.emit("before_provider_request", {}, ctx);
+	await pi.emit("tool_execution_start", { toolName: "bash" }, ctx); // no toolCallId → span not tracked
+	await pi.emit("tool_execution_start", { toolCallId: "t1", toolName: "bash" }, ctx);
+	await pi.emit("tool_call", { toolCallId: "t1", toolName: "bash", input: { command: "boom" } }, ctx);
+	await pi.emit("tool_result", { toolCallId: "t1", toolName: "bash", content: "nope", isError: true }, ctx); // is_error attr
+	await pi.emit("tool_execution_end", { toolCallId: "t1", toolName: "bash", isError: true, durationMs: 3 }, ctx); // error status
+	await pi.emit("turn_end", { turnIndex: 0 }, ctx);
+	await pi.emit("agent_settled", { aborted: false }, ctx);
+	await pi.emit("session_shutdown", { reason: "quit" }, ctx);
+
+	const tool = spans().find((s) => s.name === "pi.tool bash");
+	assert.ok(tool !== undefined, "the bash tool span exists");
+	const attrs = Object.fromEntries(tool.attributes.map((a) => [a.key, a.value]));
+	assert.equal(attrs["pi.tool.is_error"]?.boolValue, true, "the error result is marked on the span");
+	assert.equal((tool as { status?: { code?: string } }).status?.code, "STATUS_CODE_ERROR", "the span ends with error status");
+});
+
+test("status line: a UI with setStatus but no sessionManager branch computes empty stats", async () => {
+	piObs(pi as never);
+	const ctx = mockContext({ hasUI: true }) as unknown as { sessionManager: Record<string, unknown>; uiLog: { status: unknown[] } };
+	ctx.sessionManager = {}; // no getBranch → computeStats over [] via the ?? fallback
+	await pi.emit("session_start", { reason: "startup" }, ctx);
+	await pi.emit("session_shutdown", { reason: "quit" }, ctx);
+	assert.ok(true, "no throw is the assertion");
+});

@@ -233,3 +233,26 @@ test("R2 redaction on the OTLP leg: canary never reaches the receiver payload", 
 	assert.ok(!wire.includes(canary));
 	assert.ok(wire.includes("f1e2d3c4b5a6"), "hashes are not mangled");
 });
+
+test("export([]) is a no-op — no request leaves for an empty batch", async () => {
+	const receiver = await startReceiver();
+	try {
+		const exporter = new OtlpExporter({ endpoint: receiver.url, resource: RESOURCE });
+		await exporter.export([]);
+		assert.equal(receiver.requests.length, 0, "empty batch: zero requests");
+	} finally {
+		await receiver.close();
+	}
+});
+
+test("a chunk of unserializable items sends nothing (the early return leg)", async () => {
+	const receiver = await startReceiver();
+	try {
+		const exporter = new OtlpExporter({ endpoint: receiver.url, resource: RESOURCE });
+		// an unknown item kind serializes to null — a chunk of only those sends zero requests
+		await exporter.export([{ kind: "bogus" } as never]);
+		assert.equal(receiver.requests.length, 0, "nothing left the exporter");
+	} finally {
+		await receiver.close();
+	}
+});

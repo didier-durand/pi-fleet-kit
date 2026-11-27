@@ -210,3 +210,10 @@ test("loadConfigFromEnv reads the real process environment (wrapper)", () => {
 		else process.env[key] = had;
 	}
 });
+
+test("expandHome: a missing HOME leaves ~-paths untouched (R6 default stands)", () => {
+	// the two uncovered arms: bare ~ and ~/… when HOME is undefined
+	assert.equal(expandHome("~", {}), "~");
+	assert.equal(expandHome("~/x", {}), "~/x");
+	assert.equal(expandHome("~/x", { HOME: undefined }), "~/x");
+});

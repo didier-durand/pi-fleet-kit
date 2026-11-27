@@ -369,3 +369,75 @@ test("replayEntries is exposed for direct use (Step 8's command surface)", () =>
 	assert.equal(items.filter((i) => i.kind === "span").length, 4); // 2 models + 1 tool + root
 	assert.equal(items.filter((i) => i.kind === "metric").length > 0, true);
 });
+
+test("loadSessionFile: an unreadable path throws ReplayError with the cause", () => {
+	assert.throws(() => loadSessionFile("/nonexistent/dir/session.jsonl"), (err: unknown) => {
+		assert.ok(err instanceof ReplayError, String(err));
+		assert.match((err as Error).message, /cannot read session file/);
+		return true;
+	});
+});
+
+test("resolveSessionId: unreadable dir, empty files and unknown ids error distinctly", () => {
+	const dir = mkdtempSync(join(tmpdir(), "piobs-replay-"));
+	dirs.push(dir);
+	// unreadable directory
+	assert.throws(() => resolveSessionId("/nonexistent/dir", "s1"), (err: unknown) => {
+		assert.ok(err instanceof ReplayError, String(err));
+		assert.match((err as Error).message, /cannot read session directory/);
+		return true;
+	});
+	// an empty .jsonl in the dir is skipped during the header scan
+	writeFileSync(join(dir, "empty.jsonl"), "");
+	assert.throws(() => resolveSessionId(dir, "s1"), (err: unknown) => {
+		assert.ok(err instanceof ReplayError, String(err));
+		assert.match((err as Error).message, /no session with id s1 under .* \(1 session file\(s\) scanned by header/);
+		return true;
+	});
+});
+
+test("replay: a header-only session (no entries) still builds a report", () => {
+	const dir = mkdtempSync(join(tmpdir(), "piobs-replay-"));
+	dirs.push(dir);
+	const path = join(dir, "bare.jsonl");
+	writeFileSync(path, `${JSON.stringify({ type: "session", id: "bare-1", timestamp: "2026-01-01T00:00:00.000Z" })}\n`);
+	const file = loadSessionFile(path);
+	assert.equal(file.entries.length, 0);
+	const items = replayEntries(file); // entries[0] ?? {} — the 2024-01-01 clock fallback
+	assert.ok(items.filter((i) => i.kind === "span").length >= 1, "the session root span exists");
+});
+
+test("replay: captureToolIo puts the redacted tool result on the span (R2 parity)", () => {
+	const report = replayReport({ path: fixture("straight.jsonl") }, { captureToolIo: true });
+	const tool = spansOf(report.lines).find((s) => s.name.startsWith("pi.tool"));
+	assert.ok(tool !== undefined, "a tool span exists");
+	assert.ok("pi.tool.result" in tool.attrs, "the tool result body is captured");
+	// without the opt-in the body is absent (R2 default off)
+	const plain = replayReport({ path: fixture("straight.jsonl") });
+	const plainTool = spansOf(plain.lines).find((s) => s.name.startsWith("pi.tool"));
+	assert.ok(plainTool !== undefined && !("pi.tool.result" in plainTool.attrs));
+});
+
+test("replay: compaction with usage counts tokens; a tree entry without target falls back to the entry id", () => {
+	const dir = mkdtempSync(join(tmpdir(), "piobs-replay-"));
+	dirs.push(dir);
+	const path = join(dir, "edge.jsonl");
+	const lines = [
+		JSON.stringify({ type: "session", version: 3, id: "edge-1", timestamp: "2026-01-01T00:00:00.000Z" }),
+		// compaction WITH usage: the token counters loop body runs
+		JSON.stringify({ type: "compaction", id: "c1", parentId: null, timestamp: "2026-01-01T00:00:01.000Z", tokensBefore: 10, usage: { input: 5 } }),
+		// tree WITHOUT targetId: pi.target falls back to the entry id
+		JSON.stringify({ type: "message", id: "tr1", parentId: "c1", timestamp: "2026-01-01T00:00:02.000Z", message: { role: "toolResult", toolCallId: "tc1", content: "done" } }),
+		JSON.stringify({ type: "tree", id: "t1", parentId: "tr1", timestamp: "2026-01-01T00:00:03.000Z" }),
+	];
+	writeFileSync(path, lines.join("\n") + "\n");
+	const report = replayReport({ path });
+	const root = spansOf(report.lines).find((s) => s.name === "pi.session");
+	assert.ok(root !== undefined);
+	const tree = root.events.find((e) => e.name === "pi.session.tree");
+	assert.ok(tree !== undefined, "the tree event exists");
+	const treeAttrs = Object.fromEntries(tree.attributes.map((a) => [a.key, a.value]));
+	assert.equal(treeAttrs["pi.target"].stringValue, "t1", "target falls back to the entry id");
+	const tokenMetrics = report.items.filter((i) => i.kind === "metric" && i.metric.name === "pi.tokens");
+	assert.ok(tokenMetrics.length >= 1, "compaction usage counted as pi.tokens metrics");
+});

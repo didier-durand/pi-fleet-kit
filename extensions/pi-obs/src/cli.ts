@@ -149,12 +149,12 @@ export function parseArgs(argv: readonly string[]): CliArgs {
 	const [command, ...rest] = positional;
 	if (command === undefined) return { command: "help" };
 	if (command === "version") {
-		if (rest.length > 0) throw new CliUsageError(`unexpected argument "${rest[0] ?? ""}" after version`);
+		if (rest.length > 0) throw new CliUsageError(`unexpected argument "${rest[0]}" after version`);
 		return { command: "version" };
 	}
 	if (command === "report") {
 		if (rest.length === 0) throw new CliUsageError("report needs a <session-id | path> argument");
-		if (rest.length > 2) throw new CliUsageError(`unexpected argument "${rest[2] ?? ""}" (at most <target> [session-dir])`);
+		if (rest.length > 2) throw new CliUsageError(`unexpected argument "${rest[2]}" (at most <target> [session-dir])`);
 		args.command = "report";
 		args.target = rest[0];
 		if (rest[1] !== undefined) args.sessionDir = rest[1];
@@ -180,7 +180,7 @@ export async function runCli(argv: readonly string[], io: CliIo = defaultIo, env
 	try {
 		args = parseArgs(argv);
 	} catch (error) {
-		io.stderr(error instanceof Error ? error.message : String(error));
+		io.stderr(String(error)); // R1: String() keeps the message (subclass prefix included) without a dead non-Error arm
 		io.stderr("usage: piobs report <session-id | path> [session-dir] [flags] — try 'piobs --help'");
 		return 2;
 	}
@@ -201,7 +201,7 @@ export async function runCli(argv: readonly string[], io: CliIo = defaultIo, env
 	const endpoint = args.endpoint ?? config.otlp?.endpoint ?? null;
 
 	try {
-		const target = args.target ?? "";
+		const target = args.target as string; // parseArgs guarantees it for command "report"
 		const isPath = target.includes("/") || target.endsWith(".jsonl");
 		if (args.sessionDir !== undefined && isPath) {
 			io.stderr(`piobs: unexpected second argument "${args.sessionDir}" (a [session-dir] may only follow a session ID)`);
@@ -238,7 +238,7 @@ export async function runCli(argv: readonly string[], io: CliIo = defaultIo, env
 		}
 		return 0;
 	} catch (error) {
-		io.stderr(error instanceof Error ? error.message : String(error));
+		io.stderr(String(error)); // R1: String() keeps the message (subclass prefix included) without a dead non-Error arm
 		return 1;
 	}
 }
