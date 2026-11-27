@@ -8,6 +8,10 @@
  *   id             unique message id: msg-<ts>-<pid>
  *   from           sender agent id
  *   to             recipient agent id
+ *   session_id     the SENDING session's pi session id — the receiver's
+ *                  telemetry links its spans back to the sender's trace
+ *                  (pi-obs derives traces deterministically from session
+ *                  ids, so this alone resolves the sender's trace)
  *   type           request | reply | error
  *   correlation_id echoes the request id on replies (null on requests)
  *   created        ISO timestamp
@@ -26,6 +30,7 @@ export interface Envelope {
 	id: string;
 	from: string;
 	to: string;
+	session_id: string;
 	type: EnvelopeType;
 	correlation_id: string | null;
 	created: string;
@@ -75,6 +80,8 @@ export function parseEnvelope(
 	if (!from) return bad("missing or empty from");
 	const to = str(d.to);
 	if (!to) return bad("missing or empty to");
+	const session = str(d.session_id);
+	if (!session) return bad("missing or empty session_id (the sender's pi session id — required for distributed traces)");
 	const type = str(d.type) as EnvelopeType | undefined;
 	if (!type || !ENVELOPE_TYPES.includes(type)) {
 		return bad(`type must be one of ${ENVELOPE_TYPES.join("|")}, got ${JSON.stringify(d.type)}`);
@@ -97,7 +104,7 @@ export function parseEnvelope(
 	const attemptsRaw = d.attempts ?? 0;
 	const attempts = typeof attemptsRaw === "number" && Number.isInteger(attemptsRaw) && attemptsRaw >= 0 ? attemptsRaw : undefined;
 	if (attempts === undefined) return bad("attempts must be a non-negative integer");
-	return { id, from, to, type, correlation_id: correlation, created, body, attempts };
+	return { id, from, to, session_id: session, type, correlation_id: correlation, created, body, attempts };
 }
 
 /** Build a reply (or error) envelope answering a request. */
@@ -108,11 +115,13 @@ export function buildReply(
 	type: EnvelopeType = "reply",
 	nowMs = Date.now(),
 	pid = process.pid,
+	sessionId = "",
 ): Envelope {
 	return {
 		id: newEnvelopeId(nowMs, pid),
 		from,
 		to: request.from,
+		session_id: sessionId,
 		type,
 		correlation_id: request.id,
 		created: new Date(nowMs).toISOString(),

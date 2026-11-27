@@ -684,3 +684,50 @@ test("status line: a UI with setStatus but no sessionManager branch computes emp
 	await pi.emit("session_shutdown", { reason: "quit" }, ctx);
 	assert.ok(true, "no throw is the assertion");
 });
+
+test("the live trace id derives from the session id (R3b parity — mailbox envelopes can resolve it)", async () => {
+	activate();
+	const { deriveTraceId } = await import("../../src/model.ts");
+	const ctx = mockContext({ sessionId: "sess-traceable", sessionFile: "/x.jsonl" });
+	await pi.emit("session_start", { reason: "startup" }, ctx);
+	await pi.emit("session_shutdown", { reason: "quit" }, ctx);
+	const root = spans().find((s) => s.name === "pi.session");
+	assert.ok(root !== undefined);
+	assert.equal(root.traceId, deriveTraceId("sess-traceable"));
+});
+
+test("mailbox deliveries become span links to the senders' traces (R13 distributed traces)", async () => {
+	activate();
+	const { deriveTraceId } = await import("../../src/model.ts");
+	const mb = (id: string, sessionId: string) => ({ type: "custom", customType: "mailbox", data: { id, from: "pi-a", session_id: sessionId } });
+	const branch = [
+		{ type: "message", message: { role: "user", content: "hi" } },
+		mb("msg-1-1", "sess-sender-9"),
+		mb("msg-1-2", "sess-sender-9"), // same sender: deduped
+		mb("msg-1-3", "sess-sender-7"),
+		{ type: "custom", customType: "mailbox", data: { id: "msg-1-4", session_id: "" } }, // unusable: skipped
+	];
+	const ctx = mockContext({ sessionId: "sess-mine", sessionFile: "/x.jsonl", branch });
+	await pi.emit("session_start", { reason: "startup" }, ctx);
+	await pi.emit("session_shutdown", { reason: "quit" }, ctx);
+	const root = spans().find((s) => s.name === "pi.session");
+	assert.ok(root !== undefined);
+	const links = (root as unknown as { links?: { traceId: string; attributes: { key: string; value: Record<string, unknown> }[] }[] }).links ?? [];
+	assert.equal(links.length, 2, `two deduped links: ${JSON.stringify(links)}`);
+	const sessionIdOf = (l: { attributes: { key: string; value: Record<string, unknown> }[] }) =>
+		l.attributes.find((a) => a.key === "pi.mailbox.session_id")?.value?.stringValue;
+	assert.deepEqual(links.map((l) => sessionIdOf(l)).sort(), ["sess-sender-7", "sess-sender-9"]);
+	for (const link of links) {
+		assert.equal(link.traceId, deriveTraceId(String(sessionIdOf(link) ?? "")), "the link trace resolves deterministically from the sender session id");
+	}
+});
+
+test("a session without mailbox deliveries carries no links (no noise)", async () => {
+	activate();
+	const ctx = mockContext({ sessionId: "sess-plain", sessionFile: "/x.jsonl" });
+	await pi.emit("session_start", { reason: "startup" }, ctx);
+	await pi.emit("session_shutdown", { reason: "quit" }, ctx);
+	const root = spans().find((s) => s.name === "pi.session");
+	assert.ok(root !== undefined);
+	assert.equal((root as unknown as { links?: unknown[] }).links, undefined);
+});

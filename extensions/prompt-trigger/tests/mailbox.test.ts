@@ -35,6 +35,7 @@ function envelope(to: string, body: string, overrides: Record<string, unknown> =
 	return {
 		id: `msg-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
 		from: "pi-a",
+		session_id: "sess-sender-1",
 		to,
 		type: "request",
 		correlation_id: null,
@@ -57,10 +58,12 @@ function activate(): Harness {
 	const sent: Array<{ text: string; opts?: unknown }> = [];
 	const notified: string[] = [];
 	const newSessions: Array<Record<string, unknown>> = [];
+	const appended: Array<{ type: string; data: unknown }> = [];
 	const handlers: Record<string, (e?: unknown, c?: unknown) => Promise<void>> = {};
 	const pi = {
 		on: (event: string, handler: unknown) => { handlers[event] = handler as never; },
 		sendUserMessage: (text: string, opts?: unknown) => { sent.push({ text, opts }); },
+		appendEntry: (type: string, data?: unknown) => { appended.push({ type, data }); },
 	};
 	const ctx = {
 		hasUI: true,
@@ -74,7 +77,7 @@ function activate(): Harness {
 		] },
 	};
 	activatePromptTrigger(pi as never);
-	return { pi: pi as never, sent, notified, newSessions, handlers, ctx: ctx as never };
+	return { pi: pi as never, sent, notified, newSessions, appended, handlers, ctx: ctx as never };
 }
 
 // the two-tick lifecycle: mailbox envelopes are consumed on the FIRST tick
@@ -691,6 +694,31 @@ test("newSession throwing on an envelope /new: notify + requeue (attempts+1)", {
 		assert.equal(h.sent.length, 0, "kickoff not delivered on /new failure");
 		assert.ok(fs.existsSync(path.join(dirB, "inbox", `${req.id}.json`)), "requeued with attempts+1");
 		assert.equal(JSON.parse(fs.readFileSync(path.join(dirB, "inbox", `${req.id}.json`), "utf-8")).attempts, 1);
+	} finally {
+		await h.handlers.session_shutdown();
+		delete process.env.PI_TRIGGER_DIR;
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("delivery records a mailbox session entry — pi-obs links the sender's trace from it (R13)", { timeout: 10000 }, async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const { root, dirA, dirB } = makeFleet();
+	process.env.PI_TRIGGER_DIR = dirB;
+	const h = activate();
+	try {
+		await h.handlers.session_start(null, h.ctx);
+		fs.mkdirSync(path.join(dirA, "inbox"), { recursive: true });
+		const req = envelope("pi-b", "trace me");
+		fs.writeFileSync(path.join(dirB, "inbox", `${req.id}.json`), JSON.stringify(req));
+		await runTicks(t, 1); // claim + deliver
+		assert.equal(h.sent.length, 1, "the request was delivered");
+		const mailboxEntries = h.appended.filter((a) => a.type === "mailbox");
+		assert.equal(mailboxEntries.length, 1, `one mailbox entry: ${JSON.stringify(h.appended)}`);
+		const data = mailboxEntries[0].data as Record<string, unknown>;
+		assert.equal(data.id, req.id);
+		assert.equal(data.from, "pi-a");
+		assert.equal(data.session_id, "sess-sender-1", "the sender session id rides into the session file");
 	} finally {
 		await h.handlers.session_shutdown();
 		delete process.env.PI_TRIGGER_DIR;

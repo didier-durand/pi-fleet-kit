@@ -78,18 +78,38 @@ esac
 ID="msg-$(date +%s%3N)-$$"
 CREATED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
+# the sending session's identity (R13): the session_start handler of the
+# prompt-trigger extension publishes it as a dotfile in this agent's
+# exchange dir (dotfiles are never consumed as legacy prompts). Fail-closed:
+# an envelope without session_id would be rejected by the receiver, so a
+# missing identity is a loud error here, not a silently untraceable message.
+SENDER_FILE="$PI_TRIGGER_DIR/.sender"
+if [ -f "$SENDER_FILE" ]; then
+	SESSION_ID="$(node -e 'try { const d = JSON.parse(require("fs").readFileSync(0, "utf8")); process.stdout.write(String(d.session_id ?? "")); } catch { process.stdout.write(""); }' < "$SENDER_FILE")"
+fi
+if [ -z "${SESSION_ID:-}" ]; then
+	echo "send.sh: no sender identity at $SENDER_FILE (is the prompt-trigger extension active on this agent? it publishes .sender at session start)" >&2
+	exit 1
+fi
+if [ "$SESSION_ID" = "unknown" ]; then
+	echo "send.sh: sender identity is "unknown" — the session id was unavailable at session start; refusing to send an untraceable message" >&2
+	exit 1
+fi
+printf 'session_id: %s\n' "$SESSION_ID" >&2  # visibility: the trace identity riding on this message
+
 # atomic: write to a tmp name in the DESTINATION directory, then rename
 TMP="$INBOX/.tmp-$ID"
 DST="$INBOX/$ID.json"
 
 # the envelope is built by node with the exact JSON escaping rules of
 # src/envelope.ts (the body is arbitrary text; JSON.stringify handles it)
-printf '%s' "$BODY" | ID="$ID" FROM="$FROM" TO="$TO" TYPE="$TYPE" CORRELATION="$CORRELATION" CREATED="$CREATED" \
+printf '%s' "$BODY" | ID="$ID" FROM="$FROM" TO="$TO" SESSION="$SESSION_ID" TYPE="$TYPE" CORRELATION="$CORRELATION" CREATED="$CREATED" \
 	node -e '
 const env = {
 	id: process.env.ID,
 	from: process.env.FROM,
 	to: process.env.TO,
+	session_id: process.env.SESSION,
 	type: process.env.TYPE,
 	correlation_id: process.env.CORRELATION || null,
 	created: process.env.CREATED,

@@ -35,6 +35,7 @@ const STABLE_GAP = 600;
 
 interface Harness {
 	sent: Array<{ text: string; opts?: unknown }>;
+	appended: Array<{ type: string; data: unknown }>;
 	notified: string[];
 	newSessions: Array<Record<string, unknown>>;
 	handlers: Record<string, (e?: unknown, c?: unknown) => Promise<void>>;
@@ -45,20 +46,23 @@ function activate(): Harness {
 	const sent: Array<{ text: string; opts?: unknown }> = [];
 	const notified: string[] = [];
 	const newSessions: Array<Record<string, unknown>> = [];
+	const appended: Array<{ type: string; data: unknown }> = [];
 	const handlers: Record<string, (e?: unknown, c?: unknown) => Promise<void>> = {};
 	const pi = {
 		on: (event: string, handler: unknown) => { handlers[event] = handler as never; },
 		sendUserMessage: (text: string, opts?: unknown) => { sent.push({ text, opts }); },
+		appendEntry: (type: string, data?: unknown) => { appended.push({ type, data }); },
 	};
 	const ctx = {
 		hasUI: true,
 		notified,
+		sessionManager: { getSessionId: () => "sess-receiver-1" },
 		newSessions,
 		ui: { notify: (msg: string, _level?: string) => notified.push(msg) },
 		newSession: (o: Record<string, unknown>) => { newSessions.push(o); return Promise.resolve(); },
 	};
 	activatePromptTrigger(pi as never);
-	return { sent, notified, newSessions, handlers, ctx: ctx as never };
+	return { sent, notified, newSessions, appended, handlers, ctx: ctx as never };
 }
 
 function tmpdir(): string {
@@ -382,3 +386,12 @@ test("delete failing after send: prompt delivered, file removal silently retried
 		"sticky",
 	], { stdio: "inherit" });
 });
+
+test("session_start publishes the sender identity (.sender) for send.sh (R13)", { timeout: 10000 }, async (t) => {
+	await withHarness(t, async (h, dir) => {
+		await h.handlers["session_start"]?.({ reason: "startup" }, h.ctx);
+		const sender = JSON.parse(fs.readFileSync(path.join(dir, ".sender"), "utf8")) as { session_id: string };
+		assert.equal(sender.session_id, "sess-receiver-1");
+	});
+});
+

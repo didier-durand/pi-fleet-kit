@@ -321,7 +321,8 @@ subscribed (with a reason). Nothing is silently ignored.
 
 | Hook | Entity |
 |---|---|
-| `session_start` | start of root span `pi.session` (attrs: `pi.session.id`, `pi.session.file`, `pi.session.reason`, `pi.cwd`) |
+| `session_start` | start of root span `pi.session` (attrs: `pi.session.id`, `pi.session.file`, `pi.session.reason`, `pi.cwd`) — the trace id is DERIVED from the session id (`deriveTraceId(sessionId)`, R3b parity), so any component holding a session id can resolve the trace |
+| mailbox deliveries | a `mailbox` session entry (appended by the prompt-trigger extension on delivery) becomes a span LINK on the receiver's `pi.session` span: `traceId = deriveTraceId(sender session_id)` + the `pi.mailbox.session_id` link attribute — distributed traces across agents |
 | `session_shutdown` | end of root span; flush |
 | `session_info_changed` | span event `pi.session.renamed` |
 | `session_before_switch` / `session_before_fork` | span event `pi.session.switch` / `pi.session.fork` (with cancellation outcome) |

@@ -57,6 +57,16 @@ export interface SpanData {
 	attributes: Record<string, AttrValue>;
 	events: SpanEventData[];
 	status: SpanStatus;
+	/** References to OTHER traces (distributed tracing): e.g. the sender trace
+	 *  of a mailbox delivery. OTLP span links, serialized when present. */
+	links?: SpanLink[];
+}
+
+/** A link to another trace (W3C-style trace context + optional attributes). */
+export interface SpanLink {
+	traceId: string;
+	spanId?: string;
+	attributes?: Record<string, AttrValue>;
 }
 
 /** A built metric point. */

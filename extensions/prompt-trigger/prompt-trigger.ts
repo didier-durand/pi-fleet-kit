@@ -79,6 +79,19 @@ export default function (pi: ExtensionAPI) {
 	let ledgerIds = new Set<string>();       // handled message ids (R11: at-most-once)
 	const workingReplies = new Map<string, Envelope>(); // working/<file>.json -> request envelope (reply on settle)
 	let selfId = "";                          // this agent's exchange dir name
+	let sessionId = "";                       // this agent's pi session id (envelope identity + replies)
+
+	/** Publish this session's identity for send.sh (R13): a dotfile in the
+	 *  exchange ROOT — invisible to the legacy prompt pass (dotfiles are
+	 *  never consumed). Atomic; best-effort (R1: a failed write only costs
+	 *  the sender identity, reported by send.sh as a loud, fail-closed error). */
+	function publishSenderIdentity(d: string): void {
+		try {
+			const tmp = path.join(d, ".sender.tmp");
+			fs.writeFileSync(tmp, JSON.stringify({ session_id: sessionId }));
+			fs.renameSync(tmp, path.join(d, ".sender"));
+		} catch { /* identity publication is best-effort */ }
+	}
 
 	// --- ledger (R11) ---------------------------------------------------------
 
@@ -175,7 +188,7 @@ export default function (pi: ExtensionAPI) {
 
 	/** R12: write a reply/error envelope to the sender's inbox (atomic). */
 	function writeReply(d: string, self: string, request: Envelope, body: string, type: EnvelopeType = "reply"): boolean {
-		const reply = buildReply(request, self || request.to, body, type);
+		const reply = buildReply(request, self || request.to, body, type, Date.now(), process.pid, sessionId);
 		const senderInbox = path.join(d, "..", request.from, "inbox");
 		if (!fs.existsSync(senderInbox)) return false;
 		const tmp = path.join(senderInbox, `.tmp-${reply.id}`);
@@ -236,6 +249,18 @@ export default function (pi: ExtensionAPI) {
 			try {
 				queueOrSend(pi, text);
 				ledgerAppend(d, env.id, env.type === "request" ? "delivered: awaiting reply" : `delivered: ${env.type}`);
+				// distributed traces: record the delivery in the session so pi-obs
+				// links the receiver's spans back to the sender's trace (R13)
+				try {
+					pi.appendEntry("mailbox", {
+						id: env.id,
+						from: env.from,
+						to: env.to,
+						type: env.type,
+						correlation_id: env.correlation_id,
+						session_id: env.session_id,
+					});
+				} catch { /* telemetry bookkeeping must never block a delivery (R1) */ }
 				if (env.type === "request") workingReplies.set(claimed, env);
 				else moveTo(claimed, path.join(d, "processed", path.basename(claimed)));
 			} catch {
@@ -431,6 +456,8 @@ export default function (pi: ExtensionAPI) {
 		dir = process.env.PI_TRIGGER_DIR;
 		if (!dir) return; // dormant: no trigger dir configured for this agent
 		selfId = path.basename(dir);
+		sessionId = String((ctx as { sessionManager?: { getSessionId?: () => unknown } }).sessionManager?.getSessionId?.() ?? "unknown");
+		publishSenderIdentity(dir); // distributed traces: send.sh reads this for envelope session_id
 		setupMaildir(dir);
 		loadLedger(dir);
 		pruneProcessed(dir);

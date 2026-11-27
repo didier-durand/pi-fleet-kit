@@ -10,6 +10,7 @@ const VALID = {
 	id: "msg-123-456",
 	from: "pi-a",
 	to: "pi-b",
+	session_id: "sess-a-1",
 	type: "request",
 	correlation_id: null,
 	created: "2026-11-25T10:00:00.000Z",
@@ -92,7 +93,7 @@ test("parseEnvelope: reply and error envelopes parse with correlation", () => {
 
 test("buildReply: echoes correlation and flips from/to", () => {
 	const req = parseEnvelope(JSON.stringify(VALID))!;
-	const reply = buildReply(req, "pi-b", "the answer");
+	const reply = buildReply(req, "pi-b", "the answer", "reply", Date.now(), process.pid, "sess-b-1");
 	assert.equal(reply.type, "reply");
 	assert.equal(reply.correlation_id, req.id);
 	assert.equal(reply.to, req.from);   // back to the sender
@@ -104,7 +105,7 @@ test("buildReply: echoes correlation and flips from/to", () => {
 
 test("buildReply: error type", () => {
 	const req = parseEnvelope(JSON.stringify(VALID))!;
-	const err = buildReply(req, "pi-b", "it failed", "error");
+	const err = buildReply(req, "pi-b", "it failed", "error", Date.now(), process.pid, "sess-b-1");
 	assert.equal(err.type, "error");
 	assert.equal(err.correlation_id, req.id);
 });
@@ -128,4 +129,19 @@ test("contentText: string and array-of-blocks forms", () => {
 	assert.equal(contentText([{ type: "text", text: "hello" }, { type: "text", text: "world" }]), "hello\nworld");
 	assert.equal(contentText([{ type: "tool_use", id: "x" }]), undefined);
 	assert.equal(contentText(undefined), undefined);
+});
+
+test("session_id is required on every envelope (R13: distributed traces)", () => {
+	assert.equal(parseEnvelope(JSON.stringify({ ...VALID, session_id: undefined })), undefined);
+	assert.equal(parseEnvelope(JSON.stringify({ ...VALID, session_id: "" })), undefined);
+	assert.equal(parseEnvelope(JSON.stringify({ ...VALID, session_id: "  " })), undefined);
+	const e = parseEnvelope(JSON.stringify(VALID))!;
+	assert.equal(e.session_id, "sess-a-1");
+});
+
+test("buildReply: the replier's session id rides on the reply (the chain stays traceable)", () => {
+	const req = parseEnvelope(JSON.stringify(VALID))!;
+	const reply = buildReply(req, "pi-b", "the answer", "reply", Date.now(), process.pid, "sess-b-1");
+	assert.equal(reply.session_id, "sess-b-1");
+	assert.equal(reply.correlation_id, req.id);
 });

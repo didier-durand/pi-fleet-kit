@@ -24,7 +24,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { FileExporter, assertNotSessionDir } from "../../../src/exporters/file.ts";
-import { exportRequestLine, redact } from "../../../src/exporters/otlp-json.ts";
+import { exportRequestLine, redact, spanRecord } from "../../../src/exporters/otlp-json.ts";
+import { deriveTraceId, startSpan } from "../../../src/model.ts";
 import {
 	addEvent,
 	counter,
@@ -357,4 +358,18 @@ test("exportRequestLine: shared serializer dispatch (also exercised directly for
 	assert.ok(exportRequestLine(metricItems()[0], RESOURCE)?.startsWith('{"resourceMetrics":'));
 	assert.ok(exportRequestLine(logItem(), RESOURCE)?.startsWith('{"resourceLogs":'));
 	assert.equal(exportRequestLine({ kind: "mystery" } as unknown as TelemetryItem, RESOURCE), null);
+});
+
+test("span links serialize to OTLP (distributed traces: the receiver links to the sender's trace)", () => {
+	const session = startSessionSpan({}, { nowMs: T0 });
+	const linked = startSpan("pi.session", { traceId: "a".repeat(32), spanId: "b".repeat(16), nowMs: T0 });
+	linked.links = [{ traceId: deriveTraceId("sess-sender-9"), attributes: { "pi.mailbox.session_id": "sess-sender-9" } }];
+	const line = JSON.parse(spanRecord(linked, RESOURCE)) as { resourceSpans: { scopeSpans: { spans: Array<{ links?: Array<{ traceId: string; attributes: Array<{ key: string; value: { stringValue?: string } }> }> }> }[] }[] };
+	const span = line.resourceSpans[0].scopeSpans[0].spans[0];
+	assert.ok(Array.isArray(span.links), "links on the wire");
+	assert.equal(span.links?.[0]?.traceId, deriveTraceId("sess-sender-9"));
+	assert.equal(span.links?.[0]?.attributes?.find((a: { key: string }) => a.key === "pi.mailbox.session_id")?.value?.stringValue, "sess-sender-9");
+	// a linkless span carries no links field at all
+	const plain = JSON.parse(spanRecord(session, RESOURCE)) as { resourceSpans: { scopeSpans: { spans: { links?: unknown }[] }[] }[] };
+	assert.equal("links" in plain.resourceSpans[0].scopeSpans[0].spans[0], false, "no links field without links");
 });

@@ -44,6 +44,7 @@ import {
 	genaiAttributes,
 	histogram,
 	logRecord,
+	deriveTraceId,
 	startModelSpan,
 	startRunSpan,
 	startSessionSpan,
@@ -54,6 +55,7 @@ import {
 	type AttrValue,
 	type MetricData,
 	type SpanData,
+	type SpanLink,
 } from "./model.ts";
 import { TelemetryQueue, type Exporter, type TelemetryItem } from "./queue.ts";
 import { replayReport } from "./replay.ts";
@@ -77,6 +79,39 @@ type LoosePi = { on(hook: string, handler: (event: never, ctx: never) => unknown
 const onAny = (pi: ExtensionAPI, hook: string, handler: (event: unknown, ctx: CtxLike) => unknown): void => {
 	(pi as unknown as LoosePi).on(hook, handler as (event: never, ctx: never) => unknown);
 };
+
+// --- distributed traces (R13) ------------------------------------------------
+
+/**
+ * Build OTLP span links from the session's mailbox entries: each delivery
+ * recorded by the prompt-trigger extension (pi.appendEntry("mailbox", …))
+ * links the receiver's session span back to the sender's trace — the trace
+ * id resolves deterministically from the sender session id (R3b). Deduped:
+ * several deliveries from one sender share one link.
+ */
+function mailboxLinks(ctx: CtxLike | undefined): SpanLink[] | undefined {
+	try {
+		// pi stores custom entries as { type: "custom", customType, data }
+		const branch = (ctx?.sessionManager?.getBranch?.() ?? []) as Array<{
+			type?: unknown;
+			customType?: unknown;
+			data?: { session_id?: unknown } | null;
+		}>;
+		const byTrace = new Map<string, string>();
+		for (const entry of branch) {
+			if (entry?.type !== "custom" || entry.customType !== "mailbox") continue;
+			const sessionId = entry.data?.session_id;
+			if (typeof sessionId !== "string" || sessionId === "") continue;
+			if (!byTrace.has(sessionId)) byTrace.set(sessionId, sessionId);
+		}
+		if (byTrace.size === 0) return undefined;
+		return [...byTrace.values()].map((sessionId) => ({
+			traceId: deriveTraceId(sessionId),
+			attributes: { "pi.mailbox.session_id": sessionId },
+		}));
+	} catch { /* the branch read must never fail the shutdown (R1) */ }
+	return undefined;
+}
 
 // --- loose shapes: pi payloads are EXTERNAL data, read defensively (R1) ----
 
@@ -420,8 +455,11 @@ class LiveCapture {
 			case "session_start":
 				return (event, ctx) => this.onSessionStart(event, ctx);
 			case "session_shutdown":
-				return async (event, _ctx) => {
+				return async (event, ctx) => {
 					if (this.session !== null) {
+						// distributed traces (R13): mailbox deliveries recorded by the
+						// prompt-trigger extension become links to the senders' traces
+						this.session.links = mailboxLinks(ctx);
 						endSpan(this.session);
 						this.enqueue({ kind: "span", span: this.session });
 						this.session = null;
@@ -673,12 +711,16 @@ class LiveCapture {
 			this.enqueue({ kind: "span", span: this.session });
 			this.session = null;
 		}
-		const attrs: Record<string, AttrValue> = { "pi.session.reason": str((event as { reason?: unknown }).reason) ?? "unknown", "pi.cwd": ctx.cwd ?? "" };
 		const sessionId = str(ctx.sessionManager?.getSessionId?.());
+		const attrs: Record<string, AttrValue> = { "pi.session.reason": str((event as { reason?: unknown }).reason) ?? "unknown", "pi.cwd": ctx.cwd ?? "" };
 		if (sessionId !== undefined) attrs["pi.session.id"] = sessionId;
 		const sessionFile = ctx.sessionManager?.getSessionFile?.();
 		if (sessionFile !== undefined && sessionFile !== null) attrs["pi.session.file"] = sessionFile;
-		this.session = startSessionSpan(attrs);
+		// the trace id is DERIVED from the session id (R3b parity with replay):
+		// any component holding a session id — e.g. a mailbox envelope — can
+		// resolve the trace, which is what makes cross-agent distributed
+		// tracing possible without a shared registry
+		this.session = startSessionSpan(attrs, { traceId: sessionId !== undefined ? deriveTraceId(sessionId) : undefined });
 		return undefined;
 	}
 

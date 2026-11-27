@@ -1,3 +1,12 @@
+## [0.3.0] - 2026-11-26
+
+- R13 — trace identity: envelopes carry a required `session_id` (the
+  sending session's pi session id). The extension publishes its identity
+  as `<exchange-dir>/.sender` at session start; `send.sh` reads it and
+  fails closed without it. On delivery the extension appends a `mailbox`
+  session entry, which pi-obs turns into an OTLP span link on the
+  receiver's session span — distributed traces across agents.
+
 # Changelog
 
 ## [0.2.0] - 2026-11-26

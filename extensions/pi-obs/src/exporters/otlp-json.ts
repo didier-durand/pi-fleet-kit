@@ -119,6 +119,13 @@ export function spanRecord(span: SpanData, resource: Record<string, AttrValue>, 
 		})),
 		status: { code: `STATUS_CODE_${span.status.code.toUpperCase()}`, ...(span.status.message !== undefined ? { message: span.status.message } : {}) },
 	};
+	if (span.links !== undefined && span.links.length > 0) {
+		out.links = span.links.map((link) => ({
+			traceId: idOnWire(link.traceId),
+			...(link.spanId !== undefined ? { spanId: idOnWire(link.spanId) } : {}),
+			...(link.attributes !== undefined ? { attributes: toAttributes(link.attributes, patterns) } : {}),
+		}));
+	}
 	if (span.parentSpanId !== null) out.parentSpanId = idOnWire(span.parentSpanId);
 	if (span.endTimeUnixNano !== null) out.endTimeUnixNano = span.endTimeUnixNano;
 	return JSON.stringify({ resourceSpans: [{ ...resourceField(resource, patterns), scopeSpans: [{ ...scope("scopeSpans"), spans: [out] }] }] });

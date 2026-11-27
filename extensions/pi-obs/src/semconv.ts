@@ -268,6 +268,12 @@ export const PI_ATTRIBUTES: readonly AttributeSpec[] = [
 		meaning: "Tool result body — ONLY under PI_OBS_CAPTURE_TOOL_IO=1 (R2 opt-in).",
 	},
 	{
+		name: "pi.mailbox.session_id",
+		type: "string",
+		hook: "mailbox",
+		meaning: "The sender pi session id of a mailbox delivery — link attribute on the receiver's session span, tying the two traces together (distributed tracing, R13).",
+	},
+	{
 		name: "pi.tool.is_error",
 		type: "boolean",
 		hook: "tool_result",

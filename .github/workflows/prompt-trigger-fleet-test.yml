@@ -375,8 +375,35 @@ jobs:
               "pi.user.input event carries the delivered request \"how much is 3+2 ?\"");
           row(answered, "simple exchange via OTLP: pi-developer processed",
               "a pi.model span carries the LLM answer (3 + 2 = 5)");
-          if (fk.modelTexts.length < 1 || !sent || !received || !answered) process.exit(1);
-          ' "$CAPTURE" >> /tmp/fleet-rows.md || { cat /tmp/fleet-rows.md | tail -4; echo "simple-exchange OTLP assertions failed" >&2; exit 1; }
+          // distributed traces (R13): the request envelope carries the sender's
+          // session id; the receiver's session span links to the sender's trace
+          const senderSessionId = JSON.parse(fs.readFileSync(process.argv[2], "utf8")).session_id;
+          const sessionLinks = [];
+          for (const line of lines) {
+            let rec; try { rec = JSON.parse(line); } catch { continue; }
+            const docs = [rec];
+            if (rec && rec.body !== undefined) docs.push(rec.body);
+            for (const doc of docs) {
+              let d = doc;
+              if (typeof d === "string") { try { d = JSON.parse(d); } catch { continue; } }
+              if (!d || typeof d !== "object") continue;
+              for (const rs of d.resourceSpans ?? []) {
+                const svc = (rs.resource?.attributes ?? []).find(a => a.key === "service.name")?.value?.stringValue ?? "?";
+                for (const ss of rs.scopeSpans ?? []) for (const s of ss.spans ?? []) {
+                  if (s.name !== "pi.session") continue;
+                  for (const link of s.links ?? []) {
+                    const sid = (link.attributes ?? []).find(a => a.key === "pi.mailbox.session_id")?.value?.stringValue;
+                    if (svc === "pi-agent-pi-developer" && sid !== undefined) sessionLinks.push(sid);
+                  }
+                }
+              }
+            }
+          }
+          const linked = sessionLinks.includes(senderSessionId);
+          row(linked, "simple exchange via OTLP: distributed trace",
+              `pi-developer's session span links to the sender's trace (link attribute pi.mailbox.session_id = ${senderSessionId})`);
+          if (fk.modelTexts.length < 1 || !sent || !received || !answered || !linked) process.exit(1);
+          ' "$CAPTURE" "$EXCHANGE/pi-developer/processed/$REQ_ID" >> /tmp/fleet-rows.md || { cat /tmp/fleet-rows.md | tail -4; echo "simple-exchange OTLP assertions failed" >&2; exit 1; }
 
       - name: Teardown
         if: always()

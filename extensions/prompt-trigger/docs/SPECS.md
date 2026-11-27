@@ -86,6 +86,7 @@ checks, directives, queuing) fits in one readable file.
 | R10 | Maildir | inbox/working/pending/processed/failed + atomic claim | 10 | shipped 0.2.0 |
 | R11 | Ledger | append-only handled-ids: at-most-once work; startup replay | 11 | shipped 0.2.0 |
 | R12 | Replies | auto-reply envelope echoing correlation_id to the sender's inbox | 12 | shipped 0.2.0 |
+| R13 | Trace identity | envelopes carry the sender session id; deliveries become session entries the receiver's telemetry links to the sender's trace (distributed traces) | 13 | shipped 0.3.0 |
 
 ### R1 — Never harms the agent
 
@@ -153,7 +154,7 @@ into the standard envelope:
 - Every mailbox message is a JSON object with exactly these fields:
   `id` (unique: `msg-<ts>-<pid>`), `from` (sender agent id), `to`
   (recipient agent id), `type` (`request` | `reply` | `error`),
-  `correlation_id` (echoes the request `id` on replies), `created`
+  `session_id` (the SENDING session's pi session id — the receiver's telemetry links its spans to the sender's trace, R13), `correlation_id` (echoes the request `id` on replies), `created`
   (ISO timestamp), `body` (the prompt text), `attempts` (retry counter,
   maintained by the extension).
 - A `send.sh` helper (in the extension dir) builds and drops envelopes —
