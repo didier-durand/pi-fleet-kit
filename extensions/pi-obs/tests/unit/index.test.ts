@@ -819,8 +819,8 @@ test("/pi-obs errors lists the detected error events; reset clears the list (R7)
 	console.log = () => {};
 	const text = out.join("\n");
 	assert.match(text, /pi-obs errors — \d+ detected/, "the header with the count");
-	assert.match(text, /drop: dropped telemetry item\(s\)/, "the drop event is listed");
-	assert.match(text, /handler: session_start: the session id exploded/, "the handler fault is listed with its detail");
+	assert.match(text, /drop events @ \S+ — dropped telemetry item\(s\)/, "the drop event is listed with category and time");
+	assert.match(text, /faulted hooks @ \S+ — session_start: the session id exploded/, "the handler fault is listed with category and time");
 	assert.match(text, /the durable copy lives in the OTel log records/, "the durable-copy pointer");
 	assert.ok(!text.includes("exporter:"), `no exporter faults here: ${text.split("\n")[0]}`);
 
@@ -831,4 +831,42 @@ test("/pi-obs errors lists the detected error events; reset clears the list (R7)
 	await pi.runCommand("pi-obs", "errors");
 	console.log = () => {};
 	assert.match(after.join("\n"), /no errors detected in this session/, "the reset cleared the list");
+});
+
+test("/pi-obs errors --reverse lists newest first; unknown options fail with usage", async () => {
+	activate({ PI_OBS_QUEUE_MAX: "1" });
+	const ctx = mockContext({ hasUI: true, sessionId: "sess-order", sessionFile: "/x.jsonl", model: { provider: "openrouter", id: "m" } });
+	await pi.emit("session_start", { reason: "startup" }, ctx);
+	await pi.emit("before_agent_start", { messageType: "user" }, ctx);
+	await pi.emit("turn_start", { turnIndex: 0 }, ctx);
+	await pi.emit("before_provider_request", {}, ctx);
+	await pi.emit("message_end", { message: { role: "assistant", provider: "openrouter", model: "m", content: "x", usage: { input: 1, output: 1, totalTokens: 2 }, stopReason: "stop" } }, ctx);
+
+	const chrono: string[] = [];
+	console.log = (m) => chrono.push(String(m));
+	await pi.runCommand("pi-obs", "errors");
+	console.log = () => {};
+	// the recorded order: the FIRST error line is the earliest event
+	assert.match(chrono.join("\n"), /1\. drop events @ /, "chronological: numbered from the earliest");
+
+	const rev: string[] = [];
+	console.log = (m) => rev.push(String(m));
+	await pi.runCommand("pi-obs", "errors --reverse");
+	console.log = () => {};
+	const revText = rev.join("\n");
+	assert.match(revText, /newest first/, "the reverse header");
+	// the same events, mirrored: the first displayed line in reverse is the LAST chronological one
+	const chronoLines = chrono.join("\n").split("\n").filter((l) => l.includes(" @ "));
+	const revLines = revText.split("\n").filter((l) => l.includes(" @ "));
+	assert.deepEqual(revLines, [...chronoLines].reverse(), "reverse mirrors the chronological order");
+});
+
+test("/pi-obs errors: unknown options fail with usage (fail-closed)", async () => {
+	activate();
+	const ctx = mockContext({ hasUI: true, sessionId: "s", sessionFile: "/x.jsonl" });
+	const out: string[] = [];
+	console.log = (m) => out.push(String(m));
+	await pi.runCommand("pi-obs", "errors --wat");
+	console.log = () => {};
+	assert.match(out.join("\n"), /unknown option "--wat" \(usage: \/pi-obs errors \[--reverse\]\)/);
 });

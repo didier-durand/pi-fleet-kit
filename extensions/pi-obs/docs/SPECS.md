@@ -250,9 +250,10 @@ agent in any mode.
   - exporter faults: E`) — handler faults, drop events and exporter faults
   increment it the moment they are detected (no waiting for the next hook);
   `/pi-obs status` carries the same breakdown. Zero faults: the footer
-  stays clean. `/pi-obs errors` lists the detected error events (a
-  bounded in-session ring, newest last — kind, timestamp, detail; the
-  durable copy lives in the OTel log records). `/pi-obs reset-errors`
+  stays clean. `/pi-obs errors` lists the detected error events (a bounded in-session
+  ring; each line: category in the status-line vocabulary @ time —
+  detail; `--reverse` lists newest first with the chronological index
+  preserved; the durable copy lives in the OTel log records). `/pi-obs reset-errors`
   zeroes the counters, clears the list, cleans the footer and re-arms
   detection (a NEW fault cycle re-reports); faulted hooks stay disabled
   for the session (R1). (Faulted hooks count once

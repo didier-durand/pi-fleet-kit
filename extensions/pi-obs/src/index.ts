@@ -173,6 +173,12 @@ interface ErrorEvent {
 }
 
 const ERROR_LOG_MAX = 20;
+/** The display categories, in the status-line vocabulary (R7). */
+const ERROR_CATEGORY: Record<ErrorEvent["kind"], string> = {
+	exporter: "exporter faults",
+	drop: "drop events",
+	handler: "faulted hooks",
+};
 const recordError = (status: StatusState, kind: ErrorEvent["kind"], detail: string): void => {
 	status.log.push({ ts: new Date().toISOString(), kind, detail: detail.slice(0, 300) });
 	if (status.log.length > ERROR_LOG_MAX) status.log.shift(); // bounded ring: oldest dropped
@@ -269,14 +275,23 @@ function registerPiObsCommand(pi: ExtensionAPI, telemetry: TelemetryState | null
 				return;
 			}
 			if (sub === "errors") {
+				const tokens = args.trim().split(/\s+/).slice(1).filter((t) => t !== "");
+				const unknown = tokens.find((t) => t !== "--reverse");
+				if (unknown !== undefined) {
+					emit(ctx, `pi-obs errors: unknown option "${unknown}" (usage: /pi-obs errors [--reverse])`);
+					return;
+				}
 				if (status.log.length === 0) {
 					emit(ctx, "pi-obs errors: no errors detected in this session");
 					return;
 				}
+				const reverse = tokens.includes("--reverse");
+				const indexed = status.log.map((e, i) => ({ e, n: i + 1 })); // the chronological index is kept in reverse mode too
+				const ordered = reverse ? [...indexed].reverse() : indexed;
 				const lines = [
-					`pi-obs errors — ${status.log.length} detected (counters: total: ${errorTotal(status.errors)} - faulted hooks: ${status.errors.handler} - drop events: ${status.errors.dropped} - exporter faults: ${status.errors.exporter})`,
-					...status.log.map((e, i) => `  ${i + 1}. [${e.ts}] ${e.kind}: ${e.detail}`),
-					`(the durable copy lives in the OTel log records — Jaeger / the archive; /pi-obs reset-errors clears this list)`,
+					`pi-obs errors — ${status.log.length} detected (counters: total: ${errorTotal(status.errors)} - faulted hooks: ${status.errors.handler} - drop events: ${status.errors.dropped} - exporter faults: ${status.errors.exporter})${reverse ? " — newest first" : ""}`,
+					...ordered.map(({ e, n }) => `  ${n}. ${ERROR_CATEGORY[e.kind]} @ ${e.ts} — ${e.detail}`),
+					"(the durable copy lives in the OTel log records — Jaeger / the archive; /pi-obs reset-errors clears this list)",
 				];
 				emit(ctx, lines.join("\n"));
 				return;

@@ -58,7 +58,7 @@ mode (output on stdout — scriptable).
 | `/pi-obs all` | Aggregate across every session file of this project's session directory: grand totals plus the 15 most recent sessions (when · tokens · cost · file). |
 | `/pi-obs status` | Telemetry health: active exporters, queue depth, counters, last export times, last error — and the live error breakdown (faulted hooks / drop events / exporter faults) when anything was detected. |
 | `/pi-obs flush` | Drain the telemetry queue now (bounded, with a timeout notice when a backend is dead). |
-| `/pi-obs errors` | List the detected error events of this session (bounded in-session log, newest last) — kind, timestamp, detail. The durable copy lives in the OTel log records (Jaeger / the archive). |
+| `/pi-obs errors` | List the detected error events of this session (bounded in-session log) — each line: category (faulted hooks / drop events / exporter faults) @ time — detail. `--reverse` lists newest first. The durable copy lives in the OTel log records (Jaeger / the archive). |
 | `/pi-obs reset-errors` | Zero the footer error counters (faulted hooks / drop events / exporter faults) and clean the footer; new faults are detected fresh. Faulted hooks stay disabled for the session (R1). |
 | `/pi-obs report <id\|path>` | Post-mortem replay of a finished session → deterministic OTLP/JSON report (stdout, one body per line), options `--otlp`, `--file=<path>`, `--branch=<entry-id>`. |
 | `/pi-obs help` | The in-session usage surface: every subcommand with a one-line description, the telemetry env vars, and a pointer to the standalone `piobs --help`. |

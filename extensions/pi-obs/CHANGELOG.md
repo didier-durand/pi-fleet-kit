@@ -17,8 +17,8 @@
   (compact `JSON.stringify` and JSON-in-JSON escaped quotes) redact
   like shell/YAML `key=value` text.
 - `/pi-obs errors`: list the detected error events in real time (a
-  bounded in-session ring — kind, timestamp, detail; the durable copy
-  stays in the OTel log records).
+  bounded in-session ring — category, time, detail; `--reverse` for
+  newest first; the durable copy stays in the OTel log records).
 - `/pi-obs reset-errors`: zero the footer error counters and clean the
   footer on demand; detection re-arms (new faults counted fresh),
   faulted hooks stay disabled (R1).
