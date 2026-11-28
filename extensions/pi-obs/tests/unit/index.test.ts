@@ -731,3 +731,42 @@ test("a session without mailbox deliveries carries no links (no noise)", async (
 	assert.ok(root !== undefined);
 	assert.equal((root as unknown as { links?: unknown[] }).links, undefined);
 });
+
+test("the footer status carries a live error counter: queue drops update it immediately (R7)", async () => {
+	activate({ PI_OBS_QUEUE_MAX: "1" }); // a 1-deep queue
+	const ctx = mockContext({ hasUI: true, sessionId: "sess-0001", sessionFile: "/x.jsonl", model: { provider: "openrouter", id: "m" } });
+	await pi.emit("session_start", { reason: "startup" }, ctx); // ctx stored for live refreshes
+	await pi.emit("before_agent_start", { messageType: "user" }, ctx);
+	await pi.emit("turn_start", { turnIndex: 0 }, ctx);
+	await pi.emit("before_provider_request", {}, ctx);
+	// one SYNCHRONOUS burst: the model span + the token-counter metrics overflow the 1-deep queue
+	await pi.emit("message_end", { message: { role: "assistant", provider: "openrouter", model: "m", content: "x", usage: { input: 1, output: 1, cacheRead: 1, cacheWrite: 1, reasoning: 1, totalTokens: 5 }, stopReason: "stop" } }, ctx);
+	const entries = statusValues(ctx);
+	assert.ok(entries.some((v) => v.includes("⚠")), `the ⚠ counter appeared live: ${JSON.stringify(entries)}`);
+});
+
+const statusValues = (ctx: unknown): string[] =>
+	((ctx as { uiLog?: { status?: Array<{ key: string; value: string }> } }).uiLog?.status ?? [])
+		.filter((e) => e.key === "pi-obs")
+		.map((e) => e.value);
+
+test("the footer status shows the ⚠ counter when faults were detected (and stays clean without)", async () => {
+	activate();
+	// clean run: no ⚠ on the footer
+	const cleanCtx = mockContext({ hasUI: true, sessionId: "s-clean", sessionFile: "/x.jsonl" });
+	await pi.emit("session_start", { reason: "startup" }, cleanCtx);
+	const cleanEntries = statusValues(cleanCtx);
+	assert.ok(cleanEntries.length > 0, "the status line was set");
+	assert.ok(!cleanEntries.some((v) => v.includes("⚠")), `clean: ${JSON.stringify(cleanEntries)}`);
+
+	// handler fault: the counter appears on the footer, live — a clean
+	// session_start first stores the context, the poisoned one then faults
+	const ctx = mockContext({ hasUI: true, sessionId: "s-fault", sessionFile: "/x.jsonl" });
+	await pi.emit("session_start", { reason: "startup" }, ctx);
+	(ctx.sessionManager as unknown as { getSessionId: () => string }).getSessionId = () => {
+		throw "fault" as never;
+	};
+	await pi.emit("session_start", { reason: "startup" }, ctx);
+	const faultEntries = statusValues(ctx);
+	assert.ok(faultEntries.some((v) => v.includes("⚠1")), `fault footer: ${JSON.stringify(faultEntries)}`);
+});

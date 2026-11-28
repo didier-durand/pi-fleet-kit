@@ -151,6 +151,19 @@ export function resolveConfig(env: NodeJS.ProcessEnv = process.env): ConfigResul
 // The retained stats feature (R7) — works regardless of telemetry config.
 // ---------------------------------------------------------------------------
 
+/** The live footer status: the last computed usage text plus a real-time
+ *  error counter — refreshed the moment a fault is detected, without
+ *  waiting for the next hook (exporter faults, drops, handler faults). */
+interface StatusState {
+	ctx: CtxLike | null;
+	usageText: string;
+	errors: { exporter: number; dropped: number; handler: number };
+	/** Set by registerStatsFeature: re-render the footer from the current state. */
+	refresh?: () => void;
+}
+
+const errorTotal = (errors: StatusState["errors"]): number => errors.exporter + errors.dropped + errors.handler;
+
 /** Emit command output: notify with UI, plain stdout without (print/JSON modes). */
 const emit = (ctx: CtxLike, text: string) => {
 	if (ctx.hasUI === true && ctx.ui?.notify !== undefined) ctx.ui.notify(text, "info");
@@ -172,16 +185,23 @@ const readSessionEntries = (path: string): EntryLike[] => {
 };
 
 /** Register the footer status line hooks (R7, retained). The command lives in registerPiObsCommand. */
-function registerStatsFeature(pi: ExtensionAPI): void {
+function registerStatsFeature(pi: ExtensionAPI, status: StatusState): void {
+	const render = () => {
+		const ctx = status.ctx;
+		if (ctx === null || ctx.hasUI !== true || ctx.ui?.setStatus === undefined) return;
+		const total = errorTotal(status.errors);
+		const suffix = total > 0 ? ` · ⚠${total}` : "";
+		ctx.ui.setStatus(STATUS_KEY, status.usageText === "" ? (total > 0 ? `⚠${total}` : "") : status.usageText + suffix);
+	};
 	const updateStatus = (ctx: CtxLike) => {
+		status.ctx = ctx; // faults refresh the footer between hooks — keep the context live
 		if (ctx.hasUI !== true || ctx.ui?.setStatus === undefined) return;
 		const stats = computeStats((ctx.sessionManager?.getBranch?.() ?? []) as EntryLike[]);
-		ctx.ui.setStatus(
-			STATUS_KEY,
-			stats.usage.totalTokens > 0 ? `${formatTokens(stats.usage.totalTokens)} tok · ${formatCost(stats.cost)}` : "",
-		);
+		status.usageText = stats.usage.totalTokens > 0 ? `${formatTokens(stats.usage.totalTokens)} tok · ${formatCost(stats.cost)}` : "";
+		render();
 	};
 
+	status.refresh = render; // fault paths re-render the footer between hooks
 	onAny(pi, "session_start", (_event: unknown, ctx: CtxLike) => updateStatus(ctx));
 	onAny(pi, "session_tree", (_event: unknown, ctx: CtxLike) => updateStatus(ctx));
 	onAny(pi, "turn_end", (_event: unknown, ctx: CtxLike) => updateStatus(ctx));
@@ -210,7 +230,7 @@ interface SignalCounts {
 }
 
 /** Register the /pi-obs command: retained stats subs + status/flush/report (R7). */
-function registerPiObsCommand(pi: ExtensionAPI, telemetry: TelemetryState | null): void {
+function registerPiObsCommand(pi: ExtensionAPI, telemetry: TelemetryState | null, status: StatusState): void {
 	pi.registerCommand("pi-obs", {
 		description: "Session observability: tokens, cost, models, telemetry (usage: /pi-obs [help|json|all|status|flush|report <id|path> [--otlp] [--file=<path>] [--branch=<id>]])",
 		// the same loose-context boundary as onAny: pi's ExtensionCommandContext
@@ -223,7 +243,7 @@ function registerPiObsCommand(pi: ExtensionAPI, telemetry: TelemetryState | null
 				return;
 			}
 			if (sub === "status") {
-				statusView(ctx, telemetry);
+				statusView(ctx, telemetry, status);
 				return;
 			}
 			if (sub === "flush") {
@@ -316,7 +336,7 @@ function helpView(ctx: CtxLike): void {
 }
 
 /** `status` — exporter activity, queue depth, counters, last export times and errors (R7). */
-function statusView(ctx: CtxLike, telemetry: TelemetryState | null): void {
+function statusView(ctx: CtxLike, telemetry: TelemetryState | null, status: StatusState): void {
 	if (telemetry === null) {
 		emit(ctx, "pi-obs telemetry: inactive (no exporter configured — set PI_OBS_OTLP_ENDPOINT or PI_OBS_FILE=1; the stats commands work regardless)");
 		return;
@@ -338,6 +358,8 @@ function statusView(ctx: CtxLike, telemetry: TelemetryState | null): void {
 	const total = sc.span + sc.metric + sc.log;
 	lines.push(`  queue: depth ${fmt(telemetry.queue.pending)} · enqueued ${fmt(q.enqueued)} · drained ${fmt(q.drained)} · dropped ${fmt(q.dropped)}`);
 	lines.push(`  signals: ${fmt(total)} total — spans ${fmt(sc.span)} · metrics ${fmt(sc.metric)} · logs ${fmt(sc.log)}`);
+	const errors = errorTotal(status.errors);
+	if (errors > 0) lines.push(`  errors: ${fmt(errors)} — exporter ${fmt(status.errors.exporter)} · dropped ${fmt(status.errors.dropped)} · handler ${fmt(status.errors.handler)}`);
 	emit(ctx, lines.join("\n"));
 }
 
@@ -754,7 +776,7 @@ class LiveCapture {
 }
 
 /** Wire the live capture onto pi: queue + exporters + the 38 wrapped subscriptions. */
-function wireTelemetry(pi: ExtensionAPI, result: ConfigResult): TelemetryState {
+function wireTelemetry(pi: ExtensionAPI, result: ConfigResult, status: StatusState): TelemetryState {
 	const { config } = result;
 	const resource: Record<string, AttrValue> = {
 		"service.name": config.resourceService,
@@ -771,6 +793,8 @@ function wireTelemetry(pi: ExtensionAPI, result: ConfigResult): TelemetryState {
 		report(`${name}: ${String(error)}`);
 		if (faultedExporters.has(name)) return;
 		faultedExporters.add(name);
+		status.errors.exporter += 1;
+		status.refresh?.();
 		try {
 			queue.enqueue({ kind: "log", log: logRecord("ERROR", `exporter ${name} failed: ${String(error instanceof Error ? error.message : error)}`, { "pi.exporter.name": name }) });
 		} catch {
@@ -795,6 +819,8 @@ function wireTelemetry(pi: ExtensionAPI, result: ConfigResult): TelemetryState {
 		exporters,
 		onDrop: (dropped) => {
 			report(`dropped ${dropped} telemetry item(s) (queue overflow or closed)`);
+			status.errors.dropped = dropped;
+			status.refresh?.();
 			if (!notifyingDrop) {
 				notifyingDrop = true;
 				try {
@@ -833,6 +859,8 @@ function wireTelemetry(pi: ExtensionAPI, result: ConfigResult): TelemetryState {
 				return await handler(event, ctx);
 			} catch (error) {
 				faulted.add(hook);
+				status.errors.handler += 1;
+				status.refresh?.();
 				console.error(`pi-obs: ${hook} handler failed once — emission disabled for this session (${String(error instanceof Error ? error.message : error)})`);
 				try {
 					queue.enqueue({ kind: "log", log: logRecord("ERROR", `handler fault on ${hook}`, { "pi.hook": hook }) });
@@ -851,7 +879,8 @@ function wireTelemetry(pi: ExtensionAPI, result: ConfigResult): TelemetryState {
 /** The extension entry pi loads. */
 export default function piObs(pi: ExtensionAPI): void {
 	const result = resolveConfig();
-	const telemetry: TelemetryState | null = result.config.active ? wireTelemetry(pi, result) : null; // R6 master rule: inactive until an exporter is configured
-	registerStatsFeature(pi); // the footer status hooks (R7, retained)
-	registerPiObsCommand(pi, telemetry); // stats subs byte-identical + status/flush/report
+	const status: StatusState = { ctx: null, usageText: "", errors: { exporter: 0, dropped: 0, handler: 0 } };
+	const telemetry: TelemetryState | null = result.config.active ? wireTelemetry(pi, result, status) : null; // R6 master rule: inactive until an exporter is configured
+	registerStatsFeature(pi, status); // the footer status hooks (R7, retained)
+	registerPiObsCommand(pi, telemetry, status); // stats subs byte-identical + status/flush/report
 }

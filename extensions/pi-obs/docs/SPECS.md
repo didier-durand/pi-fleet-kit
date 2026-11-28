@@ -245,6 +245,11 @@ agent in any mode.
 - Mode behavior: telemetry is captured in all modes (`tui`, `rpc`,
   `json`, `print`); UI-facing features (footer status, notify) are
   guarded by `ctx.hasUI` as usual.
+- Footer error counter (R7): the footer status line carries a LIVE error
+  counter (`… tok · $… · ⚠N`) — exporter faults, dropped telemetry items
+  and handler faults increment it the moment they are detected (no
+  waiting for the next hook); `/pi-obs status` breaks the count down
+  (exporter / dropped / handler). Zero faults: the footer stays clean.
 - Shutdown: `session_shutdown` (all reasons) flushes queued telemetry;
   pending data MUST NOT be silently lost when pi exits normally.
 
