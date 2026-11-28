@@ -189,9 +189,12 @@ function registerStatsFeature(pi: ExtensionAPI, status: StatusState): void {
 	const render = () => {
 		const ctx = status.ctx;
 		if (ctx === null || ctx.hasUI !== true || ctx.ui?.setStatus === undefined) return;
-		const total = errorTotal(status.errors);
-		const suffix = total > 0 ? ` · ⚠${total}` : "";
-		ctx.ui.setStatus(STATUS_KEY, status.usageText === "" ? (total > 0 ? `⚠${total}` : "") : status.usageText + suffix);
+		const e = status.errors;
+		const total = errorTotal(e);
+		const errorsText = total > 0
+			? `errors: total: ${total} - faulted hooks: ${e.handler} - drop events: ${e.dropped} - exporter faults: ${e.exporter}`
+			: "";
+		ctx.ui.setStatus(STATUS_KEY, status.usageText === "" ? errorsText : (errorsText === "" ? status.usageText : status.usageText + " · " + errorsText));
 	};
 	const updateStatus = (ctx: CtxLike) => {
 		status.ctx = ctx; // faults refresh the footer between hooks — keep the context live
@@ -358,8 +361,9 @@ function statusView(ctx: CtxLike, telemetry: TelemetryState | null, status: Stat
 	const total = sc.span + sc.metric + sc.log;
 	lines.push(`  queue: depth ${fmt(telemetry.queue.pending)} · enqueued ${fmt(q.enqueued)} · drained ${fmt(q.drained)} · dropped ${fmt(q.dropped)}`);
 	lines.push(`  signals: ${fmt(total)} total — spans ${fmt(sc.span)} · metrics ${fmt(sc.metric)} · logs ${fmt(sc.log)}`);
-	const errors = errorTotal(status.errors);
-	if (errors > 0) lines.push(`  errors: ${fmt(errors)} — exporter ${fmt(status.errors.exporter)} · dropped ${fmt(status.errors.dropped)} · handler ${fmt(status.errors.handler)}`);
+	const e = status.errors;
+	const errors = errorTotal(e);
+	if (errors > 0) lines.push(`  errors: total: ${fmt(errors)} - faulted hooks: ${fmt(e.handler)} - drop events: ${fmt(e.dropped)} - exporter faults: ${fmt(e.exporter)}`);
 	emit(ctx, lines.join("\n"));
 }
 
@@ -819,7 +823,7 @@ function wireTelemetry(pi: ExtensionAPI, result: ConfigResult, status: StatusSta
 		exporters,
 		onDrop: (dropped) => {
 			report(`dropped ${dropped} telemetry item(s) (queue overflow or closed)`);
-			status.errors.dropped = dropped;
+			status.errors.dropped += 1; // drop EVENTS (not items — the queue counters already carry items)
 			status.refresh?.();
 			if (!notifyingDrop) {
 				notifyingDrop = true;

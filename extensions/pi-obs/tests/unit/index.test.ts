@@ -742,7 +742,7 @@ test("the footer status carries a live error counter: queue drops update it imme
 	// one SYNCHRONOUS burst: the model span + the token-counter metrics overflow the 1-deep queue
 	await pi.emit("message_end", { message: { role: "assistant", provider: "openrouter", model: "m", content: "x", usage: { input: 1, output: 1, cacheRead: 1, cacheWrite: 1, reasoning: 1, totalTokens: 5 }, stopReason: "stop" } }, ctx);
 	const entries = statusValues(ctx);
-	assert.ok(entries.some((v) => v.includes("⚠")), `the ⚠ counter appeared live: ${JSON.stringify(entries)}`);
+	assert.ok(entries.some((v) => v.includes("errors: total:")), `the ⚠ counter appeared live: ${JSON.stringify(entries)}`);
 });
 
 const statusValues = (ctx: unknown): string[] =>
@@ -757,7 +757,7 @@ test("the footer status shows the ⚠ counter when faults were detected (and sta
 	await pi.emit("session_start", { reason: "startup" }, cleanCtx);
 	const cleanEntries = statusValues(cleanCtx);
 	assert.ok(cleanEntries.length > 0, "the status line was set");
-	assert.ok(!cleanEntries.some((v) => v.includes("⚠")), `clean: ${JSON.stringify(cleanEntries)}`);
+	assert.ok(!cleanEntries.some((v) => v.includes("errors: total:")), `clean: ${JSON.stringify(cleanEntries)}`);
 
 	// handler fault: the counter appears on the footer, live — a clean
 	// session_start first stores the context, the poisoned one then faults
@@ -768,5 +768,5 @@ test("the footer status shows the ⚠ counter when faults were detected (and sta
 	};
 	await pi.emit("session_start", { reason: "startup" }, ctx);
 	const faultEntries = statusValues(ctx);
-	assert.ok(faultEntries.some((v) => v.includes("⚠1")), `fault footer: ${JSON.stringify(faultEntries)}`);
+	assert.ok(faultEntries.some((v) => v.includes("faulted hooks: 1")), `fault footer: ${JSON.stringify(faultEntries)}`);
 });
