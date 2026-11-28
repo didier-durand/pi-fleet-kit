@@ -4,7 +4,7 @@ Plan version: 1.0.1 (semver — matches the tag `impl-plan-1.0.1`)
 Author: Didier Durand
 Date: 2026-11-25
 
-> **Status:** executed — every step shipped in pi-obs v0.1.9. Derived from
+> **Status:** executed — every step shipped in pi-obs v0.1.9; post-1.0 increments (R13 distributed traces, the live footer error report, the pi.tool.input semconv row, JSON-shaped redaction) shipped in v0.2.0 — see the revision history. Derived from
 > `extensions/pi-obs/SPECS.md` (requirements R1–R8 + R3b). **Convention:**
 > each step is a self-contained milestone, executable by a dedicated
 > prompt against this plan; artifacts land under `extensions/pi-obs/`.

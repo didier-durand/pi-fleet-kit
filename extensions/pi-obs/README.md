@@ -4,8 +4,10 @@
 independent observability surfaces:
 
 1. **Live stats** — a footer status line showing token count and cost,
-   refreshed after every turn, plus `/pi-obs` commands for detailed
-   reports (current session, all sessions, JSON export).
+   refreshed after every turn, plus a live error report (faulted hooks /
+   drop events / exporter faults, updated the moment a fault is
+   detected) and `/pi-obs` commands for detailed reports (current
+   session, all sessions, JSON export).
 2. **OpenTelemetry telemetry** — when an exporter is configured, every
    pi lifecycle event (session start, turn start/end, tool calls, model
    calls) becomes standards-compliant OTel spans, metrics, and log
@@ -23,17 +25,26 @@ a Jaeger v2 container:
 
 | Compose env var | Value | Effect |
 |---|---|---|
-| `PI_OBS_OTLP_ENDPOINT` | `http://otlp-jaeger:4318` | Enables OTLP/HTTP export to the Jaeger container |
+| `PI_OBS_OTLP_ENDPOINT` | `http://otlp-jaeger:4318` | Enables OTLP/HTTP export to the fleet telemetry backend |
 | `PI_OBS_RESOURCE_SERVICE` | `pi-agent-<agent>` | Each agent appears as a separate service in the Jaeger UI |
 | `PI_OBS_CAPTURE_PROMPTS` | `1` | Verbatim prompt/completion text in traces (see [Capture options](#capture-options)) |
 
-**Start Jaeger:** `docker compose up -d otlp-jaeger`
+`otlp-jaeger` is a NETWORK ALIAS owned by the fleet telemetry
+collector (the first-level backend — it also keeps a permanent raw
+OTLP/JSONL archive and a watchdog that tails it); Jaeger v2 (service
+`jaeger`) sits downstream and receives from the collector via OTLP/gRPC.
+Agents keep the same endpoint byte-identically.
+
+**Start the stack:** `docker compose up -d` (collector + Jaeger + watchdog)
 **Open the UI:** http://localhost:16686
 
 In Jaeger you can browse traces per agent (each is a separate service),
 drill into `pi.session` → `pi.run` → `pi.turn` → `{pi.model, pi.tool}`
 hierarchies, see token counts and costs per turn, and read the verbatim
-prompt/response text (with capture enabled).
+prompt/response text (with capture enabled). Cross-agent mailbox
+exchanges are DISTRIBUTED TRACES: an envelope carries the sending
+session id, and the receiver session span carries an OTLP span link
+resolving the sender trace (deterministic from the session id).
 
 ## Commands
 
@@ -45,7 +56,7 @@ mode (output on stdout — scriptable).
 | `/pi-obs` | Report of the current session's active branch: message counts, duration, token breakdown (in / out / cache read / reasoning), cost, and per-model totals with turn counts. |
 | `/pi-obs json` | The same stats as raw JSON (for scripts and RPC consumers). |
 | `/pi-obs all` | Aggregate across every session file of this project's session directory: grand totals plus the 15 most recent sessions (when · tokens · cost · file). |
-| `/pi-obs status` | Telemetry health: active exporters, queue depth, counters, last export times, last error. |
+| `/pi-obs status` | Telemetry health: active exporters, queue depth, counters, last export times, last error — and the live error breakdown (faulted hooks / drop events / exporter faults) when anything was detected. |
 | `/pi-obs flush` | Drain the telemetry queue now (bounded, with a timeout notice when a backend is dead). |
 | `/pi-obs report <id\|path>` | Post-mortem replay of a finished session → deterministic OTLP/JSON report (stdout, one body per line), options `--otlp`, `--file=<path>`, `--branch=<entry-id>`. |
 | `/pi-obs help` | The in-session usage surface: every subcommand with a one-line description, the telemetry env vars, and a pointer to the standalone `piobs --help`. |
@@ -59,6 +70,21 @@ mode (output on stdout — scriptable).
 Live, refreshed on `session_start`, `session_tree`, `turn_end`, and
 `agent_settled`. TUI only; absent in print/JSON mode. Shows cumulative
 token count and cost for the current session's active branch.
+
+**With detected issues**, the footer carries a live error report,
+updated the moment a fault is detected (no waiting for the next turn):
+
+```
+12.4k tok · $0.09 · errors: total: 3 - faulted hooks: 1 - drop events: 1 - exporter faults: 1
+```
+
+- `faulted hooks` — hooks whose handler threw (one per hook — a faulted
+  handler is disabled for the rest of the session)
+- `drop events` — telemetry items dropped (queue overflow / closed queue)
+- `exporter faults` — export attempts that exhausted their retries
+
+`/pi-obs status` carries the same breakdown. Zero faults: the footer
+stays clean.
 
 ## How it works
 
@@ -114,6 +140,10 @@ cost telemetry, not agent turns).
 | `PI_OBS_FILE_MAX_BYTES` | `10485760` (10 MiB) | Rotation size: when the active file exceeds this, it is rotated. |
 | `PI_OBS_FILE_MAX_FILES` | `5` | Files kept total (active + rotated), oldest dropped. |
 
+The redaction also covers JSON-shaped assignments (compact
+`JSON.stringify` output — the tool-input capture shape — including
+escaped-quote nesting), not just shell/YAML `key=value` text.
+
 The file exporter refuses targets inside session directories (a safety
 measure against overwriting pi's own data).
 
@@ -138,7 +168,7 @@ and again at serialization):
 
 | Pattern | Example caught |
 |---|---|
-| Credential assignments | `API_KEY=…`, `PASSWORD=…`, `SECRET=…` |
+| Credential assignments | `API_KEY=…`, `PASSWORD=…`, `SECRET=…` — also inside JSON (`"api_key":"…"`, compact or escaped-quote nested) |
 | OpenAI-style keys | `sk-…` (48+ chars) |
 | Bearer tokens | `Authorization: Bearer eyJ…` |
 | AWS access key IDs | `AKIA…` (16 chars) |

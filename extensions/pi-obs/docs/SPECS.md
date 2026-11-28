@@ -351,7 +351,7 @@ subscribed (with a reason). Nothing is silently ignored.
 | `thinking_level_select` | span event `pi.session.thinking_level_change` (level) — parity with `thinking_level_change` entries |
 | `cache_warming_decision` | span event `pi.model.cache_warming` (decision observed) — the resulting `cache_warm` usage is a session entry, replayed by R3b |
 | `tool_execution_start` | start of span `pi.tool <name>` (child of `pi.turn`) |
-| `tool_call` | event on the tool span (blocked/mutated outcome) |
+| `tool_call` | event on the tool span — carries `pi.tool.input` (the input JSON, redacted) ONLY under `PI_OBS_CAPTURE_TOOL_IO=1` (R2 opt-in) |
 | `tool_result` / `tool_execution_end` | end of tool span (is-error, duration; result body per R2) |
 | `context` / `context_with_system` | span event `pi.context` (message count in/out) — read-only observation |
 
@@ -763,3 +763,4 @@ Additional deliverable acceptance criteria:
 |---|---|---|---|
 | 1.0.0 | 2026-11-25 | Didier Durand | versioned per house convention; status updated to implemented |
 | 1.0.1 | 2026-11-25 | Didier Durand | editorial: removed provenance references from the status note |
+| 1.1.0 | 2026-11-27 | Didier Durand | post-0.1.9 increments documented: pi.tool.input registered (R4 add-only); redaction covers JSON-shaped assignments; distributed traces — envelopes carry the sender session_id, live traces derive deterministically from session ids, mailbox deliveries become span links on the receiver session span (R13); the footer status carries a live error report (faulted hooks / drop events / exporter faults) |

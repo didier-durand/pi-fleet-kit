@@ -1,3 +1,22 @@
+## [0.2.0] - 2026-11-27
+
+- Distributed traces across agents (R13): live session traces derive
+  deterministically from the session id (`deriveTraceId` — replay
+  parity); a mailbox delivery (appended by the prompt-trigger
+  extension as a `mailbox` session entry) becomes an OTLP SPAN LINK on
+  the receiver session span — `traceId = deriveTraceId(sender
+  session_id)` + the `pi.mailbox.session_id` link attribute.
+- The footer status carries a LIVE error report — `errors: total: N -
+  faulted hooks: H - drop events: D - exporter faults: E` — updated
+  the moment a fault is detected; `/pi-obs status` carries the same
+  breakdown; zero faults keeps the footer clean.
+- `pi.tool.input` registered in the semconv table (R4 add-only) — the
+  tool_call handler no longer disables itself under
+  `PI_OBS_CAPTURE_TOOL_IO=1`.
+- Redaction tightened: credential-shaped assignments inside JSON
+  (compact `JSON.stringify` and JSON-in-JSON escaped quotes) redact
+  like shell/YAML `key=value` text.
+
 # Changelog
 
 ## [0.1.9] - 2026-11-19

@@ -1,6 +1,6 @@
 {
   "name": "pi-obs",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "type": "module",
   "description": "OpenTelemetry observability extension for the pi coding agent (jiti-loaded, no build step)",
   "keywords": [
