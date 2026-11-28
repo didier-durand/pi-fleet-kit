@@ -160,7 +160,23 @@ interface StatusState {
 	errors: { exporter: number; dropped: number; handler: number };
 	/** Set by registerStatsFeature: re-render the footer from the current state. */
 	refresh?: () => void;
+	/** The detected error events themselves, newest last (bounded ring —
+	 *  /pi-obs errors lists them; the OTel log records remain the durable copy). */
+	log: ErrorEvent[];
 }
+
+/** One detected error event (R7): the footer counters summarize, /pi-obs errors lists. */
+interface ErrorEvent {
+	ts: string;
+	kind: "exporter" | "drop" | "handler";
+	detail: string;
+}
+
+const ERROR_LOG_MAX = 20;
+const recordError = (status: StatusState, kind: ErrorEvent["kind"], detail: string): void => {
+	status.log.push({ ts: new Date().toISOString(), kind, detail: detail.slice(0, 300) });
+	if (status.log.length > ERROR_LOG_MAX) status.log.shift(); // bounded ring: oldest dropped
+};
 
 const errorTotal = (errors: StatusState["errors"]): number => errors.exporter + errors.dropped + errors.handler;
 
@@ -238,7 +254,7 @@ interface SignalCounts {
 /** Register the /pi-obs command: retained stats subs + status/flush/report (R7). */
 function registerPiObsCommand(pi: ExtensionAPI, telemetry: TelemetryState | null, status: StatusState): void {
 	pi.registerCommand("pi-obs", {
-		description: "Session observability: tokens, cost, models, telemetry (usage: /pi-obs [help|json|all|status|flush|reset-errors|report <id|path> [--otlp] [--file=<path>] [--branch=<id>]])",
+		description: "Session observability: tokens, cost, models, telemetry (usage: /pi-obs [help|json|all|status|errors|flush|reset-errors|report <id|path> [--otlp] [--file=<path>] [--branch=<id>]])",
 		// the same loose-context boundary as onAny: pi's ExtensionCommandContext
 		// is a superset our handler reads defensively
 		handler: (async (args: string, ctx: CtxLike) => {
@@ -252,10 +268,24 @@ function registerPiObsCommand(pi: ExtensionAPI, telemetry: TelemetryState | null
 				statusView(ctx, telemetry, status);
 				return;
 			}
+			if (sub === "errors") {
+				if (status.log.length === 0) {
+					emit(ctx, "pi-obs errors: no errors detected in this session");
+					return;
+				}
+				const lines = [
+					`pi-obs errors — ${status.log.length} detected (counters: total: ${errorTotal(status.errors)} - faulted hooks: ${status.errors.handler} - drop events: ${status.errors.dropped} - exporter faults: ${status.errors.exporter})`,
+					...status.log.map((e, i) => `  ${i + 1}. [${e.ts}] ${e.kind}: ${e.detail}`),
+					`(the durable copy lives in the OTel log records — Jaeger / the archive; /pi-obs reset-errors clears this list)`,
+				];
+				emit(ctx, lines.join("\n"));
+				return;
+			}
 			if (sub === "reset-errors") {
 				status.errors.exporter = 0;
 				status.errors.dropped = 0;
 				status.errors.handler = 0;
+				status.log.length = 0; // the reset clears the in-session error list too
 				telemetry?.resetErrors(); // a NEW fault cycle re-reports (handler DISABLE unchanged, R1)
 				status.refresh?.();
 				emit(ctx, "pi-obs: error counters reset to zero — the footer is clean again; new faults are detected fresh (faulted hooks stay disabled, R1)");
@@ -342,6 +372,7 @@ function helpView(ctx: CtxLike): void {
 		"  /pi-obs all                              all sessions in the session dir (15 most recent)",
 		"  /pi-obs status                           telemetry health: exporters, queue, counters, last errors",
 		"  /pi-obs flush                            drain the telemetry queue now (bounded)",
+		"  /pi-obs errors                           list the detected error events (bounded in-session log)",
 		"  /pi-obs reset-errors                     zero the error counters (footer + status); new faults detected fresh",
 		"  /pi-obs report <id|path> [session-dir]   post-mortem replay → OTLP/JSON (R3b)",
 		"      [--otlp] [--file=<path>] [--branch=<entry-id>]",
@@ -837,6 +868,7 @@ function wireTelemetry(pi: ExtensionAPI, result: ConfigResult, status: StatusSta
 		onDrop: (dropped) => {
 			report(`dropped ${dropped} telemetry item(s) (queue overflow or closed)`);
 			status.errors.dropped += 1; // drop EVENTS (not items — the queue counters already carry items)
+			recordError(status, "drop", `dropped telemetry item(s) — queue overflow or closed queue`);
 			status.refresh?.();
 			if (!notifyingDrop) {
 				notifyingDrop = true;
@@ -877,6 +909,7 @@ function wireTelemetry(pi: ExtensionAPI, result: ConfigResult, status: StatusSta
 			} catch (error) {
 				faulted.add(hook);
 				status.errors.handler += 1;
+				recordError(status, "handler", `${hook}: ${String(error instanceof Error ? error.message : error)}`);
 				status.refresh?.();
 				console.error(`pi-obs: ${hook} handler failed once — emission disabled for this session (${String(error instanceof Error ? error.message : error)})`);
 				try {
@@ -896,7 +929,7 @@ function wireTelemetry(pi: ExtensionAPI, result: ConfigResult, status: StatusSta
 /** The extension entry pi loads. */
 export default function piObs(pi: ExtensionAPI): void {
 	const result = resolveConfig();
-	const status: StatusState = { ctx: null, usageText: "", errors: { exporter: 0, dropped: 0, handler: 0 } };
+	const status: StatusState = { ctx: null, usageText: "", errors: { exporter: 0, dropped: 0, handler: 0 }, log: [] };
 	const telemetry: TelemetryState | null = result.config.active ? wireTelemetry(pi, result, status) : null; // R6 master rule: inactive until an exporter is configured
 	registerStatsFeature(pi, status); // the footer status hooks (R7, retained)
 	registerPiObsCommand(pi, telemetry, status); // stats subs byte-identical + status/flush/report

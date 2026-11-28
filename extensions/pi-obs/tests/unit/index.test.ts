@@ -783,7 +783,7 @@ test("/pi-obs reset-errors zeroes the counters, cleans the footer, and re-arms d
 	assert.ok((statusValues(ctx).at(-1) ?? "").includes("drop events: 1"), `pre-reset: ${statusValues(ctx).at(-1)}`);
 
 	// reset → counters zero, footer clean
-	const out = [];
+	const out: string[] = [];
 	console.log = (m) => out.push(String(m));
 	await pi.runCommand("pi-obs", "reset-errors");
 	console.log = () => {};
@@ -793,4 +793,42 @@ test("/pi-obs reset-errors zeroes the counters, cleans the footer, and re-arms d
 	// re-armed: a SECOND burst detects drop events fresh (counter counts again)
 	await pi.emit("message_end", { message: { role: "assistant", provider: "openrouter", model: "m", content: "y", usage: { input: 2, output: 2, cacheRead: 2, cacheWrite: 2, reasoning: 2, totalTokens: 10 }, stopReason: "stop" } }, ctx);
 	assert.ok((statusValues(ctx).at(-1) ?? "").includes("drop events: 1"), `post-reset detection fresh: ${statusValues(ctx).at(-1)}`);
+});
+
+test("/pi-obs errors lists the detected error events; reset clears the list (R7)", async () => {
+	activate({ PI_OBS_QUEUE_MAX: "1" });
+	const ctx = mockContext({ hasUI: true, sessionId: "sess-errors", sessionFile: "/x.jsonl", model: { provider: "openrouter", id: "m" } });
+	await pi.emit("session_start", { reason: "startup" }, ctx);
+	await pi.emit("before_agent_start", { messageType: "user" }, ctx);
+	await pi.emit("turn_start", { turnIndex: 0 }, ctx);
+	await pi.emit("before_provider_request", {}, ctx);
+	// burst → overflow drops
+	await pi.emit("message_end", { message: { role: "assistant", provider: "openrouter", model: "m", content: "x", usage: { input: 1, output: 1, cacheRead: 1, cacheWrite: 1, reasoning: 1, totalTokens: 5 }, stopReason: "stop" } }, ctx);
+	// handler fault
+	const poisoned = mockContext({ hasUI: true, sessionId: "sess-errors", sessionFile: "/x.jsonl" });
+	await pi.emit("session_start", { reason: "startup" }, poisoned);
+	const bad = mockContext({ hasUI: true, sessionId: "sess-errors", sessionFile: "/x.jsonl" });
+	(bad.sessionManager as unknown as { getSessionId: () => string }).getSessionId = () => {
+		throw "the session id exploded" as never;
+	};
+	await pi.emit("session_start", { reason: "startup" }, bad);
+
+	const out: string[] = [];
+	console.log = (m) => out.push(String(m));
+	await pi.runCommand("pi-obs", "errors");
+	console.log = () => {};
+	const text = out.join("\n");
+	assert.match(text, /pi-obs errors — \d+ detected/, "the header with the count");
+	assert.match(text, /drop: dropped telemetry item\(s\)/, "the drop event is listed");
+	assert.match(text, /handler: session_start: the session id exploded/, "the handler fault is listed with its detail");
+	assert.match(text, /the durable copy lives in the OTel log records/, "the durable-copy pointer");
+	assert.ok(!text.includes("exporter:"), `no exporter faults here: ${text.split("\n")[0]}`);
+
+	// reset clears the list
+	await pi.runCommand("pi-obs", "reset-errors");
+	const after: string[] = [];
+	console.log = (m) => after.push(String(m));
+	await pi.runCommand("pi-obs", "errors");
+	console.log = () => {};
+	assert.match(after.join("\n"), /no errors detected in this session/, "the reset cleared the list");
 });
