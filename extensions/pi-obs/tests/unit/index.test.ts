@@ -742,7 +742,7 @@ test("the footer status carries a live error counter: queue drops update it imme
 	// one SYNCHRONOUS burst: the model span + the token-counter metrics overflow the 1-deep queue
 	await pi.emit("message_end", { message: { role: "assistant", provider: "openrouter", model: "m", content: "x", usage: { input: 1, output: 1, cacheRead: 1, cacheWrite: 1, reasoning: 1, totalTokens: 5 }, stopReason: "stop" } }, ctx);
 	const entries = statusValues(ctx);
-	assert.ok(entries.some((v) => v.includes("errors: total:")), `the ⚠ counter appeared live: ${JSON.stringify(entries)}`);
+	assert.ok((entries.at(-1) ?? "").includes("errors: total:"), `the error report appeared live: ${entries.at(-1)}`);
 });
 
 const statusValues = (ctx: unknown): string[] =>
@@ -768,5 +768,29 @@ test("the footer status shows the ⚠ counter when faults were detected (and sta
 	};
 	await pi.emit("session_start", { reason: "startup" }, ctx);
 	const faultEntries = statusValues(ctx);
-	assert.ok(faultEntries.some((v) => v.includes("faulted hooks: 1")), `fault footer: ${JSON.stringify(faultEntries)}`);
+	assert.ok((faultEntries.at(-1) ?? "").includes("faulted hooks: 1"), `fault footer: ${faultEntries.at(-1)}`);
+});
+
+test("/pi-obs reset-errors zeroes the counters, cleans the footer, and re-arms detection (R7)", async () => {
+	activate({ PI_OBS_QUEUE_MAX: "1" });
+	const ctx = mockContext({ hasUI: true, sessionId: "sess-reset", sessionFile: "/x.jsonl", model: { provider: "openrouter", id: "m" } });
+	await pi.emit("session_start", { reason: "startup" }, ctx);
+	await pi.emit("before_agent_start", { messageType: "user" }, ctx);
+	await pi.emit("turn_start", { turnIndex: 0 }, ctx);
+	await pi.emit("before_provider_request", {}, ctx);
+	// burst → overflow → drop events counted on the footer
+	await pi.emit("message_end", { message: { role: "assistant", provider: "openrouter", model: "m", content: "x", usage: { input: 1, output: 1, cacheRead: 1, cacheWrite: 1, reasoning: 1, totalTokens: 5 }, stopReason: "stop" } }, ctx);
+	assert.ok((statusValues(ctx).at(-1) ?? "").includes("drop events: 1"), `pre-reset: ${statusValues(ctx).at(-1)}`);
+
+	// reset → counters zero, footer clean
+	const out = [];
+	console.log = (m) => out.push(String(m));
+	await pi.runCommand("pi-obs", "reset-errors");
+	console.log = () => {};
+	assert.ok(out.some((l) => l.includes("error counters reset to zero")), `reset output: ${out.join(" | ")}`);
+	assert.ok(!(statusValues(ctx).at(-1) ?? "").includes("errors: total:"), `current footer clean after reset: ${statusValues(ctx).at(-1)}`);
+
+	// re-armed: a SECOND burst detects drop events fresh (counter counts again)
+	await pi.emit("message_end", { message: { role: "assistant", provider: "openrouter", model: "m", content: "y", usage: { input: 2, output: 2, cacheRead: 2, cacheWrite: 2, reasoning: 2, totalTokens: 10 }, stopReason: "stop" } }, ctx);
+	assert.ok((statusValues(ctx).at(-1) ?? "").includes("drop events: 1"), `post-reset detection fresh: ${statusValues(ctx).at(-1)}`);
 });

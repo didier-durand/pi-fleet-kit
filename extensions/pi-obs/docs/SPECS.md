@@ -250,9 +250,12 @@ agent in any mode.
   - exporter faults: E`) — handler faults, drop events and exporter faults
   increment it the moment they are detected (no waiting for the next hook);
   `/pi-obs status` carries the same breakdown. Zero faults: the footer
-  stays clean. (Faulted hooks count once per hook — R1 disables a faulted
-  handler after its first failure; drop events count onDrop invocations —
-  the queue counters already carry dropped ITEM counts.)
+  stays clean. `/pi-obs reset-errors` zeroes the counters, cleans the
+  footer and re-arms detection (a NEW fault cycle re-reports); faulted
+  hooks stay disabled for the session (R1). (Faulted hooks count once
+  per hook — R1 disables a faulted handler after its first failure; drop
+  events count onDrop invocations — the queue counters already carry
+  dropped ITEM counts.)
 - Shutdown: `session_shutdown` (all reasons) flushes queued telemetry;
   pending data MUST NOT be silently lost when pi exits normally.
 

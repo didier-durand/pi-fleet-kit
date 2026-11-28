@@ -223,6 +223,9 @@ interface TelemetryState {
 	readonly fileMaxFiles: number | null;
 	/** Per-signal enqueue counts — the status view breaks spans/metrics/logs apart. */
 	readonly signalCounts: SignalCounts;
+	/** Re-arm fault detection after a counter reset (R7): a NEW fault cycle
+	 *  re-reports (log record + counter). Handler DISABLE stays (R1). */
+	readonly resetErrors: () => void;
 }
 
 /** Per-signal enqueue counters (status view: spans vs metrics vs logs). */
@@ -235,7 +238,7 @@ interface SignalCounts {
 /** Register the /pi-obs command: retained stats subs + status/flush/report (R7). */
 function registerPiObsCommand(pi: ExtensionAPI, telemetry: TelemetryState | null, status: StatusState): void {
 	pi.registerCommand("pi-obs", {
-		description: "Session observability: tokens, cost, models, telemetry (usage: /pi-obs [help|json|all|status|flush|report <id|path> [--otlp] [--file=<path>] [--branch=<id>]])",
+		description: "Session observability: tokens, cost, models, telemetry (usage: /pi-obs [help|json|all|status|flush|reset-errors|report <id|path> [--otlp] [--file=<path>] [--branch=<id>]])",
 		// the same loose-context boundary as onAny: pi's ExtensionCommandContext
 		// is a superset our handler reads defensively
 		handler: (async (args: string, ctx: CtxLike) => {
@@ -247,6 +250,15 @@ function registerPiObsCommand(pi: ExtensionAPI, telemetry: TelemetryState | null
 			}
 			if (sub === "status") {
 				statusView(ctx, telemetry, status);
+				return;
+			}
+			if (sub === "reset-errors") {
+				status.errors.exporter = 0;
+				status.errors.dropped = 0;
+				status.errors.handler = 0;
+				telemetry?.resetErrors(); // a NEW fault cycle re-reports (handler DISABLE unchanged, R1)
+				status.refresh?.();
+				emit(ctx, "pi-obs: error counters reset to zero — the footer is clean again; new faults are detected fresh (faulted hooks stay disabled, R1)");
 				return;
 			}
 			if (sub === "flush") {
@@ -330,6 +342,7 @@ function helpView(ctx: CtxLike): void {
 		"  /pi-obs all                              all sessions in the session dir (15 most recent)",
 		"  /pi-obs status                           telemetry health: exporters, queue, counters, last errors",
 		"  /pi-obs flush                            drain the telemetry queue now (bounded)",
+		"  /pi-obs reset-errors                     zero the error counters (footer + status); new faults detected fresh",
 		"  /pi-obs report <id|path> [session-dir]   post-mortem replay → OTLP/JSON (R3b)",
 		"      [--otlp] [--file=<path>] [--branch=<entry-id>]",
 		"  /pi-obs help                             this list",
@@ -875,7 +888,7 @@ function wireTelemetry(pi: ExtensionAPI, result: ConfigResult, status: StatusSta
 			}
 		});
 	}
-	return { queue, exporters, capturePrompts: config.capturePrompts, captureToolIo: config.captureToolIo, otlpEndpoint: config.otlp?.endpoint ?? null, fileMaxBytes: config.file?.maxBytes ?? null, fileMaxFiles: config.file?.maxFiles ?? null, signalCounts };
+	return { queue, exporters, capturePrompts: config.capturePrompts, captureToolIo: config.captureToolIo, otlpEndpoint: config.otlp?.endpoint ?? null, fileMaxBytes: config.file?.maxBytes ?? null, fileMaxFiles: config.file?.maxFiles ?? null, signalCounts, resetErrors: () => { faultedExporters.clear(); } };
 }
 
 // ---------------------------------------------------------------------------
